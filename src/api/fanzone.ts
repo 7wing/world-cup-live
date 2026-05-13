@@ -1,0 +1,73 @@
+import { supabase } from '@/lib/supabase'
+import type { Post, ChatMessage, Tribe } from '@/types'
+
+export async function fetchPosts(matchId?: string): Promise<Post[]> {
+  let query = supabase
+    .from('posts')
+    .select('*, user:users(username, avatar_url)')
+    .order('created_at', { ascending: false })
+    .limit(30)
+
+  if (matchId) query = query.eq('match_id', matchId)
+
+  const { data, error } = await query
+  if (error) throw error
+  return data as Post[]
+}
+
+export async function createPost(
+  post: Pick<Post, 'user_id' | 'content' | 'media_url' | 'media_type' | 'match_id'>
+): Promise<void> {
+  const { error } = await supabase.from('posts').insert(post)
+  if (error) throw error
+}
+
+export async function togglePostLike(postId: string, userId: string, liked: boolean): Promise<void> {
+  if (liked) {
+    await supabase.from('post_likes').insert({ post_id: postId, user_id: userId })
+    await supabase.from('posts').update({ likes: supabase.rpc('increment', { x: 1 }) }).eq('id', postId)
+  } else {
+    await supabase.from('post_likes').delete().match({ post_id: postId, user_id: userId })
+  }
+}
+
+export async function fetchChatMessages(matchId: string): Promise<ChatMessage[]> {
+  const { data, error } = await supabase
+    .from('chat_messages')
+    .select('*, user:users(username, avatar_url)')
+    .eq('match_id', matchId)
+    .order('created_at', { ascending: true })
+    .limit(100)
+
+  if (error) throw error
+  return data as ChatMessage[]
+}
+
+export async function sendChatMessage(
+  matchId: string,
+  userId: string,
+  content: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('chat_messages')
+    .insert({ match_id: matchId, user_id: userId, content })
+
+  if (error) throw error
+}
+
+export async function fetchTribes(): Promise<Tribe[]> {
+  const { data, error } = await supabase
+    .from('tribes')
+    .select('*')
+    .order('total_points', { ascending: false })
+
+  if (error) throw error
+  return data as Tribe[]
+}
+
+export async function joinTribe(userId: string, tribeId: string): Promise<void> {
+  const { error } = await supabase
+    .from('tribe_members')
+    .insert({ user_id: userId, tribe_id: tribeId })
+  if (error) throw error
+}
