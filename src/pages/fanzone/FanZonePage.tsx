@@ -1,8 +1,10 @@
+import { useState } from 'react'
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { PostComposer } from '@/components/fanzone/PostComposer'
 import { PostCard } from '@/components/fanzone/PostCard'
 import { FAB } from '@/components/layout/FAB'
-import { usePosts } from '@/hooks/usePosts'
+import { usePosts, useToggleLike } from '@/hooks/usePosts'
+import { useAuthStore } from '@/store/authStore'
 import { Link } from 'react-router-dom'
 import { GlassCard } from '@/components/ui/GlassCard'
 
@@ -10,6 +12,15 @@ const HASHTAGS = ['#GoldenBoot26', '#WC2026', '#JogaBonito', '#FinalSamba', '#VA
 
 export function FanZonePage() {
   const { data: posts, isLoading } = usePosts()
+  const { mutate: toggleLike } = useToggleLike()
+  const { user } = useAuthStore()
+  const [showComposer, setShowComposer] = useState(false)
+
+  const handleLike = (postId: string) => {
+    if (!user) return
+    // optimistically assume not liked; a proper implementation tracks liked state
+    toggleLike({ postId, userId: user.id, liked: true })
+  }
 
   return (
     <PageWrapper>
@@ -28,7 +39,7 @@ export function FanZonePage() {
           {isLoading && [1,2,3].map((i) => <div key={i} className="glass-card h-48 rounded-xl animate-pulse" />)}
 
           {posts?.map((post) => (
-            <PostCard key={post.id} post={post} />
+            <PostCard key={post.id} post={post} onLike={handleLike} />
           ))}
         </div>
 
@@ -51,7 +62,15 @@ export function FanZonePage() {
         </aside>
       </div>
 
-      <FAB icon="add" onClick={() => {}} label="New post" />
+      <FAB icon="add" onClick={() => setShowComposer(true)} label="New post" />
+
+      {showComposer && (
+        <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-end md:items-center justify-center p-4" onClick={() => setShowComposer(false)}>
+          <div className="w-full max-w-xl" onClick={(e) => e.stopPropagation()}>
+            <PostComposer />
+          </div>
+        </div>
+      )}
     </PageWrapper>
   )
 }

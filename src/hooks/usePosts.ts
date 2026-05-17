@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { fetchPosts, createPost } from '@/api/fanzone'
+import { fetchPosts, createPost, togglePostLike } from '@/api/fanzone'
 import { useNotificationStore } from '@/store/notificationStore'
 
 export function usePosts(matchId?: string) {
@@ -21,5 +21,14 @@ export function useCreatePost() {
       push('Post shared!', 'success')
     },
     onError: () => push('Failed to post', 'error'),
+  })
+}
+
+export function useToggleLike() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ postId, userId, liked }: { postId: string; userId: string; liked: boolean }) =>
+      togglePostLike(postId, userId, liked),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['posts'] }),
   })
 }

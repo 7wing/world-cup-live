@@ -2,6 +2,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
 
 @import "tailwindcss";
+@source "../../";
 
 @theme {
   --color-primary-container: #00ff41;
@@ -34,42 +35,41 @@
   --color-green-dim: #00e639;
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* Unlayered * { padding: 0 } overrides @layer utilities — keep resets inside @layer base */
+@layer base {
+  body {
+    background-color: #121414;
+    color: #e2e2e2;
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
 }
 
-body {
-  background-color: #121414;
-  color: #e2e2e2;
-  font-family: 'Inter', sans-serif;
-  min-height: 100vh;
-  overflow-x: hidden;
-}
+@layer components {
+  .glass-surface {
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
 
-.glass-surface {
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
+  .glass-card {
+    background: rgba(18, 20, 20, 0.8);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
 
-.glass-card {
-  background: rgba(18, 20, 20, 0.8);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
+  .active-glow {
+    box-shadow: 0 0 15px rgba(0, 255, 65, 0.4);
+  }
 
-.active-glow {
-  box-shadow: 0 0 15px rgba(0, 255, 65, 0.4);
-}
+  .neon-text {
+    text-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+  }
 
-.neon-text {
-  text-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
-}
-
-.material-symbols-outlined {
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
 }
 
 ::-webkit-scrollbar { width: 4px; }

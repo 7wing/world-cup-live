@@ -1,6 +1,6 @@
+// src/router/index.tsx
 import { createBrowserRouter } from 'react-router-dom'
 import App from '@/App'
-import { ProtectedRoute } from './ProtectedRoute'
 import { LoginPage } from '@/pages/Login'
 import { SignupPage } from '@/pages/Signup'
 import { MatchesPage } from '@/pages/matches/MatchesPage'
@@ -27,32 +27,14 @@ export const router = createBrowserRouter([
       { path: 'matches', element: <MatchesPage /> },
       { path: 'matches/brackets', element: <BracketsPage /> },
       { path: 'matches/:matchId', element: <MatchDetailPage /> },
-      {
-        path: 'fan-zone',
-        element: <ProtectedRoute><FanZonePage /></ProtectedRoute>,
-      },
-      {
-        path: 'fan-zone/games',
-        element: <ProtectedRoute><GamesPage /></ProtectedRoute>,
-      },
-      {
-        path: 'fan-zone/tribes',
-        element: <ProtectedRoute><TribesPage /></ProtectedRoute>,
-      },
+      { path: 'fan-zone', element: <FanZonePage /> },
+      { path: 'fan-zone/games', element: <GamesPage /> },
+      { path: 'fan-zone/tribes', element: <TribesPage /> },
       { path: 'stadiums', element: <StadiumsPage /> },
       { path: 'stadiums/:stadiumId', element: <StadiumDetailPage /> },
-      {
-        path: 'passport',
-        element: <ProtectedRoute><PassportPage /></ProtectedRoute>,
-      },
-      {
-        path: 'profile/:userId',
-        element: <ProtectedRoute><ProfilePage /></ProtectedRoute>,
-      },
-      {
-        path: 'profile/:userId/friends',
-        element: <ProtectedRoute><FriendsPage /></ProtectedRoute>,
-      },
+      { path: 'passport', element: <PassportPage /> },
+      { path: 'profile/:userId', element: <ProfilePage /> },
+      { path: 'profile/:userId/friends', element: <FriendsPage /> },
       { path: '*', element: <NotFound /> },
     ],
   },

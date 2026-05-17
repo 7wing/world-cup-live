@@ -1,18 +1,20 @@
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { FriendList } from '@/components/profile/FriendList'
 import { GlassCard } from '@/components/ui/GlassCard'
 import { Avatar } from '@/components/ui/Avatar'
 import { NeonButton } from '@/components/ui/NeonButton'
-import { useProfile, useFriends, useUserPhotos } from '@/hooks/useProfile'
+import { useProfile, useFriends, useUserPhotos, useSendFriendRequest } from '@/hooks/useProfile'
 import { useAuthStore } from '@/store/authStore'
 
 export function ProfilePage() {
   const { userId } = useParams<{ userId: string }>()
   const { user: currentUser } = useAuthStore()
+  const navigate = useNavigate()
   const { data: profile, isLoading } = useProfile(userId!)
   const { data: friends } = useFriends(userId!)
   const { data: photos } = useUserPhotos(userId!)
+  const { mutate: sendRequest, isPending: sendingRequest } = useSendFriendRequest()
   const isOwn = currentUser?.id === userId
 
   if (isLoading) return <PageWrapper><div className="glass-card h-48 rounded-xl animate-pulse" /></PageWrapper>
@@ -44,10 +46,22 @@ export function ProfilePage() {
                   <span className="font-lexend font-black text-2xl">{profile.xp.toLocaleString()}</span>
                 </div>
               </div>
-              {!isOwn && (
+              {!isOwn && currentUser && (
                 <div className="mt-4 flex gap-3">
-                  <NeonButton size="sm">Add Friend</NeonButton>
-                  <NeonButton variant="outline" size="sm">Message</NeonButton>
+                  <NeonButton
+                    size="sm"
+                    disabled={sendingRequest}
+                    onClick={() => sendRequest({ userId: currentUser.id, friendId: userId! })}
+                  >
+                    Add Friend
+                  </NeonButton>
+                  <NeonButton
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate(`/messages/${userId}`)}
+                  >
+                    Message
+                  </NeonButton>
                 </div>
               )}
             </div>

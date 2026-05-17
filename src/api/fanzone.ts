@@ -25,9 +25,12 @@ export async function createPost(
 export async function togglePostLike(postId: string, userId: string, liked: boolean): Promise<void> {
   if (liked) {
     await supabase.from('post_likes').insert({ post_id: postId, user_id: userId })
-    await supabase.from('posts').update({ likes: supabase.rpc('increment', { x: 1 }) }).eq('id', postId)
+    const { data } = await supabase.from('posts').select('likes').eq('id', postId).single()
+    if (data) await supabase.from('posts').update({ likes: data.likes + 1 }).eq('id', postId)
   } else {
     await supabase.from('post_likes').delete().match({ post_id: postId, user_id: userId })
+    const { data } = await supabase.from('posts').select('likes').eq('id', postId).single()
+    if (data) await supabase.from('posts').update({ likes: Math.max(0, data.likes - 1) }).eq('id', postId)
   }
 }
 
