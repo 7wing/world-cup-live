@@ -27,8 +27,17 @@ export function LiveChatPanel({ matchId }: LiveChatPanelProps) {
 
   const handleSend = async () => {
     if (!input.trim() || !user) return
-    await sendChatMessage(matchId, user.id, input)
+    const optimistic = {
+      id: crypto.randomUUID(),
+      match_id: matchId,
+      user_id: user.id,
+      content: input,
+      created_at: new Date().toISOString(),
+      user: { username: user.username, avatar_url: user.avatar_url },
+    }
+    addMessage(matchId, optimistic)
     setInput('')
+    await sendChatMessage(matchId, user.id, optimistic.content)
   }
 
   const matchMessages = messages[matchId] ?? []
@@ -50,7 +59,10 @@ export function LiveChatPanel({ matchId }: LiveChatPanelProps) {
           <div key={msg.id} className={`flex gap-3 ${msg.user_id === user?.id ? 'flex-row-reverse' : ''}`}>
             <Avatar src={msg.user?.avatar_url} username={msg.user?.username} size="sm" />
             <div className={`max-w-[80%] p-3 rounded-xl ${msg.user_id === user?.id ? 'bg-primary-container/10 border border-primary-container/20 rounded-tr-none' : 'bg-white/5 border border-white/5 rounded-tl-none'}`}>
-              <p className="text-[10px] font-lexend font-semibold text-primary-container mb-1">{msg.user?.username}</p>
+              <div className="flex items-baseline gap-2 mb-1">
+                <p className="text-[10px] font-lexend font-semibold text-primary-container">{msg.user?.username}</p>
+                <span className="text-[9px] text-white/30">{formatRelative(msg.created_at)}</span>
+              </div>
               <p className="text-sm text-white/80">{msg.content}</p>
             </div>
           </div>
