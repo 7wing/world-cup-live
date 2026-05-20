@@ -55,7 +55,7 @@ export function StadiumsPage() {
     return matchCountry && matchSearch
   })
 
-  const heroStadium = stadiums[heroBg]
+  // const heroStadium = stadiums[heroBg]
 
   return (
     <PageWrapper>
