@@ -8,19 +8,31 @@ export interface Team {
 
 export interface Stadium {
   id: string
+  slug: string
   name: string
   city: string
   country: string
+  flag: string
   capacity: number
   hero_image_url: string | null
+  note: string | null
+
+  // Ratings
   avg_atmosphere: number
   avg_food: number
   avg_hotel: number
   avg_safety: number
   avg_rating: number
   total_reviews: number
+
+  // Operational
   transport_status: string
   security_score: number
+
+  // Venue info (used in StadiumDetailPage info tab)
+  year_opened: number | null
+  surface: string | null
+  roof_type: string | null
 }
 
 export interface Match {
@@ -96,10 +108,13 @@ export interface StadiumReview {
   user_id: string
   user?: Pick<User, 'username' | 'avatar_url'>
   stadium_id: string
+  // Scores stored as 1–5 in DB
   atmosphere_score: number
   food_score: number
   hotel_score: number
   safety_score: number
+  // Optional overall rating (computed or user-supplied)
+  overall_rating?: number
   body: string | null
   created_at: string
 }

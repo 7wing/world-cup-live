@@ -5,7 +5,7 @@ import { LoginPage } from '@/pages/Login'
 import { SignupPage } from '@/pages/Signup'
 import { MatchesPage } from '@/pages/matches/MatchesPage'
 import { MatchDetailPage } from '@/pages/matches/MatchDetailPage'
-import { BracketsPage } from '@/pages/matches/BracketsPage'
+import { BracketTab } from '@/components/matches/BracketTab'
 import { FanZonePage } from '@/pages/fanzone/FanZonePage'
 import { GamesPage } from '@/pages/fanzone/GamesPage'
 import { TribesPage } from '@/pages/fanzone/TribesPage'
@@ -25,7 +25,7 @@ export const router = createBrowserRouter([
       { path: 'login', element: <LoginPage /> },
       { path: 'signup', element: <SignupPage /> },
       { path: 'matches', element: <MatchesPage /> },
-      { path: 'matches/brackets', element: <BracketsPage /> },
+      { path: 'matches/brackets', element: <BracketTab /> },
       { path: 'matches/:matchId', element: <MatchDetailPage /> },
       { path: 'fan-zone', element: <FanZonePage /> },
       { path: 'fan-zone/games', element: <GamesPage /> },

@@ -1,59 +1,127 @@
-import { useState } from 'react'
 import { GlassCard } from '@/components/ui/GlassCard'
-import { NeonButton } from '@/components/ui/NeonButton'
-import { useSubmitPrediction } from '@/hooks/usePassport'
-import { useAuthStore } from '@/store/authStore'
 import type { Match } from '@/types'
 
 interface OraclePredictionProps {
   match: Match
+  homeWin?: number   // percentage 0-100
+  draw?: number      // percentage 0-100
+  awayWin?: number   // percentage 0-100
+  predictedHome?: number
+  predictedAway?: number
+  confidence?: number
 }
 
-export function OraclePrediction({ match }: OraclePredictionProps) {
-  const { user } = useAuthStore()
-  const { mutate, isPending } = useSubmitPrediction()
-  const [home, setHome] = useState(1)
-  const [away, setAway] = useState(0)
-
-  const handleSubmit = () => {
-    if (!user) return
-    mutate({ user_id: user.id, match_id: match.id, predicted_home: home, predicted_away: away })
-  }
+export function OraclePrediction({
+  match,
+  homeWin    = 55,
+  draw       = 18,
+  awayWin    = 27,
+  predictedHome = 2,
+  predictedAway = 1,
+  confidence    = 68,
+}: OraclePredictionProps) {
+  const dominant =
+    homeWin > awayWin ? 'home' : awayWin > homeWin ? 'away' : 'draw'
 
   return (
-    <GlassCard className="p-6 border-l-4 border-l-secondary-container relative overflow-hidden">
+    <GlassCard className="p-5">
+      {/* Header */}
       <div className="flex items-center gap-2 mb-4">
-        <span className="material-symbols-outlined text-secondary-container">auto_awesome</span>
-        <h3 className="font-lexend font-semibold text-secondary-container uppercase text-sm">The Oracle · Predict</h3>
+        <span className="material-symbols-outlined text-base text-primary-container">
+          auto_awesome
+        </span>
+        <p className="font-lexend font-black text-[10px] uppercase tracking-widest text-white/40">
+          Oracle Prediction
+        </p>
       </div>
 
-      <p className="font-lexend font-bold text-xl text-on-surface mb-6">
-        {match.home_team.name} vs {match.away_team.name}
-      </p>
-
-      <div className="flex items-center justify-center gap-6 mb-6">
-        <div className="flex flex-col items-center gap-2">
-          <span className="font-lexend text-xs text-white/40 uppercase">{match.home_team.code}</span>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setHome(Math.max(0, home - 1))} className="w-8 h-8 bg-white/10 rounded text-white hover:bg-white/20">−</button>
-            <span className="font-lexend font-black text-4xl text-primary-container w-12 text-center">{home}</span>
-            <button onClick={() => setHome(home + 1)} className="w-8 h-8 bg-white/10 rounded text-white hover:bg-white/20">+</button>
-          </div>
+      {/* Teams */}
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex flex-col items-center gap-1 flex-1">
+          {match.home_team.flag_url ? (
+            <img src={match.home_team.flag_url} alt="" className="w-8 h-8 rounded object-cover" />
+          ) : (
+            <span className="text-2xl leading-none">{match.home_team.code}</span>
+          )}
+          <p className="font-lexend font-bold text-xs text-white text-center">
+            {match.home_team.name}
+          </p>
+          <span className={`text-[10px] font-lexend font-black uppercase tracking-widest ${
+            dominant === 'home' ? 'text-primary-container' : 'text-white/20'
+          }`}>
+            {Math.round(homeWin)}%
+          </span>
         </div>
-        <span className="font-lexend text-white/20 text-2xl">:</span>
-        <div className="flex flex-col items-center gap-2">
-          <span className="font-lexend text-xs text-white/40 uppercase">{match.away_team.code}</span>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setAway(Math.max(0, away - 1))} className="w-8 h-8 bg-white/10 rounded text-white hover:bg-white/20">−</button>
-            <span className="font-lexend font-black text-4xl text-white w-12 text-center">{away}</span>
-            <button onClick={() => setAway(away + 1)} className="w-8 h-8 bg-white/10 rounded text-white hover:bg-white/20">+</button>
-          </div>
+
+        <div className="flex flex-col items-center px-3">
+          <p className="text-[10px] font-lexend font-bold uppercase tracking-widest text-white/20">
+            Draw
+          </p>
+          <p className="text-xs font-lexend font-bold text-white/30">{Math.round(draw)}%</p>
+        </div>
+
+        <div className="flex flex-col items-center gap-1 flex-1">
+          {match.away_team.flag_url ? (
+            <img src={match.away_team.flag_url} alt="" className="w-8 h-8 rounded object-cover" />
+          ) : (
+            <span className="text-2xl leading-none">{match.away_team.code}</span>
+          )}
+          <p className="font-lexend font-bold text-xs text-white text-center">
+            {match.away_team.name}
+          </p>
+          <span className={`text-[10px] font-lexend font-black uppercase tracking-widest ${
+            dominant === 'away' ? 'text-primary-container' : 'text-white/20'
+          }`}>
+            {Math.round(awayWin)}%
+          </span>
         </div>
       </div>
 
-      <NeonButton className="w-full justify-center" onClick={handleSubmit} disabled={isPending}>
-        Lock In Prediction
-      </NeonButton>
+      {/* Probability bar */}
+      <div className="h-2 rounded-full overflow-hidden flex mb-2">
+        <div
+          className="h-full bg-primary-container transition-all duration-700"
+          style={{ width: `${homeWin}%` }}
+        />
+        <div
+          className="h-full bg-white/15 transition-all duration-700"
+          style={{ width: `${draw}%` }}
+        />
+        <div
+          className="h-full bg-white/30 transition-all duration-700"
+          style={{ width: `${awayWin}%` }}
+        />
+      </div>
+
+      <div className="flex justify-between text-[9px] font-lexend font-bold uppercase tracking-widest text-white/20 mb-4">
+        <span>Home win</span>
+        <span>Draw</span>
+        <span>Away win</span>
+      </div>
+
+      {/* Predicted score */}
+      <div className="flex items-center justify-between pt-3 border-t border-white/6">
+        <div>
+          <p className="text-[10px] font-lexend font-bold uppercase tracking-widest text-white/25">
+            Predicted score
+          </p>
+          <p className="font-lexend font-black text-2xl text-white mt-0.5">
+            {predictedHome} – {predictedAway}
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-[10px] font-lexend font-bold uppercase tracking-widest text-white/25">
+            Confidence
+          </p>
+          <p className={`font-lexend font-black text-xl mt-0.5 ${
+            confidence >= 70 ? 'text-primary-container'
+            : confidence >= 50 ? 'text-amber-400'
+            : 'text-white/40'
+          }`}>
+            {Math.round(confidence)}%
+          </p>
+        </div>
+      </div>
     </GlassCard>
   )
 }

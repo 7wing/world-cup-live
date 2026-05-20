@@ -11,11 +11,12 @@ export async function fetchStadiums(): Promise<Stadium[]> {
   return data as Stadium[]
 }
 
-export async function fetchStadiumById(id: string): Promise<Stadium> {
+// Accepts a slug (e.g. "azteca") — matches the URL param from StadiumsPage
+export async function fetchStadiumById(slug: string): Promise<Stadium> {
   const { data, error } = await supabase
     .from('stadiums')
     .select('*')
-    .eq('id', id)
+    .eq('slug', slug)
     .single()
 
   if (error) throw error
