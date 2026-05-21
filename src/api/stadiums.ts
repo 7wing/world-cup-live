@@ -1,14 +1,38 @@
 import { supabase } from '@/lib/supabase'
 import type { Stadium, StadiumReview, FanPhoto } from '@/types'
 
-export async function fetchStadiums(): Promise<Stadium[]> {
-  const { data, error } = await supabase
-    .from('stadiums')
-    .select('*')
-    .order('avg_rating', { ascending: false })
+function assertSupabaseConfigured() {
+  if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+    throw new Error('Supabase is not configured (missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY)')
+  }
+}
 
-  if (error) throw error
-  return data as Stadium[]
+const FETCH_TIMEOUT_MS = 12_000
+
+export async function fetchStadiums(): Promise<Stadium[]> {
+  assertSupabaseConfigured()
+
+  const fetchPromise = (async () => {
+    const { data, error } = await supabase
+      .from('stadiums')
+      .select('*')
+      .order('avg_rating', { ascending: false })
+
+    if (error) {
+      console.error('[fetchStadiums]', error.message, error.code)
+      throw new Error(error.message || 'Failed to load stadiums')
+    }
+    return (data ?? []) as Stadium[]
+  })()
+
+  const timeout = new Promise<never>((_, reject) => {
+    setTimeout(
+      () => reject(new Error('Stadiums request timed out. Check your network and Supabase config.')),
+      FETCH_TIMEOUT_MS
+    )
+  })
+
+  return Promise.race([fetchPromise, timeout])
 }
 
 // Accepts a slug (e.g. "azteca") — matches the URL param from StadiumsPage

@@ -7,7 +7,14 @@ import {
 import { useNotificationStore } from '@/store/notificationStore'
 
 export function useStadiums() {
-  return useQuery({ queryKey: ['stadiums'], queryFn: fetchStadiums })
+  return useQuery({
+    queryKey: ['stadiums'],
+    queryFn: fetchStadiums,
+    staleTime: 5 * 60_000,
+    gcTime: 10 * 60_000,
+    retry: 2,
+    refetchOnMount: 'always',
+  })
 }
 
 export function useStadium(id: string) {

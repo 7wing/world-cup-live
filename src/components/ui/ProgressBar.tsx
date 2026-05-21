@@ -20,7 +20,7 @@ export function ProgressBar({ value, max = 100, className, showLabel, label }: P
       )}
       <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
         <div
-          className="h-full bg-gradient-to-r from-green-600 to-primary-container shadow-[0_0_10px_rgba(0,255,65,0.6)] transition-all duration-500"
+          className="h-full bg-gradient-to-r from-green-600 to-primary-container"
           style={{ width: `${pct}%` }}
         />
       </div>

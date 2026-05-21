@@ -4,34 +4,50 @@ import { useAuthStore } from '@/store/authStore'
 import { fetchUserById } from '@/api/profile'
 
 export function useAuth() {
-  const { user, session, loading, setUser, setSession, setLoading, signOut } = useAuthStore()
+  const { setUser, setSession, setLoading, signOut } = useAuthStore()
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    let cancelled = false
+
+    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      // Always unblock profile queries — must run even if StrictMode cancelled this effect,
+      // because INITIAL_SESSION does not re-fire on remount.
       setSession(session)
+      setLoading(false)
+
+      if (cancelled) return
+
       if (session?.user) {
         try {
           const profile = await fetchUserById(session.user.id)
-          setUser(profile)
+          if (!cancelled) setUser(profile)
         } catch {
-          setUser(null)
+          if (!cancelled) setUser(null)
         }
-      }
-      setLoading(false)
-    })
-
-    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session)
-      if (session?.user) {
-        const profile = await fetchUserById(session.user.id)
-        setUser(profile)
-      } else {
+      } else if (!cancelled) {
         setUser(null)
       }
     })
 
-    return () => listener.subscription.unsubscribe()
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (cancelled) return
+      setSession(session)
+      setLoading(false)
+      if (!session?.user) {
+        setUser(null)
+        return
+      }
+      fetchUserById(session.user.id)
+        .then((profile) => { if (!cancelled) setUser(profile) })
+        .catch(() => { if (!cancelled) setUser(null) })
+    })
+
+    return () => {
+      cancelled = true
+      listener.subscription.unsubscribe()
+    }
   }, [])
 
+  const { user, session, loading } = useAuthStore.getState()
   return { user, session, loading, signOut }
 }

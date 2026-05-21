@@ -1,90 +1,232 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { NeonButton } from '@/components/ui/NeonButton'
+import { PasswordInput } from '@/components/ui/PasswordInput'
 import { useNotificationStore } from '@/store/notificationStore'
+import { cn } from '@/utils/cn'
+
+// ─── helpers ────────────────────────────────────────────────────────────────
+
+function generateSuggestions(base: string): string[] {
+  const clean = base.replace(/\s+/g, '_').toLowerCase()
+  const year  = new Date().getFullYear()
+  return [
+    `${clean}_${Math.floor(Math.random() * 900) + 100}`,
+    `${clean}${year}`,
+    `the_${clean}`,
+    `${clean}_fan`,
+  ]
+}
+
+type UsernameStatus = 'idle' | 'checking' | 'available' | 'taken'
+
+// ─── component ───────────────────────────────────────────────────────────────
 
 export function SignupPage() {
   const navigate = useNavigate()
-  const { push } = useNotificationStore()
-  const [email, setEmail] = useState('')
+  const { push }  = useNotificationStore()
+
+  const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
   const [username, setUsername] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [loading,  setLoading]  = useState(false)
 
+  const [usernameStatus,      setUsernameStatus]      = useState<UsernameStatus>('idle')
+  const [usernameSuggestions, setUsernameSuggestions] = useState<string[]>([])
+
+  // ── check username against the DB ──────────────────────────────────────────
+  const checkUsername = useCallback(async (value: string) => {
+    const trimmed = value.trim()
+    if (!trimmed) { setUsernameStatus('idle'); return }
+
+    setUsernameStatus('checking')
+    setUsernameSuggestions([])
+
+    const { data, error } = await supabase
+      .from('users')
+      .select('username')
+      .eq('username', trimmed)
+      .maybeSingle()
+
+    if (error) {
+      // If we can't reach the DB just let the server handle it
+      setUsernameStatus('idle')
+      return
+    }
+
+    if (data) {
+      setUsernameStatus('taken')
+      setUsernameSuggestions(generateSuggestions(trimmed))
+    } else {
+      setUsernameStatus('available')
+    }
+  }, [])
+
+  // ── submit ─────────────────────────────────────────────────────────────────
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (usernameStatus === 'taken') {
+      push('That Fan ID is already taken. Pick another.', 'error')
+      return
+    }
+
     setLoading(true)
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { username } },
+      options: { data: { username: username.trim() } },
     })
+
     if (error) {
       push(error.message, 'error')
     } else {
       push('Account created! Check your email.', 'success')
       navigate('/matches')
     }
+
     setLoading(false)
   }
 
-  const fields = [
-    { label: 'Fan ID / Username', value: username, set: setUsername, type: 'text',     placeholder: 'CR7_GOAT_2026'     },
-    { label: 'Email',             value: email,    set: setEmail,    type: 'email',    placeholder: 'fan@example.com'   },
-    { label: 'Password',          value: password, set: setPassword, type: 'password', placeholder: '••••••••'          },
-  ]
+  // ── username field status indicator ───────────────────────────────────────
+  const statusMeta: Record<UsernameStatus, { text: string; cls: string } | null> = {
+    idle:      null,
+    checking:  { text: 'Checking availability…',  cls: 'text-white/40'          },
+    available: { text: '✓ Fan ID is available',   cls: 'text-green-400'         },
+    taken:     { text: '✗ Fan ID is already taken', cls: 'text-red-400'         },
+  }
+  const statusHint = statusMeta[usernameStatus]
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-16 sm:px-6">
+    <div
+      className="
+        min-h-[100dvh]
+        flex flex-col items-center justify-center
+        px-4 sm:px-6
+        pt-[calc(5rem+env(safe-area-inset-top,0px))]
+        lg:pt-24
+        pb-[calc(7rem+env(safe-area-inset-bottom,0px))]
+        lg:pb-12
+      "
+    >
       <div className="w-full max-w-sm">
-
-        {/* Logo */}
-        <div className="mb-8 text-center">
-          <h1 className="font-lexend text-4xl sm:text-5xl font-black italic text-primary-container tracking-tighter neon-text uppercase">
-            World Cup Live
-          </h1>
-          <p className="font-lexend text-[10px] uppercase tracking-[0.2em] text-primary-container/70 mt-2">
-            The Heart of the Game
-          </p>
-        </div>
-
-        {/* Card */}
         <div className="glass-card p-6 sm:p-8 rounded-2xl">
           <h2 className="font-lexend font-bold text-xl sm:text-2xl text-center mb-7">
             Join the Stadium
           </h2>
 
           <form onSubmit={handleSignup} className="space-y-5">
-            {fields.map(({ label, value, set, type, placeholder }) => (
-              <div key={label}>
-                <label className="font-lexend text-[10px] uppercase text-outline font-semibold block mb-2">
-                  {label}
-                </label>
-                <input
-                  type={type}
-                  required
-                  value={value}
-                  onChange={(e) => set(e.target.value)}
-                  className="w-full bg-transparent border-b-2 border-outline-variant focus:border-primary-container outline-none py-2 text-white placeholder:text-white/20 transition-all text-sm"
-                  placeholder={placeholder}
-                />
-              </div>
-            ))}
 
-            <NeonButton type="submit" className="w-full justify-center mt-2" disabled={loading}>
-              {loading ? 'Creating account...' : 'Create Fan Account'}
+            {/* ── Fan ID (username) ── */}
+            <div>
+              <label className="font-lexend text-[10px] uppercase text-outline font-semibold block mb-2">
+                Fan ID
+              </label>
+              <input
+                type="text"
+                required
+                value={username}
+                onChange={(e) => {
+                  setUsername(e.target.value)
+                  setUsernameStatus('idle')
+                  setUsernameSuggestions([])
+                }}
+                onBlur={() => checkUsername(username)}
+                className={cn(
+                  'auth-input w-full',
+                  usernameStatus === 'taken' && '!border-red-400 focus:!border-red-400',
+                  usernameStatus === 'available' && '!border-green-400 focus:!border-green-400'
+                )}
+                placeholder="CR7_GOAT_2026"
+                autoComplete="off"
+              />
+
+              {/* inline status hint */}
+              {statusHint && (
+                <p className={`text-[11px] mt-1.5 ${statusHint.cls}`}>
+                  {statusHint.text}
+                </p>
+              )}
+
+              {/* suggestions when taken */}
+              {usernameStatus === 'taken' && usernameSuggestions.length > 0 && (
+                <div className="mt-2">
+                  <p className="text-[10px] text-white/40 mb-1.5 font-lexend uppercase">
+                    Try one of these:
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {usernameSuggestions.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => {
+                          setUsername(s)
+                          setUsernameStatus('idle')
+                          setUsernameSuggestions([])
+                          // immediately check the suggestion
+                          checkUsername(s)
+                        }}
+                        className="
+                          text-[11px] font-lexend font-semibold
+                          px-2.5 py-1 rounded-full
+                          border border-primary-container/40
+                          text-primary-container
+                          hover:bg-primary-container/10
+                          transition-colors
+                        "
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── Email ── */}
+            <div>
+              <label className="font-lexend text-[10px] uppercase text-outline font-semibold block mb-2">
+                Email
+              </label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="auth-input w-full"
+                placeholder="fan@example.com"
+              />
+            </div>
+
+            {/* ── Password ── */}
+            <div>
+              <PasswordInput
+                label="Password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+              />
+            </div>
+
+            <NeonButton
+              type="submit"
+              className="w-full justify-center mt-2"
+              disabled={loading || usernameStatus === 'taken' || usernameStatus === 'checking'}
+            >
+              {loading ? 'Creating account…' : 'Create Fan Account'}
             </NeonButton>
           </form>
 
-          <p className="text-center text-white/50 text-xs sm:text-sm mt-7">
+          <p className="text-center text-white/50 text-xs sm:text-sm mt-5">
             Already a fan?{' '}
             <Link to="/login" className="font-lexend font-bold text-primary-container hover:text-green-300">
               Login
             </Link>
           </p>
         </div>
-
       </div>
     </div>
   )

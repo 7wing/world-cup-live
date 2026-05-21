@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { isMockProfileEnabled, MOCK_PROFILE } from '@/lib/mockProfile'
 import type { User, Friendship, FanPhoto } from '@/types'
 
 export async function fetchUserById(userId: string): Promise<User> {
@@ -8,7 +9,13 @@ export async function fetchUserById(userId: string): Promise<User> {
     .eq('id', userId)
     .single()
 
-  if (error) throw error
+  if (error) {
+    console.error('[fetchUserById] error:', error.message, '| code:', error.code)
+    if (isMockProfileEnabled()) {
+      return { ...MOCK_PROFILE, id: userId }
+    }
+    throw error
+  }
   return data as User
 }
 
@@ -35,7 +42,10 @@ export async function fetchFriends(userId: string): Promise<Friendship[]> {
     .eq('user_id', userId)
     .eq('status', 'accepted')
 
-  if (error) throw error
+  if (error) {
+    console.error('[fetchFriends] error:', error.message)
+    throw error
+  }
   return data as Friendship[]
 }
 
@@ -53,6 +63,9 @@ export async function fetchUserPhotos(userId: string): Promise<FanPhoto[]> {
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
 
-  if (error) throw error
+  if (error) {
+    console.error('[fetchUserPhotos] error:', error.message)
+    throw error
+  }
   return data as FanPhoto[]
 }

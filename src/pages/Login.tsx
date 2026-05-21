@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { NeonButton } from '@/components/ui/NeonButton'
+import { PasswordInput } from '@/components/ui/PasswordInput'
 import { useNotificationStore } from '@/store/notificationStore'
 
 export function LoginPage() {
@@ -24,23 +25,21 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-16 sm:px-6">
+    <div
+      className="
+        min-h-[100dvh]
+        flex flex-col items-center justify-center
+        px-4 sm:px-6
+        pt-[calc(5rem+env(safe-area-inset-top,0px))]
+        lg:pt-24
+        pb-[calc(7rem+env(safe-area-inset-bottom,0px))]
+        lg:pb-12
+      "
+    >
       <div className="w-full max-w-sm">
-
-        {/* Logo */}
-        <div className="mb-8 text-center">
-          <h1 className="font-lexend text-4xl sm:text-5xl font-black italic text-primary-container tracking-tighter neon-text uppercase">
-            World Cup Live
-          </h1>
-          <p className="font-lexend text-[10px] uppercase tracking-[0.2em] text-primary-container/70 mt-2">
-            The Heart of the Game
-          </p>
-        </div>
-
-        {/* Card */}
         <div className="glass-card p-6 sm:p-8 rounded-2xl">
           <h2 className="font-lexend font-bold text-xl sm:text-2xl text-center mb-1">
-            Welcome Back, Fan
+            Welcome Back
           </h2>
           <p className="text-center text-white/50 text-xs sm:text-sm mb-7">
             Enter your details to access the stadium.
@@ -56,8 +55,8 @@ export function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-transparent border-b-2 border-outline-variant focus:border-primary-container outline-none py-2 text-white placeholder:text-white/20 transition-all text-sm"
-                placeholder="fan@worldcuplive.com"
+                className="auth-input w-full"
+                placeholder="fan@example.com"
               />
             </div>
 
@@ -66,22 +65,24 @@ export function LoginPage() {
                 <label className="font-lexend text-[10px] uppercase text-outline font-semibold">
                   Password
                 </label>
-                <a href="#" className="font-lexend text-[10px] uppercase text-primary-container hover:underline">
+                {/* Now links to the real forgot-password page */}
+                <Link
+                  to="/forgot-password"
+                  className="font-lexend text-[10px] uppercase text-primary-container hover:underline"
+                >
                   Forgot?
-                </a>
+                </Link>
               </div>
-              <input
-                type="password"
+              <PasswordInput
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-transparent border-b-2 border-outline-variant focus:border-primary-container outline-none py-2 text-white placeholder:text-white/20 transition-all text-sm"
                 placeholder="••••••••"
               />
             </div>
 
             <NeonButton type="submit" className="w-full justify-center mt-2" disabled={loading}>
-              {loading ? 'Logging in...' : 'Login with Fan ID'}
+              {loading ? 'Logging in...' : 'Login'}
             </NeonButton>
           </form>
 
@@ -92,7 +93,6 @@ export function LoginPage() {
             </Link>
           </p>
         </div>
-
       </div>
     </div>
   )

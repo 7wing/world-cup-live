@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom'
 import { TopBar } from '@/components/layout/TopBar'
 import { BottomNav } from '@/components/layout/BottomNav'
+import { SettingsModal } from '@/components/profile/SettingsModal'
 import { useAuth } from '@/hooks/useAuth'
 import { useNotificationStore } from '@/store/notificationStore'
 import { cn } from '@/utils/cn'
@@ -33,6 +34,7 @@ export default function App() {
     <div className="dark min-h-screen bg-background">
       <TopBar />
       <NotificationToast />
+      <SettingsModal />
       <Outlet />
       <BottomNav />
     </div>

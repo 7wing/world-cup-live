@@ -281,15 +281,20 @@ export function StadiumDetailPage() {
           {photos && photos.length > 0 ? (
             <div className="grid grid-cols-3 gap-2">
               {photos.slice(0, 9).map((photo) => (
-                <div key={photo.id} className="aspect-square rounded-xl overflow-hidden bg-white/5 group cursor-pointer relative">
+                <div
+                  key={photo.id}
+                  className="aspect-square rounded-xl overflow-hidden bg-surface-container-low relative"
+                >
                   <img
                     src={photo.image_url}
                     alt={photo.caption ?? ''}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    loading="lazy"
+                    decoding="async"
+                    className="w-full h-full object-cover"
                   />
                   {photo.caption && (
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
-                      <p className="text-xs text-white/80 font-lexend leading-snug">{photo.caption}</p>
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 pointer-events-none">
+                      <p className="text-[10px] text-white/80 font-lexend leading-snug line-clamp-2">{photo.caption}</p>
                     </div>
                   )}
                 </div>

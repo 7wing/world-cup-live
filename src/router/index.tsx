@@ -3,6 +3,8 @@ import { createBrowserRouter } from 'react-router-dom'
 import App from '@/App'
 import { LoginPage } from '@/pages/Login'
 import { SignupPage } from '@/pages/Signup'
+import { ForgotPasswordPage } from '@/pages/ForgotPassword'
+import { ResetPasswordPage } from '@/pages/ResetPassword'
 import { MatchesPage } from '@/pages/matches/MatchesPage'
 import { MatchDetailPage } from '@/pages/matches/MatchDetailPage'
 import { BracketTab } from '@/components/matches/BracketTab'
@@ -24,6 +26,8 @@ export const router = createBrowserRouter([
       { index: true, element: <MatchesPage /> },
       { path: 'login', element: <LoginPage /> },
       { path: 'signup', element: <SignupPage /> },
+      {path: "/forgot-password", element: <ForgotPasswordPage /> }, 
+      {path: "/reset-password", element: <ResetPasswordPage /> }, 
       { path: 'matches', element: <MatchesPage /> },
       { path: 'matches/brackets', element: <BracketTab /> },
       { path: 'matches/:matchId', element: <MatchDetailPage /> },

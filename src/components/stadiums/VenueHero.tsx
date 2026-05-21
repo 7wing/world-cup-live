@@ -13,6 +13,8 @@ export function VenueHero({ stadium, onReview }: VenueHeroProps) {
         <img
           src={stadium.hero_image_url}
           alt={stadium.name}
+          fetchPriority="high"
+          decoding="async"
           className="absolute inset-0 w-full h-full object-cover opacity-60"
         />
       )}
