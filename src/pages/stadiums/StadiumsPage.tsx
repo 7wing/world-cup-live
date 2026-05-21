@@ -1,9 +1,10 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { StadiumHero } from '@/components/stadiums/StadiumHero'
 import { StadiumCard } from '@/components/stadiums/StadiumCard'
-import { useStadiums } from '@/hooks/useStadium'
+import { useStadiums, getOptimizedImageUrl } from '@/hooks/useStadium'
+import type { Stadium } from '@/types'
 
 type Country = 'all' | 'USA' | 'Canada' | 'Mexico'
 
@@ -16,7 +17,7 @@ const FILTERS: { label: string; value: Country }[] = [
 
 function SkeletonCard() {
   return (
-    <div className="rounded-2xl overflow-hidden bg-white/3 border border-white/7 animate-pulse">
+    <div className="rounded-2xl overflow-hidden bg-white/3 border border-white/7">
       <div className="h-44 bg-white/5" />
       <div className="p-4 space-y-3">
         <div className="h-2 bg-white/5 rounded w-3/4" />
@@ -27,18 +28,49 @@ function SkeletonCard() {
   )
 }
 
+function applyImageOptimizations(stadiums: Stadium[]): Stadium[] {
+  return stadiums.map((s) => ({
+    ...s,
+    hero_image_url: getOptimizedImageUrl(s.hero_image_url, 512, 72),
+  }))
+}
+
+/** Decode all card images into the browser cache after data arrives — no lazy pop-in. */
+function useWarmStadiumImages(urls: (string | null)[]) {
+  useEffect(() => {
+    urls.forEach((url) => {
+      if (!url) return
+      const img = new Image()
+      img.decoding = 'async'
+      img.src = url
+    })
+  }, [urls.join('|')])
+}
+
 export function StadiumsPage() {
   const navigate = useNavigate()
   const { data, isFetching, isError, error, refetch, status } = useStadiums()
-  const stadiums = data ?? []
-  const isLoading = stadiums.length === 0 && (isFetching || status === 'pending')
+
+  const optimisedStadiums = useMemo(
+    () => applyImageOptimizations(data ?? []),
+    [data],
+  )
+
+  const isLoading = optimisedStadiums.length === 0 && (isFetching || status === 'pending')
 
   const [search, setSearch] = useState('')
   const [country, setCountry] = useState<Country>('all')
 
+  useWarmStadiumImages(
+    useMemo(
+      () => optimisedStadiums.map((s) => s.hero_image_url),
+      [optimisedStadiums],
+    ),
+  )
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
-    return stadiums.filter((s) => {
+    return optimisedStadiums.filter((s) => {
       const matchCountry = country === 'all' || s.country === country
       const matchSearch =
         !q ||
@@ -46,16 +78,16 @@ export function StadiumsPage() {
         s.city.toLowerCase().includes(q)
       return matchCountry && matchSearch
     })
-  }, [stadiums, search, country])
+  }, [optimisedStadiums, search, country])
 
   const handleSelect = useCallback(
     (slug: string) => navigate(`/stadiums/${slug}`),
-    [navigate]
+    [navigate],
   )
 
   return (
     <PageWrapper>
-      <StadiumHero stadiums={stadiums} isLoading={isLoading} />
+      <StadiumHero stadiums={optimisedStadiums} isLoading={isLoading} />
 
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <div className="relative flex-1">
@@ -77,7 +109,8 @@ export function StadiumsPage() {
               type="button"
               onClick={() => setCountry(value)}
               className={`
-                px-3 sm:px-4 h-11 rounded-xl text-xs font-lexend font-bold uppercase tracking-wide border transition-colors duration-200 whitespace-nowrap flex-shrink-0
+                px-3 sm:px-4 h-11 rounded-xl text-xs font-lexend font-bold uppercase tracking-wide border
+                transition-colors duration-200 whitespace-nowrap flex-shrink-0
                 ${country === value
                   ? 'bg-primary-container/15 border-primary-container/50 text-primary-container'
                   : 'bg-white/5 border-white/10 text-white/40 hover:text-white/70 hover:border-white/20'}
@@ -92,18 +125,16 @@ export function StadiumsPage() {
       <p className="text-[11px] font-lexend font-bold uppercase tracking-widest text-white/25 mb-4">
         {isLoading
           ? 'Loading venues...'
-          : filtered.length === stadiums.length
-            ? `Showing all ${stadiums.length} venues`
+          : filtered.length === optimisedStadiums.length
+            ? `Showing all ${optimisedStadiums.length} venues`
             : `${filtered.length} venue${filtered.length !== 1 ? 's' : ''} found`}
       </p>
 
-      {isError ? (
+      {isError && (
         <div className="rounded-2xl border border-red-400/30 bg-red-400/10 p-6 text-center space-y-4">
           <p className="text-red-400 font-lexend text-sm">
-            Could not load stadiums{(error as Error)?.message ? `: ${(error as Error).message}` : ''}.
-          </p>
-          <p className="text-white/40 text-xs font-lexend">
-            Check your connection and that Supabase env vars are set, then retry.
+            Could not load stadiums
+            {(error as Error)?.message ? `: ${(error as Error).message}` : ''}.
           </p>
           <button
             type="button"
@@ -113,18 +144,31 @@ export function StadiumsPage() {
             Retry
           </button>
         </div>
-      ) : isLoading ? (
+      )}
+
+      {!isError && isLoading && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
         </div>
-      ) : filtered.length === 0 ? (
+      )}
+
+      {!isError && !isLoading && filtered.length === 0 && (
         <p className="text-white/30 text-sm text-center py-20">
           No stadiums match your search.
         </p>
-      ) : (
+      )}
+
+      {!isError && !isLoading && filtered.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filtered.map((stadium) => (
-            <StadiumCard key={stadium.id} stadium={stadium} onSelect={handleSelect} />
+          {filtered.map((stadium, i) => (
+            <StadiumCard
+              key={stadium.id}
+              stadium={stadium}
+              onSelect={handleSelect}
+              priority={i < 3}
+            />
           ))}
         </div>
       )}

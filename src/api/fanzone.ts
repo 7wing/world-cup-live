@@ -1,7 +1,17 @@
 import { supabase } from '@/lib/supabase'
+import { isMockDataEnabled } from '@/lib/mockMode'
+import {
+  fetchLocalPosts,
+  createLocalPost,
+  toggleLocalPostLike,
+} from '@/lib/fanzoneStorage'
 import type { Post, ChatMessage, Tribe } from '@/types'
 
-export async function fetchPosts(matchId?: string): Promise<Post[]> {
+export async function fetchPosts(matchId?: string, userId?: string): Promise<Post[]> {
+  if (isMockDataEnabled()) {
+    return fetchLocalPosts(matchId, userId ?? 'guest-local')
+  }
+
   let query = supabase
     .from('posts')
     .select('*, user:users(username, avatar_url)')
@@ -16,13 +26,29 @@ export async function fetchPosts(matchId?: string): Promise<Post[]> {
 }
 
 export async function createPost(
-  post: Pick<Post, 'user_id' | 'content' | 'media_url' | 'media_type' | 'match_id'>
+  post: Pick<Post, 'user_id' | 'content' | 'media_url' | 'media_type' | 'match_id'> & {
+    user?: Post['user']
+  },
 ): Promise<void> {
+  if (isMockDataEnabled()) {
+    createLocalPost(post)
+    return
+  }
+
   const { error } = await supabase.from('posts').insert(post)
   if (error) throw error
 }
 
-export async function togglePostLike(postId: string, userId: string, liked: boolean): Promise<void> {
+export async function togglePostLike(
+  postId: string,
+  userId: string,
+  liked: boolean,
+): Promise<void> {
+  if (isMockDataEnabled()) {
+    toggleLocalPostLike(postId, userId, liked)
+    return
+  }
+
   if (liked) {
     await supabase.from('post_likes').insert({ post_id: postId, user_id: userId })
     const { data } = await supabase.from('posts').select('likes').eq('id', postId).single()
@@ -49,7 +75,7 @@ export async function fetchChatMessages(matchId: string): Promise<ChatMessage[]>
 export async function sendChatMessage(
   matchId: string,
   userId: string,
-  content: string
+  content: string,
 ): Promise<void> {
   const { error } = await supabase
     .from('chat_messages')

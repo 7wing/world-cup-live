@@ -1,11 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { fetchPosts, createPost, togglePostLike } from '@/api/fanzone'
 import { useNotificationStore } from '@/store/notificationStore'
+import { useAuthStore } from '@/store/authStore'
+import { getEffectiveUser } from '@/lib/guestUser'
 
 export function usePosts(matchId?: string) {
+  const { user } = useAuthStore()
+  const effective = getEffectiveUser(user)
+
   return useQuery({
-    queryKey: ['posts', matchId ?? 'all'],
-    queryFn: () => fetchPosts(matchId),
+    queryKey: ['posts', matchId ?? 'all', effective?.id],
+    queryFn: () => fetchPosts(matchId, effective?.id),
     refetchInterval: 20_000,
   })
 }

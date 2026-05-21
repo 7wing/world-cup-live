@@ -5,6 +5,8 @@ import { PostCard } from '@/components/fanzone/PostCard'
 import { FAB } from '@/components/layout/FAB'
 import { usePosts, useToggleLike } from '@/hooks/usePosts'
 import { useAuthStore } from '@/store/authStore'
+import { getEffectiveUser } from '@/lib/guestUser'
+import { filterPosts } from '@/lib/fanzoneStorage'
 import { Link } from 'react-router-dom'
 import { GlassCard } from '@/components/ui/GlassCard'
 
@@ -312,13 +314,16 @@ function FeedFilterBar({ active, onChange }: { active: FeedFilter; onChange: (f:
 export function FanZonePage() {
   const { data: posts, isLoading } = usePosts()
   const { mutate: toggleLike } = useToggleLike()
-  const { user } = useAuthStore()
+  const { user: authUser } = useAuthStore()
+  const user = getEffectiveUser(authUser)
   const [showComposer, setShowComposer] = useState(false)
   const [feedFilter, setFeedFilter] = useState<FeedFilter>('all')
 
-  const handleLike = (postId: string) => {
+  const displayedPosts = posts ? filterPosts(posts, feedFilter) : []
+
+  const handleLike = (postId: string, currentlyLiked?: boolean) => {
     if (!user) return
-    toggleLike({ postId, userId: user.id, liked: true })
+    toggleLike({ postId, userId: user.id, liked: !currentlyLiked })
   }
 
   return (
@@ -350,7 +355,7 @@ export function FanZonePage() {
           <div className="flex items-center justify-between">
             <FeedFilterBar active={feedFilter} onChange={setFeedFilter} />
             <span className="text-[10px] font-lexend text-white/20 uppercase tracking-widest">
-              {posts?.length ?? 0} posts
+              {displayedPosts.length} posts
             </span>
           </div>
 
@@ -360,8 +365,12 @@ export function FanZonePage() {
           ))}
 
           {/* Post cards */}
-          {posts?.map((post) => (
-            <PostCard key={post.id} post={post} onLike={handleLike} />
+          {displayedPosts.map((post) => (
+            <PostCard
+              key={post.id}
+              post={post}
+              onLike={(id) => handleLike(id, post.liked)}
+            />
           ))}
         </div>
 

@@ -23,6 +23,11 @@ export function OraclePrediction({
   const dominant =
     homeWin > awayWin ? 'home' : awayWin > homeWin ? 'away' : 'draw'
 
+  const homeFlag = match.home_team.flag_url
+  const awayFlag = match.away_team.flag_url
+  const homeIsEmoji = homeFlag && !homeFlag.startsWith('http')
+  const awayIsEmoji = awayFlag && !awayFlag.startsWith('http')
+
   return (
     <GlassCard className="p-5">
       {/* Header */}
@@ -38,8 +43,10 @@ export function OraclePrediction({
       {/* Teams */}
       <div className="flex items-center justify-between mb-5">
         <div className="flex flex-col items-center gap-1 flex-1">
-          {match.home_team.flag_url ? (
-            <img src={match.home_team.flag_url} alt="" className="w-8 h-8 rounded object-cover" />
+          {homeIsEmoji ? (
+            <span className="text-2xl leading-none">{homeFlag}</span>
+          ) : homeFlag ? (
+            <img src={homeFlag} alt="" className="w-8 h-8 rounded object-cover" />
           ) : (
             <span className="text-2xl leading-none">{match.home_team.code}</span>
           )}
@@ -61,8 +68,10 @@ export function OraclePrediction({
         </div>
 
         <div className="flex flex-col items-center gap-1 flex-1">
-          {match.away_team.flag_url ? (
-            <img src={match.away_team.flag_url} alt="" className="w-8 h-8 rounded object-cover" />
+          {awayIsEmoji ? (
+            <span className="text-2xl leading-none">{awayFlag}</span>
+          ) : awayFlag ? (
+            <img src={awayFlag} alt="" className="w-8 h-8 rounded object-cover" />
           ) : (
             <span className="text-2xl leading-none">{match.away_team.code}</span>
           )}

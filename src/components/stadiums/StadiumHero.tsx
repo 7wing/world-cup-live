@@ -1,5 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import type { Stadium } from '@/types'
+import { getOptimizedImageUrl } from '@/hooks/useStadium'
+
+const HERO_SLIDES = 5
 
 interface StadiumHeroProps {
   stadiums: Stadium[]
@@ -7,50 +10,62 @@ interface StadiumHeroProps {
 }
 
 export function StadiumHero({ stadiums, isLoading }: StadiumHeroProps) {
-  const [heroBg, setHeroBg] = useState(0)
+  const slides = useMemo(
+    () =>
+      stadiums.slice(0, HERO_SLIDES).map((s) => ({
+        ...s,
+        hero_image_url: getOptimizedImageUrl(s.hero_image_url, 960, 75),
+      })),
+    [stadiums],
+  )
+
+  const [index, setIndex] = useState(0)
+  const current = slides[index]?.hero_image_url ?? null
 
   useEffect(() => {
-    if (stadiums.length === 0) return
-    const interval = setInterval(() => {
-      setHeroBg((prev) => (prev + 1) % stadiums.length)
-    }, 5000)
-    return () => clearInterval(interval)
-  }, [stadiums.length])
+    if (slides.length <= 1) return
+    const id = setInterval(() => {
+      setIndex((i) => (i + 1) % slides.length)
+    }, 6000)
+    return () => clearInterval(id)
+  }, [slides.length])
 
-  const current = stadiums[heroBg]
+  // Warm hero slide images once (small set, resized server-side)
+  useEffect(() => {
+    slides.forEach((s) => {
+      if (!s.hero_image_url) return
+      const img = new Image()
+      img.src = s.hero_image_url
+    })
+  }, [slides])
 
   return (
     <div className="relative overflow-hidden rounded-2xl mb-8 h-64 isolate bg-surface-container-low">
-      {/* Base layer so rotation never flashes pure black */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary-container/15 via-surface-container to-black" />
 
-      {current?.hero_image_url && (
+      {current && (
         <img
-          src={current.hero_image_url}
+          key={current}
+          src={current}
           alt=""
+          width={960}
+          height={256}
+          loading="eager"
+          decoding="async"
           fetchPriority="high"
-          decoding="sync"
           className="absolute inset-0 w-full h-full object-cover"
         />
       )}
 
-      {isLoading && stadiums.length === 0 && (
-        <div className="absolute inset-0 bg-white/5 animate-pulse z-[1]" />
+      {isLoading && !current && (
+        <div className="absolute inset-0 bg-white/5 z-[1]" />
       )}
 
       <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-black/30 z-[2] pointer-events-none" />
-      <div
-        className="absolute inset-0 opacity-10 z-[2] pointer-events-none"
-        style={{
-          backgroundImage:
-            'repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(255,255,255,0.5) 39px,rgba(255,255,255,0.5) 40px),' +
-            'repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(255,255,255,0.5) 39px,rgba(255,255,255,0.5) 40px)',
-        }}
-      />
 
       <div className="absolute inset-0 flex flex-col justify-end p-5 sm:p-8 z-[3]">
         <div className="flex items-center gap-2 mb-3">
-          <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+          <span className="w-2 h-2 rounded-full bg-green-400" />
           <span className="text-[11px] font-lexend font-bold uppercase tracking-widest text-white/80">
             Live Season 2026
           </span>
@@ -77,16 +92,16 @@ export function StadiumHero({ stadiums, isLoading }: StadiumHeroProps) {
           ))}
         </div>
 
-        {stadiums.length > 0 && (
+        {slides.length > 1 && (
           <div className="flex gap-1.5 mt-4 flex-wrap">
-            {stadiums.map((_, i) => (
+            {slides.map((_, i) => (
               <button
                 key={i}
                 type="button"
-                onClick={() => setHeroBg(i)}
+                onClick={() => setIndex(i)}
                 aria-label={`Show stadium ${i + 1}`}
                 className={`h-1 rounded-full transition-[width,background-color] duration-300 ${
-                  heroBg === i ? 'w-4 bg-primary-container' : 'w-1 bg-white/20 hover:bg-white/40'
+                  index === i ? 'w-4 bg-primary-container' : 'w-1 bg-white/20 hover:bg-white/40'
                 }`}
               />
             ))}

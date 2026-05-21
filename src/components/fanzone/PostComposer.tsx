@@ -4,15 +4,24 @@ import { NeonButton } from '@/components/ui/NeonButton'
 import { Avatar } from '@/components/ui/Avatar'
 import { useAuthStore } from '@/store/authStore'
 import { useCreatePost } from '@/hooks/usePosts'
+import { getEffectiveUser } from '@/lib/guestUser'
 
 export function PostComposer() {
-  const { user } = useAuthStore()
+  const { user: authUser } = useAuthStore()
+  const user = getEffectiveUser(authUser)
   const [content, setContent] = useState('')
   const { mutate, isPending } = useCreatePost()
 
   const handlePost = () => {
     if (!content.trim() || !user) return
-    mutate({ user_id: user.id, content, media_url: null, media_type: null, match_id: null })
+    mutate({
+      user_id: user.id,
+      user,
+      content: content.trim(),
+      media_url: null,
+      media_type: null,
+      match_id: null,
+    })
     setContent('')
   }
 

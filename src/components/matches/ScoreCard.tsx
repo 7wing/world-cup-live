@@ -30,8 +30,11 @@ export function ScoreCard({ match, onClick }: ScoreCardProps) {
       </div>
 
       <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3 flex-1">
-          <span className="font-lexend font-bold uppercase text-sm">{match.home_team.code}</span>
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          {match.home_team.flag_url && !match.home_team.flag_url.startsWith('http') && (
+            <span className="text-lg leading-none">{match.home_team.flag_url}</span>
+          )}
+          <span className="font-lexend font-bold uppercase text-sm truncate">{match.home_team.name}</span>
         </div>
         <div className="flex items-center gap-3">
           {(isLive || isFinished) ? (
@@ -42,8 +45,11 @@ export function ScoreCard({ match, onClick }: ScoreCardProps) {
             <span className="font-lexend text-white/20 text-sm uppercase tracking-widest">vs</span>
           )}
         </div>
-        <div className="flex items-center gap-3 flex-1 justify-end">
-          <span className="font-lexend font-bold uppercase text-sm">{match.away_team.code}</span>
+        <div className="flex items-center gap-2 flex-1 justify-end min-w-0">
+          <span className="font-lexend font-bold uppercase text-sm truncate text-right">{match.away_team.name}</span>
+          {match.away_team.flag_url && !match.away_team.flag_url.startsWith('http') && (
+            <span className="text-lg leading-none">{match.away_team.flag_url}</span>
+          )}
         </div>
       </div>
 

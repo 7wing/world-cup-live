@@ -1,7 +1,15 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { GlassCard } from '@/components/ui/GlassCard'
 import { NeonButton } from '@/components/ui/NeonButton'
+import { useMatches } from '@/hooks/useMatches'
+import { useAuthStore } from '@/store/authStore'
+import { getEffectiveUser } from '@/lib/guestUser'
+import { getPrediction, savePrediction } from '@/lib/predictionsStorage'
+import { getStaticOracle } from '@/lib/mockAdapters'
+import { fetchGeminiTrivia, isGeminiEnabled } from '@/lib/gemini'
+import { formatKickoff } from '@/utils/formatDate'
+import type { Match } from '@/types'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type GameTab = 'trivia' | 'predictor' | 'bracket' | 'duel'
@@ -52,12 +60,11 @@ const AI_TRIVIA = [
   },
 ]
 
-// ── Score predictor data ──────────────────────────────────────────────────────
-const UPCOMING_FOR_PREDICT = [
-  { id: 'p1', home: '🇫🇷 France',    away: '🇦🇷 Argentina', date: 'QF · Fri 18:00', pts: 50 },
-  { id: 'p2', home: '🇳🇱 Netherlands', away: '🇵🇹 Portugal', date: 'QF · Fri 21:00', pts: 50 },
-  { id: 'p3', home: '🇧🇷 Brazil',    away: '🇬🇧 England',   date: 'SF · Mon 18:00', pts: 75 },
-]
+function matchLabel(m: Match, side: 'home' | 'away') {
+  const team = side === 'home' ? m.home_team : m.away_team
+  const flag = team.flag_url && !team.flag_url.startsWith('http') ? team.flag_url : ''
+  return `${flag} ${team.name}`.trim()
+}
 
 // ── Duel mock ─────────────────────────────────────────────────────────────────
 const DUEL_OPPONENTS = [
@@ -72,8 +79,29 @@ const DUEL_OPPONENTS = [
 
 // ── AI Trivia tab ─────────────────────────────────────────────────────────────
 function AiTriviaTab() {
+  const { data: matches } = useMatches()
+  const liveMatch = matches?.find((m) => m.status === 'live')
+  const [extraTrivia, setExtraTrivia] = useState<typeof AI_TRIVIA[0] | null>(null)
   const [answers, setAnswers] = useState<Record<string, number | null>>({})
   const [totalPts, setTotalPts] = useState(0)
+
+  useEffect(() => {
+    if (!isGeminiEnabled()) return
+    fetchGeminiTrivia(liveMatch).then((q) => {
+      if (!q) return
+      setExtraTrivia({
+        id: 'gemini-live',
+        isLive: Boolean(liveMatch),
+        question: q.question,
+        options: q.options,
+        answer: q.answer,
+        points: q.points,
+        tag: liveMatch ? 'AI · Live Match' : 'AI · World Cup',
+      })
+    })
+  }, [liveMatch?.id])
+
+  const questions = extraTrivia ? [extraTrivia, ...AI_TRIVIA] : AI_TRIVIA
 
   function handleAnswer(qid: string, i: number, correct: number, pts: number) {
     if (answers[qid] !== undefined) return
@@ -84,7 +112,7 @@ function AiTriviaTab() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
       <div className="lg:col-span-8 space-y-5">
-        {AI_TRIVIA.map((q) => {
+        {questions.map((q) => {
           const picked = answers[q.id] ?? null
           return (
             <GlassCard key={q.id} className="overflow-hidden">
@@ -181,8 +209,28 @@ function AiTriviaTab() {
 
 // ── Score Predictor tab ───────────────────────────────────────────────────────
 function PredictorTab() {
+  const { data: matches } = useMatches()
+  const { user: authUser } = useAuthStore()
+  const user = getEffectiveUser(authUser)
+  const upcoming = (matches ?? []).filter((m) => m.status === 'upcoming').slice(0, 6)
+
   const [predictions, setPredictions] = useState<Record<string, [number, number]>>({})
   const [locked, setLocked] = useState<Record<string, boolean>>({})
+
+  useEffect(() => {
+    if (!user) return
+    const preds: Record<string, [number, number]> = {}
+    const locks: Record<string, boolean> = {}
+    for (const m of upcoming) {
+      const saved = getPrediction(user.id, m.id)
+      if (saved) {
+        preds[m.id] = [saved.predicted_home, saved.predicted_away]
+        locks[m.id] = true
+      }
+    }
+    setPredictions(preds)
+    setLocked(locks)
+  }, [user?.id, upcoming.map((m) => m.id).join(',')])
 
   function setPred(id: string, side: 0 | 1, v: number) {
     const cur = predictions[id] ?? [0, 0]
@@ -191,27 +239,43 @@ function PredictorTab() {
     setPredictions((p) => ({ ...p, [id]: next }))
   }
 
+  function lockIn(matchId: string) {
+    if (!user) return
+    const pred = predictions[matchId] ?? [0, 0]
+    savePrediction(user.id, matchId, pred[0], pred[1])
+    setLocked((p) => ({ ...p, [matchId]: true }))
+  }
+
+  if (upcoming.length === 0) {
+    return (
+      <GlassCard className="p-8 text-center">
+        <p className="text-sm font-lexend text-white/30">No upcoming matches to predict right now.</p>
+      </GlassCard>
+    )
+  }
+
   return (
     <div className="space-y-4 max-w-2xl">
       <p className="text-xs font-lexend text-white/30 leading-relaxed">
-        Predict the exact final score before kick-off. Exact score = 50 pts, correct result = 10 pts.
+        Predict the exact final score before kick-off. Exact score = 50 pts, correct result = 10 pts. Oracle picks shown after lock-in.
       </p>
-      {UPCOMING_FOR_PREDICT.map((m) => {
+      {upcoming.map((m) => {
         const pred = predictions[m.id] ?? [0, 0]
         const isLocked = locked[m.id]
+        const oracle = getStaticOracle(m.id)
         return (
           <GlassCard key={m.id} className="overflow-hidden">
             <div className="px-4 py-2.5 border-b border-white/8 flex items-center justify-between">
-              <span className="text-[10px] font-lexend text-white/25">{m.date}</span>
+              <span className="text-[10px] font-lexend text-white/25">{m.stage} · {formatKickoff(m.kickoff_at)}</span>
               <div className="flex items-center gap-1 text-[10px] font-lexend font-black text-primary-container">
                 <span className="material-symbols-outlined text-[13px]">emoji_events</span>
-                +{m.pts} pts exact
+                +50 pts exact
               </div>
             </div>
             <div className="p-4 flex items-center gap-4">
               {/* Home */}
               <div className="flex-1 text-right">
-                <p className="font-lexend font-semibold text-xs text-white/60 mb-2">{m.home}</p>
+                <p className="font-lexend font-semibold text-xs text-white/60 mb-2">{matchLabel(m, 'home')}</p>
                 <div className="flex items-center justify-end gap-2">
                   {!isLocked && (
                     <button onClick={() => setPred(m.id, 0, pred[0] - 1)} className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:bg-white/10 transition-colors">
@@ -231,7 +295,7 @@ function PredictorTab() {
 
               {/* Away */}
               <div className="flex-1">
-                <p className="font-lexend font-semibold text-xs text-white/60 mb-2">{m.away}</p>
+                <p className="font-lexend font-semibold text-xs text-white/60 mb-2">{matchLabel(m, 'away')}</p>
                 <div className="flex items-center gap-2">
                   {!isLocked && (
                     <button onClick={() => setPred(m.id, 1, pred[1] - 1)} className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:bg-white/10 transition-colors">
@@ -249,7 +313,7 @@ function PredictorTab() {
 
               {/* Lock button */}
               <button
-                onClick={() => setLocked((p) => ({ ...p, [m.id]: true }))}
+                onClick={() => lockIn(m.id)}
                 disabled={isLocked}
                 className={`px-3 py-1.5 rounded-lg text-[10px] font-lexend font-black uppercase tracking-widest transition-colors flex-shrink-0 ${
                   isLocked
@@ -260,6 +324,11 @@ function PredictorTab() {
                 {isLocked ? 'Locked ✓' : 'Lock In'}
               </button>
             </div>
+            {isLocked && oracle && (
+              <p className="px-4 pb-3 text-[10px] font-lexend text-white/25 text-center">
+                Oracle: {oracle.predictedHome}–{oracle.predictedAway} ({oracle.confidence}% confidence)
+              </p>
+            )}
           </GlassCard>
         )
       })}

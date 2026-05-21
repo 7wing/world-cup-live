@@ -1,7 +1,13 @@
 import { supabase } from '@/lib/supabase'
+import { isMockDataEnabled } from '@/lib/mockMode'
+import { getMockMatches, getMockMatchById } from '@/lib/mockAdapters'
 import type { Match } from '@/types'
 
 export async function fetchMatches(): Promise<Match[]> {
+  if (isMockDataEnabled()) {
+    return getMockMatches()
+  }
+
   const { data, error } = await supabase
     .from('matches')
     .select(`
@@ -17,6 +23,10 @@ export async function fetchMatches(): Promise<Match[]> {
 }
 
 export async function fetchLiveMatches(): Promise<Match[]> {
+  if (isMockDataEnabled()) {
+    return getMockMatches().filter((m) => m.status === 'live')
+  }
+
   const { data, error } = await supabase
     .from('matches')
     .select(`
@@ -32,6 +42,12 @@ export async function fetchLiveMatches(): Promise<Match[]> {
 }
 
 export async function fetchMatchById(id: string): Promise<Match> {
+  if (isMockDataEnabled()) {
+    const match = getMockMatchById(id)
+    if (!match) throw new Error(`Match not found: ${id}`)
+    return match
+  }
+
   const { data, error } = await supabase
     .from('matches')
     .select(`

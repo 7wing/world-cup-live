@@ -7,31 +7,28 @@ import { GlassCard } from '@/components/ui/GlassCard'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { StatBadge } from '@/components/ui/StatBadge'
 import { Avatar } from '@/components/ui/Avatar'
-import { useStadium, useStadiumReviews, useStadiumPhotos } from '@/hooks/useStadium'
+import { useStadium, useStadiumReviews, useStadiumPhotos, getOptimizedImageUrl } from '@/hooks/useStadium'
 import { formatRelative } from '@/utils/formatDate'
 
-// ── Tab definitions ───────────────────────────────────────────────────────────
 type Tab = 'overview' | 'matches' | 'photos' | 'reviews' | 'info'
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: 'overview', label: 'Overview',   icon: 'bar_chart'      },
-  { id: 'matches',  label: 'Matches',    icon: 'sports_soccer'  },
-  { id: 'photos',   label: 'Photos',     icon: 'photo_library'  },
-  { id: 'reviews',  label: 'Reviews',    icon: 'reviews'        },
-  { id: 'info',     label: 'Transport',  icon: 'directions_bus' },
+  { id: 'overview', label: 'Overview',  icon: 'bar_chart'      },
+  { id: 'matches',  label: 'Matches',   icon: 'sports_soccer'  },
+  { id: 'photos',   label: 'Photos',    icon: 'photo_library'  },
+  { id: 'reviews',  label: 'Reviews',   icon: 'reviews'        },
+  { id: 'info',     label: 'Transport', icon: 'directions_bus' },
 ]
 
-// ── Mock match data (replace with real API hook) ──────────────────────────────
 const MOCK_MATCHES = [
-  { id: 1, date: 'Jun 11', time: '20:00', teams: 'Mexico vs TBD',   round: 'Opening Match',  roundColor: 'text-primary-container bg-primary-container/10 border-primary-container/30' },
-  { id: 2, date: 'Jun 17', time: '17:00', teams: 'TBD vs TBD',      round: 'Group Stage',    roundColor: 'text-white/60 bg-white/5 border-white/10' },
-  { id: 3, date: 'Jun 23', time: '20:00', teams: 'TBD vs TBD',      round: 'Group Stage',    roundColor: 'text-white/60 bg-white/5 border-white/10' },
-  { id: 4, date: 'Jul 2',  time: '20:00', teams: 'TBD vs TBD',      round: 'Round of 16',    roundColor: 'text-amber-400 bg-amber-400/10 border-amber-400/30' },
-  { id: 5, date: 'Jul 9',  time: '20:00', teams: 'TBD vs TBD',      round: 'Quarterfinal',   roundColor: 'text-orange-400 bg-orange-400/10 border-orange-400/30' },
-  { id: 6, date: 'Jul 19', time: '20:00', teams: 'TBD vs TBD',      round: 'Semifinal',      roundColor: 'text-rose-400 bg-rose-400/10 border-rose-400/30' },
+  { id: 1, date: 'Jun 11', time: '20:00', teams: 'Mexico vs TBD',   round: 'Opening Match', roundColor: 'text-primary-container bg-primary-container/10 border-primary-container/30' },
+  { id: 2, date: 'Jun 17', time: '17:00', teams: 'TBD vs TBD',      round: 'Group Stage',   roundColor: 'text-white/60 bg-white/5 border-white/10' },
+  { id: 3, date: 'Jun 23', time: '20:00', teams: 'TBD vs TBD',      round: 'Group Stage',   roundColor: 'text-white/60 bg-white/5 border-white/10' },
+  { id: 4, date: 'Jul 2',  time: '20:00', teams: 'TBD vs TBD',      round: 'Round of 16',   roundColor: 'text-amber-400 bg-amber-400/10 border-amber-400/30' },
+  { id: 5, date: 'Jul 9',  time: '20:00', teams: 'TBD vs TBD',      round: 'Quarterfinal',  roundColor: 'text-orange-400 bg-orange-400/10 border-orange-400/30' },
+  { id: 6, date: 'Jul 19', time: '20:00', teams: 'TBD vs TBD',      round: 'Semifinal',     roundColor: 'text-rose-400 bg-rose-400/10 border-rose-400/30' },
 ]
 
-// ── Star rating component ─────────────────────────────────────────────────────
 function StarRating({ value }: { value: number }) {
   return (
     <div className="flex items-center gap-0.5">
@@ -49,7 +46,37 @@ function StarRating({ value }: { value: number }) {
   )
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
+// Lazy photo tile with skeleton
+function PhotoTile({ src, caption }: { src: string; caption: string | null }) {
+  const [loaded, setLoaded] = useState(false)
+  const [error, setError] = useState(false)
+  const optimized = getOptimizedImageUrl(src, 400, 70)
+
+  return (
+    <div className="aspect-square rounded-xl overflow-hidden bg-surface-container-low relative">
+      {!loaded && !error && (
+        <div className="absolute inset-0 bg-white/5 animate-pulse" />
+      )}
+      {!error && optimized && (
+        <img
+          src={optimized}
+          alt={caption ?? ''}
+          loading="lazy"
+          decoding="async"
+          onLoad={() => setLoaded(true)}
+          onError={() => setError(true)}
+          className={`w-full h-full object-cover transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+        />
+      )}
+      {caption && (
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 pointer-events-none">
+          <p className="text-[10px] text-white/80 font-lexend leading-snug line-clamp-2">{caption}</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function StadiumDetailPage() {
   const { stadiumId } = useParams<{ stadiumId: string }>()
   const navigate = useNavigate()
@@ -58,10 +85,9 @@ export function StadiumDetailPage() {
   const { data: reviews }            = useStadiumReviews(stadiumId!)
   const { data: photos }             = useStadiumPhotos(stadiumId!)
 
-  const [activeTab, setActiveTab]         = useState<Tab>('overview')
+  const [activeTab, setActiveTab]           = useState<Tab>('overview')
   const [showReviewForm, setShowReviewForm] = useState(false)
 
-  // ── Loading / error states ────────────────────────────────────────────────
   if (isLoading) {
     return (
       <PageWrapper>
@@ -89,8 +115,6 @@ export function StadiumDetailPage() {
 
   return (
     <PageWrapper>
-
-      {/* ── Back button ── */}
       <button
         onClick={() => navigate('/stadiums')}
         className="flex items-center gap-2 text-white/40 hover:text-white/80 text-[11px] font-lexend font-bold uppercase tracking-widest transition-colors mb-5"
@@ -99,13 +123,8 @@ export function StadiumDetailPage() {
         All Venues
       </button>
 
-      {/* ── Hero ── */}
-      <VenueHero stadium={stadium} onReview={() => {
-        setShowReviewForm(true)
-        setActiveTab('reviews')
-      }} />
+      <VenueHero stadium={stadium} onReview={() => { setShowReviewForm(true); setActiveTab('reviews') }} />
 
-      {/* ── Stat row ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 my-5">
         <StatBadge
           value={stadium.total_reviews > 999
@@ -118,7 +137,6 @@ export function StadiumDetailPage() {
         <StatBadge value={`${stadium.avg_rating.toFixed(1)}/5`} label="Avg Rating" highlighted />
       </div>
 
-      {/* ── Tab bar ── */}
       <div className="flex gap-1 border-b border-white/8 mb-6 overflow-x-auto scrollbar-none">
         {TABS.map((tab) => (
           <button
@@ -138,58 +156,38 @@ export function StadiumDetailPage() {
         ))}
       </div>
 
-      {/* ══════════════════════════════════════════════
-          TAB: OVERVIEW
-      ══════════════════════════════════════════════ */}
+      {/* OVERVIEW */}
       {activeTab === 'overview' && (
         <div className="space-y-5">
-
-          {/* Fan Performance Metrics */}
           <GlassCard className="p-6">
             <h2 className="font-lexend font-bold uppercase text-[11px] tracking-widest text-white/40 mb-5">
               Fan Performance Metrics
             </h2>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Progress bars */}
               <div className="space-y-4">
                 {[
-                  { label: 'Atmosphere', value: stadium.avg_atmosphere * 20 },
-                  { label: 'Food & Bev', value: stadium.avg_food * 20 },
+                  { label: 'Atmosphere',   value: stadium.avg_atmosphere * 20 },
+                  { label: 'Food & Bev',   value: stadium.avg_food * 20 },
                   { label: 'Hotels Nearby', value: (stadium.avg_hotel ?? 4.2) * 20 },
-                  { label: 'Safety', value: stadium.avg_safety * 20 },
+                  { label: 'Safety',        value: stadium.avg_safety * 20 },
                 ].map(({ label, value }) => (
                   <ProgressBar key={label} value={value} label={label} showLabel />
                 ))}
               </div>
-
-              {/* Grade box */}
               <div className="flex flex-col items-center justify-center bg-primary-container/5 border border-primary-container/20 rounded-xl p-6 text-center gap-2">
                 <span className="font-lexend text-6xl font-black text-primary-container leading-none">A+</span>
-                <p className="font-lexend font-bold text-xs uppercase tracking-widest text-white/70">
-                  Elite Venue Rating
-                </p>
+                <p className="font-lexend font-bold text-xs uppercase tracking-widest text-white/70">Elite Venue Rating</p>
                 <p className="text-xs text-white/35 italic leading-relaxed mt-1">
                   "The thunderous roar at Azteca is unlike anything in world football."
                 </p>
-                <div className="flex items-center gap-1 mt-2">
-                  <span className="w-1 h-1 rounded-full bg-primary-container/60" />
-                  <span className="text-[10px] font-lexend font-bold uppercase tracking-widest text-white/25">
-                    Temple of Football
-                  </span>
-                  <span className="w-1 h-1 rounded-full bg-primary-container/60" />
-                </div>
               </div>
             </div>
           </GlassCard>
 
-          {/* Recent Reviews preview */}
           {reviews && reviews.length > 0 && (
             <GlassCard className="p-6">
               <div className="flex items-center justify-between mb-5">
-                <h2 className="font-lexend font-bold uppercase text-[11px] tracking-widest text-white/40">
-                  Recent Reviews
-                </h2>
+                <h2 className="font-lexend font-bold uppercase text-[11px] tracking-widest text-white/40">Recent Reviews</h2>
                 <button
                   onClick={() => setActiveTab('reviews')}
                   className="text-[11px] font-lexend font-bold uppercase tracking-widest text-primary-container/70 hover:text-primary-container transition-colors"
@@ -218,9 +216,7 @@ export function StadiumDetailPage() {
         </div>
       )}
 
-      {/* ══════════════════════════════════════════════
-          TAB: MATCHES
-      ══════════════════════════════════════════════ */}
+      {/* MATCHES */}
       {activeTab === 'matches' && (
         <GlassCard className="p-6">
           <h2 className="font-lexend font-bold uppercase text-[11px] tracking-widest text-white/40 mb-5">
@@ -232,28 +228,20 @@ export function StadiumDetailPage() {
                 key={match.id}
                 className="flex items-center gap-4 px-4 py-3.5 bg-white/3 hover:bg-white/5 rounded-xl border border-white/5 transition-colors group"
               >
-                {/* Date */}
                 <div className="w-14 flex-shrink-0">
                   <p className="text-[11px] font-lexend font-black text-white/80 uppercase">{match.date}</p>
                   <p className="text-[10px] text-white/30 font-lexend mt-0.5">{match.time}</p>
                 </div>
-
-                {/* Divider */}
                 <div className="w-px self-stretch bg-white/8" />
-
-                {/* Teams */}
                 <div className="flex-1">
                   <p className="font-lexend font-bold text-sm text-white group-hover:text-primary-container transition-colors">
                     {match.teams}
                   </p>
                   <p className="text-[10px] text-white/30 mt-0.5 font-lexend">Estadio Azteca · Mexico City</p>
                 </div>
-
-                {/* Round badge */}
                 <span className={`text-[10px] font-lexend font-bold uppercase tracking-wide px-2.5 py-1 rounded-lg border ${match.roundColor}`}>
                   {match.round}
                 </span>
-
                 <span className="material-symbols-outlined text-sm text-white/20 group-hover:text-white/50 transition-colors">
                   chevron_right
                 </span>
@@ -263,15 +251,11 @@ export function StadiumDetailPage() {
         </GlassCard>
       )}
 
-      {/* ══════════════════════════════════════════════
-          TAB: PHOTOS
-      ══════════════════════════════════════════════ */}
+      {/* PHOTOS */}
       {activeTab === 'photos' && (
         <GlassCard className="p-6">
           <div className="flex items-center justify-between mb-5">
-            <h2 className="font-lexend font-bold uppercase text-[11px] tracking-widest text-white/40">
-              Fan Photos
-            </h2>
+            <h2 className="font-lexend font-bold uppercase text-[11px] tracking-widest text-white/40">Fan Photos</h2>
             <button className="flex items-center gap-1.5 text-[11px] font-lexend font-bold uppercase tracking-widest text-primary-container/70 hover:text-primary-container transition-colors">
               <span className="material-symbols-outlined text-base">upload</span>
               Upload
@@ -281,23 +265,7 @@ export function StadiumDetailPage() {
           {photos && photos.length > 0 ? (
             <div className="grid grid-cols-3 gap-2">
               {photos.slice(0, 9).map((photo) => (
-                <div
-                  key={photo.id}
-                  className="aspect-square rounded-xl overflow-hidden bg-surface-container-low relative"
-                >
-                  <img
-                    src={photo.image_url}
-                    alt={photo.caption ?? ''}
-                    loading="lazy"
-                    decoding="async"
-                    className="w-full h-full object-cover"
-                  />
-                  {photo.caption && (
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 pointer-events-none">
-                      <p className="text-[10px] text-white/80 font-lexend leading-snug line-clamp-2">{photo.caption}</p>
-                    </div>
-                  )}
-                </div>
+                <PhotoTile key={photo.id} src={photo.image_url} caption={photo.caption} />
               ))}
             </div>
           ) : (
@@ -309,18 +277,11 @@ export function StadiumDetailPage() {
         </GlassCard>
       )}
 
-      {/* ══════════════════════════════════════════════
-          TAB: REVIEWS
-      ══════════════════════════════════════════════ */}
+      {/* REVIEWS */}
       {activeTab === 'reviews' && (
         <div className="space-y-5">
-
-          {/* Write review form */}
           {showReviewForm ? (
-            <ReviewForm
-              stadiumId={stadium.id}
-              onClose={() => setShowReviewForm(false)}
-            />
+            <ReviewForm stadiumId={stadium.id} onClose={() => setShowReviewForm(false)} />
           ) : (
             <button
               onClick={() => setShowReviewForm(true)}
@@ -331,7 +292,6 @@ export function StadiumDetailPage() {
             </button>
           )}
 
-          {/* Reviews list */}
           {reviews && reviews.length > 0 ? (
             <GlassCard className="p-6">
               <h2 className="font-lexend font-bold uppercase text-[11px] tracking-widest text-white/40 mb-5">
@@ -344,20 +304,13 @@ export function StadiumDetailPage() {
                       <div className="flex items-center gap-2">
                         <Avatar src={r.user?.avatar_url} username={r.user?.username} size="sm" />
                         <div>
-                          <p className="font-lexend font-semibold text-sm text-white leading-none">
-                            {r.user?.username}
-                          </p>
-                          <p className="text-[10px] text-white/30 font-lexend mt-1">
-                            {formatRelative(r.created_at)}
-                          </p>
+                          <p className="font-lexend font-semibold text-sm text-white leading-none">{r.user?.username}</p>
+                          <p className="text-[10px] text-white/30 font-lexend mt-1">{formatRelative(r.created_at)}</p>
                         </div>
                       </div>
                       {r.overall_rating && <StarRating value={r.overall_rating} />}
                     </div>
-                    {r.body && (
-                      <p className="text-sm text-white/60 leading-relaxed pl-9">{r.body}</p>
-                    )}
-                    {/* Per-category ratings if present */}
+                    {r.body && <p className="text-sm text-white/60 leading-relaxed pl-9">{r.body}</p>}
                     {(r.atmosphere_score || r.food_score || r.safety_score) && (
                       <div className="flex gap-4 mt-3 pl-9">
                         {r.atmosphere_score && (
@@ -390,13 +343,9 @@ export function StadiumDetailPage() {
         </div>
       )}
 
-      {/* ══════════════════════════════════════════════
-          TAB: TRANSPORT & INFO
-      ══════════════════════════════════════════════ */}
+      {/* TRANSPORT & INFO */}
       {activeTab === 'info' && (
         <div className="space-y-5">
-
-          {/* Transport */}
           <GlassCard className="p-6">
             <h2 className="font-lexend font-bold uppercase text-[11px] tracking-widest text-white/40 mb-5 flex items-center gap-2">
               <span className="material-symbols-outlined text-primary-container text-base">directions_bus</span>
@@ -405,21 +354,15 @@ export function StadiumDetailPage() {
             <div className="space-y-3">
               {[
                 {
-                  icon: 'directions_bus',
-                  title: 'Official Shuttle',
-                  status: 'Active',
+                  icon: 'directions_bus', title: 'Official Shuttle', status: 'Active',
                   detail: 'Runs every 8 mins from Zócalo. Last shuttle 90 min after final whistle.',
                 },
                 {
-                  icon: 'directions_subway',
-                  title: 'Metro Line 3',
-                  status: 'Active',
+                  icon: 'directions_subway', title: 'Metro Line 3', status: 'Active',
                   detail: 'Station: Estadio Azteca (Line 3). 10 min walk to gates. Extended hours on match days.',
                 },
                 {
-                  icon: 'local_parking',
-                  title: 'Official Parking',
-                  status: 'Limited',
+                  icon: 'local_parking', title: 'Official Parking', status: 'Limited',
                   detail: 'Lots A–F open 3 hrs before kickoff. Pre-booking required via official app.',
                 },
               ].map(({ icon, title, status, detail }) => (
@@ -445,14 +388,11 @@ export function StadiumDetailPage() {
             </div>
           </GlassCard>
 
-          {/* Safety */}
           <GlassCard className="p-6">
             <h2 className="font-lexend font-bold uppercase text-[11px] tracking-widest text-white/40 mb-5 flex items-center gap-2">
               <span className="material-symbols-outlined text-primary-container text-base">gpp_maybe</span>
               Safety & Protocols
             </h2>
-
-            {/* Bag policy */}
             <div className="flex items-center gap-4 p-4 bg-white/4 rounded-xl mb-4">
               <span className="material-symbols-outlined text-4xl text-primary-container">inventory_2</span>
               <div>
@@ -460,8 +400,6 @@ export function StadiumDetailPage() {
                 <p className="text-xs text-white/45 mt-0.5">Max size: 12" × 6" × 12"</p>
               </div>
             </div>
-
-            {/* Emergency contacts */}
             <div className="grid grid-cols-2 gap-3">
               <div className="p-4 bg-red-950/25 border border-red-500/25 rounded-xl text-center">
                 <p className="text-[10px] font-lexend font-bold uppercase tracking-widest text-white/50 mb-1">Medical</p>
@@ -472,18 +410,11 @@ export function StadiumDetailPage() {
                 <p className="font-lexend font-black text-2xl text-white">#555</p>
               </div>
             </div>
-
-            {/* Security score */}
             <div className="mt-4 pt-4 border-t border-white/6">
-              <ProgressBar
-                value={stadium.security_score * 20}
-                label="Security Score"
-                showLabel
-              />
+              <ProgressBar value={stadium.security_score * 20} label="Security Score" showLabel />
             </div>
           </GlassCard>
 
-          {/* Venue facts */}
           <GlassCard className="p-6">
             <h2 className="font-lexend font-bold uppercase text-[11px] tracking-widest text-white/40 mb-5 flex items-center gap-2">
               <span className="material-symbols-outlined text-primary-container text-base">info</span>
@@ -491,11 +422,11 @@ export function StadiumDetailPage() {
             </h2>
             <div className="space-y-3">
               {[
-                { icon: 'stadium',          label: 'Capacity',        value: stadium.capacity?.toLocaleString() ?? '87,523' },
-                { icon: 'calendar_month',   label: 'Opened',          value: stadium.year_opened ?? '1966'                  },
-                { icon: 'location_on',      label: 'City',            value: stadium.city ?? 'Mexico City, Mexico'          },
-                { icon: 'grass',            label: 'Surface',         value: stadium.surface ?? 'Natural Grass'             },
-                { icon: 'wb_sunny',         label: 'Roof',            value: stadium.roof_type ?? 'Open Air'                },
+                { icon: 'stadium',        label: 'Capacity', value: stadium.capacity?.toLocaleString() ?? '87,523' },
+                { icon: 'calendar_month', label: 'Opened',   value: stadium.year_opened ?? '1966'                  },
+                { icon: 'location_on',    label: 'City',     value: stadium.city ?? 'Mexico City, Mexico'          },
+                { icon: 'grass',          label: 'Surface',  value: stadium.surface ?? 'Natural Grass'             },
+                { icon: 'wb_sunny',       label: 'Roof',     value: stadium.roof_type ?? 'Open Air'                },
               ].map(({ icon, label, value }) => (
                 <div key={label} className="flex items-center justify-between py-2.5 border-b border-white/5 last:border-0">
                   <div className="flex items-center gap-2.5">
@@ -507,10 +438,8 @@ export function StadiumDetailPage() {
               ))}
             </div>
           </GlassCard>
-
         </div>
       )}
-
     </PageWrapper>
   )
 }

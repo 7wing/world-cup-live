@@ -8,6 +8,9 @@ import { OraclePrediction } from '@/components/games/OraclePrediction'
 import { BracketTab } from '@/components/matches/BracketTab'
 import { GlassCard } from '@/components/ui/GlassCard'
 import { useMatches } from '@/hooks/useMatches'
+import { useOraclePrediction } from '@/hooks/useOracle'
+import { GROUPS_2026_CARDS, GROUPS_2022_CARDS, type GroupCardData } from '@/lib/mockAdapters'
+import type { TournamentYear } from '@/utils/mockData'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Tab = 'schedule' | 'groups' | 'bracket'
@@ -16,74 +19,6 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'schedule', label: 'Schedule', icon: 'calendar_month' },
   { id: 'groups',   label: 'Groups',   icon: 'grid_view'      },
   { id: 'bracket',  label: 'Bracket',  icon: 'account_tree'   },
-]
-
-// ── Groups data ───────────────────────────────────────────────────────────────
-const GROUPS = [
-  {
-    name: 'A', teams: [
-      { flag: '🇺🇸', name: 'USA',         played: 3, gd:  3, pts: 7, qualified: true  },
-      { flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', name: 'England',    played: 3, gd:  1, pts: 6, qualified: true  },
-      { flag: '🇮🇷', name: 'Iran',        played: 3, gd: -2, pts: 3, qualified: false },
-      { flag: '🏴󠁧󠁢󠁷󠁬󠁳󠁿', name: 'Wales',      played: 3, gd: -3, pts: 1, qualified: false },
-    ],
-  },
-  {
-    name: 'B', teams: [
-      { flag: '🇦🇷', name: 'Argentina',   played: 3, gd:  5, pts: 9, qualified: true  },
-      { flag: '🇲🇽', name: 'Mexico',      played: 3, gd: -1, pts: 4, qualified: true  },
-      { flag: '🇵🇱', name: 'Poland',      played: 3, gd: -2, pts: 3, qualified: false },
-      { flag: '🇸🇦', name: 'Saudi Ar.',   played: 3, gd: -2, pts: 1, qualified: false },
-    ],
-  },
-  {
-    name: 'C', teams: [
-      { flag: '🇫🇷', name: 'France',      played: 3, gd:  4, pts: 7, qualified: true  },
-      { flag: '🇩🇰', name: 'Denmark',     played: 3, gd:  0, pts: 4, qualified: true  },
-      { flag: '🇹🇳', name: 'Tunisia',     played: 3, gd: -2, pts: 3, qualified: false },
-      { flag: '🇦🇺', name: 'Australia',   played: 3, gd: -2, pts: 0, qualified: false },
-    ],
-  },
-  {
-    name: 'D', teams: [
-      { flag: '🇧🇷', name: 'Brazil',      played: 3, gd:  6, pts: 9, qualified: true  },
-      { flag: '🇨🇭', name: 'Switzerland', played: 3, gd: -1, pts: 4, qualified: true  },
-      { flag: '🇷🇸', name: 'Serbia',      played: 3, gd: -2, pts: 3, qualified: false },
-      { flag: '🇨🇲', name: 'Cameroon',    played: 3, gd: -3, pts: 1, qualified: false },
-    ],
-  },
-  {
-    name: 'E', teams: [
-      { flag: '🇪🇸', name: 'Spain',       played: 3, gd:  4, pts: 7, qualified: true  },
-      { flag: '🇩🇪', name: 'Germany',     played: 3, gd:  0, pts: 4, qualified: true  },
-      { flag: '🇯🇵', name: 'Japan',       played: 3, gd: -1, pts: 3, qualified: false },
-      { flag: '🇨🇷', name: 'Costa Rica',  played: 3, gd: -3, pts: 0, qualified: false },
-    ],
-  },
-  {
-    name: 'F', teams: [
-      { flag: '🇧🇪', name: 'Belgium',     played: 3, gd:  2, pts: 6, qualified: true  },
-      { flag: '🇲🇦', name: 'Morocco',     played: 3, gd:  1, pts: 5, qualified: true  },
-      { flag: '🇭🇷', name: 'Croatia',     played: 3, gd:  0, pts: 4, qualified: false },
-      { flag: '🇨🇦', name: 'Canada',      played: 3, gd: -3, pts: 1, qualified: false },
-    ],
-  },
-  {
-    name: 'G', teams: [
-      { flag: '🇵🇹', name: 'Portugal',    played: 3, gd:  5, pts: 9, qualified: true  },
-      { flag: '🇺🇾', name: 'Uruguay',     played: 3, gd:  0, pts: 4, qualified: true  },
-      { flag: '🇰🇷', name: 'South Korea', played: 3, gd: -2, pts: 3, qualified: false },
-      { flag: '🇬🇭', name: 'Ghana',       played: 3, gd: -3, pts: 1, qualified: false },
-    ],
-  },
-  {
-    name: 'H', teams: [
-      { flag: '🇳🇱', name: 'Netherlands', played: 3, gd:  2, pts: 6, qualified: true  },
-      { flag: '🇸🇳', name: 'Senegal',     played: 3, gd:  0, pts: 4, qualified: true  },
-      { flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', name: 'Ecuador',    played: 3, gd: -2, pts: 3, qualified: false },
-      { flag: '🇶🇦', name: 'Qatar',       played: 3, gd: -1, pts: 1, qualified: false },
-    ],
-  },
 ]
 
 const MOCK_STANDINGS = [
@@ -129,7 +64,7 @@ const ONBOARDING_TEAMS = [
 // SUB-COMPONENTS
 // ─────────────────────────────────────────────────────────────────────────────
 
-function GroupCard({ group }: { group: typeof GROUPS[0] }) {
+function GroupCard({ group }: { group: GroupCardData }) {
   return (
     <GlassCard className="overflow-hidden">
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/8 bg-white/3">
@@ -359,6 +294,7 @@ export function MatchesPage() {
   const navigate = useNavigate()
   const { data: matches, isLoading } = useMatches()
   const [activeTab, setActiveTab] = useState<Tab>('schedule')
+  const [tournamentYear, setTournamentYear] = useState<TournamentYear>('2026')
 
   // Onboarding: show once until user picks a team
   const [showOnboarding, setShowOnboarding] = useState(
@@ -370,6 +306,8 @@ export function MatchesPage() {
   const finished = matches?.filter((m) => m.status === 'finished') ?? []
 
   const featureMatch = live[0] ?? upcoming[0] ?? null
+  const { data: oracle } = useOraclePrediction(featureMatch)
+  const groups = tournamentYear === '2026' ? GROUPS_2026_CARDS : GROUPS_2022_CARDS
 
   return (
     <PageWrapper>
@@ -497,12 +435,12 @@ export function MatchesPage() {
                   <p className="font-lexend font-black text-[9px] uppercase tracking-widest text-white/20 mb-2">Oracle prediction</p>
                   <OraclePrediction
                     match={featureMatch}
-                    homeWin={55}
-                    draw={18}
-                    awayWin={27}
-                    predictedHome={2}
-                    predictedAway={1}
-                    confidence={68}
+                    homeWin={oracle?.homeWin}
+                    draw={oracle?.draw}
+                    awayWin={oracle?.awayWin}
+                    predictedHome={oracle?.predictedHome}
+                    predictedAway={oracle?.predictedAway}
+                    confidence={oracle?.confidence}
                   />
                 </div>
               </>
@@ -521,6 +459,21 @@ export function MatchesPage() {
       {/* ══ TAB: GROUPS ══ */}
       {activeTab === 'groups' && (
         <div>
+          <div className="flex gap-2 mb-4">
+            {(['2026', '2022'] as TournamentYear[]).map((y) => (
+              <button
+                key={y}
+                onClick={() => setTournamentYear(y)}
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-lexend font-black uppercase tracking-widest border transition-colors ${
+                  tournamentYear === y
+                    ? 'bg-primary-container/15 border-primary-container/40 text-primary-container'
+                    : 'border-white/10 text-white/30 hover:text-white/50'
+                }`}
+              >
+                {y}
+              </button>
+            ))}
+          </div>
           <div className="flex items-center gap-4 mb-5">
             <div className="flex items-center gap-1.5">
               <div className="w-0.5 h-4 bg-primary-container rounded-full" />
@@ -531,8 +484,8 @@ export function MatchesPage() {
               <span className="text-[10px] font-lexend font-bold uppercase tracking-widest text-white/30">Eliminated</span>
             </div>
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            {GROUPS.map((group) => (
+          <div className={`grid gap-3 sm:gap-4 ${tournamentYear === '2026' ? 'grid-cols-2 lg:grid-cols-4 xl:grid-cols-6' : 'grid-cols-2 lg:grid-cols-4'}`}>
+            {groups.map((group) => (
               <GroupCard key={group.name} group={group} />
             ))}
           </div>

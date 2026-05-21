@@ -37,9 +37,13 @@ export function PostCard({ post, onLike }: PostCardProps) {
       <div className="p-4 flex gap-6 items-center border-t border-white/10">
         <button
           onClick={() => onLike?.(post.id)}
-          className="flex items-center gap-2 text-white/40 hover:text-primary-container transition-colors"
+          className={`flex items-center gap-2 transition-colors ${
+            post.liked ? 'text-primary-container' : 'text-white/40 hover:text-primary-container'
+          }`}
         >
-          <span className="material-symbols-outlined text-sm">favorite</span>
+          <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: post.liked ? "'FILL' 1" : undefined }}>
+            favorite
+          </span>
           <span className="text-xs font-lexend font-semibold">{post.likes.toLocaleString()}</span>
         </button>
         <button className="flex items-center gap-2 text-white/40 hover:text-white/80 transition-colors">

@@ -7,6 +7,13 @@ import { LiveChatPanel } from '@/components/fanzone/LiveChatPanel'
 import { OraclePrediction } from '@/components/games/OraclePrediction'
 import { GlassCard } from '@/components/ui/GlassCard'
 import { useMatch } from '@/hooks/useMatches'
+import { useOraclePrediction } from '@/hooks/useOracle'
+import { getStaticOracle } from '@/lib/mockAdapters'
+import { getEffectiveUser } from '@/lib/guestUser'
+import { getPrediction, savePrediction, scorePrediction } from '@/lib/predictionsStorage'
+import { useAuthStore } from '@/store/authStore'
+import { formatKickoff } from '@/utils/formatDate'
+import type { Match } from '@/types'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type DetailTab = 'overview' | 'stats' | 'lineups' | 'h2h' | 'predictor'
@@ -323,19 +330,54 @@ function H2HCard({ matches, homeFlag: _homeFlag, awayFlag: _awayFlag }: {
 }
 
 /** Score predictor game */
-function ScorePredictor({ matchId: _matchId }: { matchId: string }) {
-  const [homeGoals, setHomeGoals] = useState(0)
-  const [awayGoals, setAwayGoals] = useState(0)
-  const [submitted, setSubmitted] = useState(false)
+function ScorePredictor({ match }: { match: Match }) {
+  const { user: authUser } = useAuthStore()
+  const user = getEffectiveUser(authUser)
+  const oracle = getStaticOracle(match.id)
+  const existing = user ? getPrediction(user.id, match.id) : undefined
+
+  const [homeGoals, setHomeGoals] = useState(existing?.predicted_home ?? 0)
+  const [awayGoals, setAwayGoals] = useState(existing?.predicted_away ?? 0)
+  const [submitted, setSubmitted] = useState(Boolean(existing))
   const [points, setPoints] = useState<number | null>(null)
-  const [winProbability] = useState({ home: 55, draw: 18, away: 27 })
+
+  const canPredict = match.status === 'upcoming'
+  const oraclePred = oracle ?? {
+    homeWin: 50,
+    draw: 25,
+    awayWin: 25,
+    predictedHome: 1,
+    predictedAway: 1,
+    confidence: 50,
+  }
+
+  const resolvedPoints =
+    points ??
+    (existing
+      ? scorePrediction(
+          existing.predicted_home,
+          existing.predicted_away,
+          oraclePred.predictedHome,
+          oraclePred.predictedAway,
+        )
+      : null)
 
   function handleSubmit() {
+    if (!user) return
+    savePrediction(user.id, match.id, homeGoals, awayGoals)
     setSubmitted(true)
-    // Mock: award points based on correct prediction
-    const isExact = homeGoals === 2 && awayGoals === 1
-    setPoints(isExact ? 50 : homeGoals > awayGoals ? 10 : 0)
+    setPoints(
+      scorePrediction(
+        homeGoals,
+        awayGoals,
+        oraclePred.predictedHome,
+        oraclePred.predictedAway,
+      ),
+    )
   }
+
+  const homeFlag = match.home_team.flag_url
+  const awayFlag = match.away_team.flag_url
 
   return (
     <GlassCard className="overflow-hidden">
@@ -348,16 +390,23 @@ function ScorePredictor({ matchId: _matchId }: { matchId: string }) {
       </div>
 
       <div className="p-4">
-        {!submitted ? (
+        {!canPredict && !submitted && (
+          <p className="text-[11px] font-lexend text-white/30 mb-4 text-center">
+            Predictions open for upcoming matches only.
+          </p>
+        )}
+        {!submitted && canPredict ? (
           <>
             <p className="text-[11px] font-lexend text-white/30 mb-4 text-center">
-              Predict the exact score to earn 50 points
+              Predict the exact score to earn 50 points · kickoff {formatKickoff(match.kickoff_at)}
             </p>
 
             <div className="flex items-center justify-center gap-6 mb-6">
               {/* Home goals */}
               <div className="flex flex-col items-center gap-2">
-                <span className="text-sm font-lexend font-bold text-white/60">🇧🇷</span>
+                <span className="text-sm font-lexend font-bold text-white/60">
+                  {homeFlag && !homeFlag.startsWith('http') ? homeFlag : match.home_team.name}
+                </span>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setHomeGoals(Math.max(0, homeGoals - 1))}
@@ -379,7 +428,9 @@ function ScorePredictor({ matchId: _matchId }: { matchId: string }) {
 
               {/* Away goals */}
               <div className="flex flex-col items-center gap-2">
-                <span className="text-sm font-lexend font-bold text-white/60">🇩🇪</span>
+                <span className="text-sm font-lexend font-bold text-white/60">
+                  {awayFlag && !awayFlag.startsWith('http') ? awayFlag : match.away_team.name}
+                </span>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setAwayGoals(Math.max(0, awayGoals - 1))}
@@ -401,14 +452,14 @@ function ScorePredictor({ matchId: _matchId }: { matchId: string }) {
             {/* Win probability bar */}
             <div className="mb-5">
               <div className="flex h-1.5 rounded-full overflow-hidden gap-px">
-                <div className="bg-primary-container rounded-l-full" style={{ width: `${winProbability.home}%` }} />
-                <div className="bg-white/20" style={{ width: `${winProbability.draw}%` }} />
-                <div className="bg-red-400 rounded-r-full" style={{ width: `${winProbability.away}%` }} />
+                <div className="bg-primary-container rounded-l-full" style={{ width: `${oraclePred.homeWin}%` }} />
+                <div className="bg-white/20" style={{ width: `${oraclePred.draw}%` }} />
+                <div className="bg-red-400 rounded-r-full" style={{ width: `${oraclePred.awayWin}%` }} />
               </div>
               <div className="flex justify-between mt-1 text-[9px] font-lexend text-white/20">
-                <span className="text-primary-container">{winProbability.home}% win</span>
-                <span>{winProbability.draw}% draw</span>
-                <span className="text-red-400">{winProbability.away}% win</span>
+                <span className="text-primary-container">{oraclePred.homeWin}% win</span>
+                <span>{oraclePred.draw}% draw</span>
+                <span className="text-red-400">{oraclePred.awayWin}% win</span>
               </div>
             </div>
 
@@ -419,22 +470,32 @@ function ScorePredictor({ matchId: _matchId }: { matchId: string }) {
               Lock In Prediction
             </button>
           </>
-        ) : (
+        ) : submitted ? (
           <div className="text-center py-4">
             <span className="material-symbols-outlined text-4xl text-primary-container block mb-2">
-              {points === 50 ? 'celebration' : points! > 0 ? 'check_circle' : 'sports_soccer'}
+              {resolvedPoints === 50 ? 'celebration' : (resolvedPoints ?? 0) > 0 ? 'check_circle' : 'sports_soccer'}
             </span>
             <p className="font-lexend font-black text-2xl text-white mb-1">
               {homeGoals} – {awayGoals}
             </p>
-            <p className="text-[11px] font-lexend text-white/30 mb-3">Your prediction</p>
-            <div className="bg-primary-container/10 border border-primary-container/20 rounded-lg px-4 py-2.5">
-              <p className="font-lexend font-black text-primary-container">
-                {points === 50 ? '+50 pts — Exact!' : points! > 0 ? '+10 pts — Correct result!' : 'No points — wrong result'}
-              </p>
-            </div>
+            <p className="text-[11px] font-lexend text-white/30 mb-3">Your prediction is locked in</p>
+            {match.status === 'upcoming' && (
+              <div className="bg-primary-container/10 border border-primary-container/20 rounded-lg px-4 py-2.5">
+                <p className="font-lexend font-black text-primary-container text-sm">
+                  Oracle pick: {oraclePred.predictedHome}–{oraclePred.predictedAway}
+                </p>
+                <p className="text-[10px] font-lexend text-white/30 mt-1">Points awarded after full time</p>
+              </div>
+            )}
+            {match.status !== 'upcoming' && resolvedPoints !== null && (
+              <div className="bg-primary-container/10 border border-primary-container/20 rounded-lg px-4 py-2.5">
+                <p className="font-lexend font-black text-primary-container">
+                  {resolvedPoints === 50 ? '+50 pts — Exact!' : resolvedPoints > 0 ? '+10 pts — Correct result!' : 'No points this time'}
+                </p>
+              </div>
+            )}
           </div>
-        )}
+        ) : null}
       </div>
     </GlassCard>
   )
@@ -574,6 +635,7 @@ function PlayerStatRow({ player, metric }: {
 export function MatchDetailPage() {
   const { matchId } = useParams<{ matchId: string }>()
   const { data: match, isLoading } = useMatch(matchId!)
+  const { data: oracle } = useOraclePrediction(match)
   const [activeTab, setActiveTab] = useState<DetailTab>('overview')
   const [playerMetric, setPlayerMetric] = useState<'speed' | 'passes' | 'distance' | 'rating'>('speed')
 
@@ -754,12 +816,12 @@ export function MatchDetailPage() {
           <div className="lg:col-span-5 space-y-5">
             <OraclePrediction
               match={match}
-              homeWin={55}
-              draw={18}
-              awayWin={27}
-              predictedHome={2}
-              predictedAway={1}
-              confidence={68}
+              homeWin={oracle?.homeWin}
+              draw={oracle?.draw}
+              awayWin={oracle?.awayWin}
+              predictedHome={oracle?.predictedHome}
+              predictedAway={oracle?.predictedAway}
+              confidence={oracle?.confidence}
             />
           </div>
         </div>
@@ -769,18 +831,18 @@ export function MatchDetailPage() {
       {activeTab === 'predictor' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
           <div className="lg:col-span-5 space-y-5">
-            <ScorePredictor matchId={match.id} />
+            <ScorePredictor match={match} />
             <POTMPoll />
           </div>
           <div className="lg:col-span-7 space-y-5">
             <OraclePrediction
               match={match}
-              homeWin={55}
-              draw={18}
-              awayWin={27}
-              predictedHome={2}
-              predictedAway={1}
-              confidence={68}
+              homeWin={oracle?.homeWin}
+              draw={oracle?.draw}
+              awayWin={oracle?.awayWin}
+              predictedHome={oracle?.predictedHome}
+              predictedAway={oracle?.predictedAway}
+              confidence={oracle?.confidence}
             />
             <MomentumChart data={MOCK_MOMENTUM} />
           </div>
