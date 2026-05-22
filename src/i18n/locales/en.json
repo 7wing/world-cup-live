@@ -1,0 +1,143 @@
+{
+  "nav": {
+    "home": "Home",
+    "matches": "Matches",
+    "groups": "Groups",
+    "teams": "Teams",
+    "fanZone": "Fan Zone",
+    "settings": "Settings",
+    "profile": "Profile"
+  },
+  "common": {
+    "loading": "Loading…",
+    "error": "Something went wrong",
+    "retry": "Retry",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "search": "Search",
+    "share": "Share",
+    "viewAll": "View all",
+    "showMore": "Show more",
+    "showLess": "Show less",
+    "live": "Live",
+    "finished": "Finished",
+    "upcoming": "Upcoming",
+    "min": "min",
+    "goals": "Goals",
+    "assists": "Assists",
+    "points": "Points"
+  },
+  "matches": {
+    "title": "Matches",
+    "noMatches": "No matches scheduled",
+    "kickOff": "Kick-off",
+    "halfTime": "Half time",
+    "fullTime": "Full time",
+    "extraTime": "Extra time",
+    "penalties": "Penalties",
+    "stats": "Stats",
+    "lineups": "Line-ups",
+    "timeline": "Timeline",
+    "heatmap": "Heatmap",
+    "possession": "Possession",
+    "shots": "Shots",
+    "shotsOnTarget": "Shots on target",
+    "corners": "Corners",
+    "fouls": "Fouls",
+    "yellowCards": "Yellow cards",
+    "redCards": "Red cards",
+    "offsides": "Offsides",
+    "passes": "Passes",
+    "passAccuracy": "Pass accuracy",
+    "setAlert": "Set alert",
+    "removeAlert": "Remove alert"
+  },
+  "groups": {
+    "title": "Groups",
+    "group": "Group {{letter}}",
+    "played": "Played",
+    "won": "Won",
+    "drawn": "Drawn",
+    "lost": "Lost",
+    "gf": "GF",
+    "ga": "GA",
+    "gd": "GD",
+    "points": "Pts"
+  },
+  "teams": {
+    "title": "Teams",
+    "squad": "Squad",
+    "stats": "Stats",
+    "fixtures": "Fixtures",
+    "results": "Results",
+    "noData": "No team data available"
+  },
+  "fanZone": {
+    "title": "Fan Zone",
+    "predictions": "Predictions",
+    "fantasy": "Fantasy",
+    "socialFeed": "Social feed",
+    "games": "Games",
+    "yourPick": "Your pick",
+    "submitPrediction": "Submit prediction",
+    "predictionLocked": "Prediction locked in",
+    "correctPrediction": "Correct!",
+    "wrongPrediction": "Wrong",
+    "leaderboard": "Leaderboard"
+  },
+  "fantasy": {
+    "title": "Fantasy Draft",
+    "subtitle": "Pick {{size}} players within a {{budget}}-credit budget",
+    "budget": "Budget",
+    "creditsLeft": "{{amount}}cr left",
+    "players": "players",
+    "saveDraft": "Save draft",
+    "lockIn": "Lock in squad",
+    "squadLocked": "Squad locked in",
+    "selectPlayers": "Click players from the pool to add them",
+    "scoringRules": "Scoring rules",
+    "positions": {
+      "GK": "Goalkeeper",
+      "DEF": "Defender",
+      "MID": "Midfielder",
+      "FWD": "Forward"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "notifications": "Notifications",
+    "matchAlerts": "Match alerts",
+    "goalAlerts": "Goal alerts",
+    "preferredTeam": "Preferred team",
+    "theme": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "onboarding": {
+    "welcome": "Welcome to World Cup Live",
+    "selectTeam": "Pick your team",
+    "selectLanguage": "Choose your language",
+    "getStarted": "Get started",
+    "skip": "Skip"
+  },
+  "notifications": {
+    "enablePrompt": "Enable notifications to get goal alerts",
+    "enable": "Enable",
+    "disable": "Disable",
+    "permissionDenied": "Notification permission was denied. Enable it in your browser settings.",
+    "goalScored": "Goal scored!",
+    "matchStarting": "Match starting soon",
+    "fullTime": "Full time"
+  },
+  "errors": {
+    "networkError": "Network error — check your connection",
+    "notFound": "Page not found",
+    "unauthorized": "Please sign in to continue"
+  }
+}

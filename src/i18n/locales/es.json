@@ -1,0 +1,143 @@
+{
+  "nav": {
+    "home": "Inicio",
+    "matches": "Partidos",
+    "groups": "Grupos",
+    "teams": "Equipos",
+    "fanZone": "Zona Fan",
+    "settings": "Ajustes",
+    "profile": "Perfil"
+  },
+  "common": {
+    "loading": "Cargando…",
+    "error": "Algo salió mal",
+    "retry": "Reintentar",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "close": "Cerrar",
+    "search": "Buscar",
+    "share": "Compartir",
+    "viewAll": "Ver todo",
+    "showMore": "Mostrar más",
+    "showLess": "Mostrar menos",
+    "live": "En vivo",
+    "finished": "Finalizado",
+    "upcoming": "Próximo",
+    "min": "min",
+    "goals": "Goles",
+    "assists": "Asistencias",
+    "points": "Puntos"
+  },
+  "matches": {
+    "title": "Partidos",
+    "noMatches": "No hay partidos programados",
+    "kickOff": "Inicio",
+    "halfTime": "Medio tiempo",
+    "fullTime": "Tiempo completo",
+    "extraTime": "Tiempo extra",
+    "penalties": "Penaltis",
+    "stats": "Estadísticas",
+    "lineups": "Alineaciones",
+    "timeline": "Cronología",
+    "heatmap": "Mapa de calor",
+    "possession": "Posesión",
+    "shots": "Tiros",
+    "shotsOnTarget": "Tiros al arco",
+    "corners": "Córneres",
+    "fouls": "Faltas",
+    "yellowCards": "Tarjetas amarillas",
+    "redCards": "Tarjetas rojas",
+    "offsides": "Fueras de juego",
+    "passes": "Pases",
+    "passAccuracy": "Precisión de pases",
+    "setAlert": "Activar alerta",
+    "removeAlert": "Desactivar alerta"
+  },
+  "groups": {
+    "title": "Grupos",
+    "group": "Grupo {{letter}}",
+    "played": "PJ",
+    "won": "PG",
+    "drawn": "PE",
+    "lost": "PP",
+    "gf": "GF",
+    "ga": "GC",
+    "gd": "DG",
+    "points": "Pts"
+  },
+  "teams": {
+    "title": "Equipos",
+    "squad": "Plantel",
+    "stats": "Estadísticas",
+    "fixtures": "Calendario",
+    "results": "Resultados",
+    "noData": "No hay datos del equipo"
+  },
+  "fanZone": {
+    "title": "Zona Fan",
+    "predictions": "Predicciones",
+    "fantasy": "Fantasy",
+    "socialFeed": "Redes sociales",
+    "games": "Juegos",
+    "yourPick": "Tu elección",
+    "submitPrediction": "Enviar predicción",
+    "predictionLocked": "Predicción confirmada",
+    "correctPrediction": "¡Correcto!",
+    "wrongPrediction": "Incorrecto",
+    "leaderboard": "Tabla de posiciones"
+  },
+  "fantasy": {
+    "title": "Fantasy Draft",
+    "subtitle": "Elige {{size}} jugadores con un presupuesto de {{budget}} créditos",
+    "budget": "Presupuesto",
+    "creditsLeft": "{{amount}} cr restantes",
+    "players": "jugadores",
+    "saveDraft": "Guardar borrador",
+    "lockIn": "Confirmar equipo",
+    "squadLocked": "Equipo confirmado",
+    "selectPlayers": "Haz clic en jugadores para agregarlos",
+    "scoringRules": "Reglas de puntuación",
+    "positions": {
+      "GK": "Portero",
+      "DEF": "Defensor",
+      "MID": "Centrocampista",
+      "FWD": "Delantero"
+    }
+  },
+  "settings": {
+    "title": "Ajustes",
+    "language": "Idioma",
+    "notifications": "Notificaciones",
+    "matchAlerts": "Alertas de partido",
+    "goalAlerts": "Alertas de gol",
+    "preferredTeam": "Equipo favorito",
+    "theme": "Tema",
+    "light": "Claro",
+    "dark": "Oscuro",
+    "system": "Sistema"
+  },
+  "onboarding": {
+    "welcome": "Bienvenido a World Cup Live",
+    "selectTeam": "Elige tu equipo",
+    "selectLanguage": "Elige tu idioma",
+    "getStarted": "Comenzar",
+    "skip": "Omitir"
+  },
+  "notifications": {
+    "enablePrompt": "Activa las notificaciones para recibir alertas de goles",
+    "enable": "Activar",
+    "disable": "Desactivar",
+    "permissionDenied": "Permiso de notificaciones denegado. Actívalo en la configuración del navegador.",
+    "goalScored": "¡Gol!",
+    "matchStarting": "El partido comienza pronto",
+    "fullTime": "Tiempo completo"
+  },
+  "errors": {
+    "networkError": "Error de red — verifica tu conexión",
+    "notFound": "Página no encontrada",
+    "unauthorized": "Inicia sesión para continuar"
+  }
+}

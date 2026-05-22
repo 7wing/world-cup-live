@@ -34,6 +34,430 @@
   --color-green-dim: #00e639;
 }
 
+/* ============================================================
+   TEAM COLOUR THEMING
+   These selectors override the primary/secondary container tokens
+   and --color-green / --color-green-dim so neon-text, active-glow,
+   scrollbar-thumb, auth-input focus all pick up the team colour.
+
+   Applied in App.tsx:
+     const team = localStorage.getItem('preferredTeam')
+     if (team) document.documentElement.dataset.team = team
+   ============================================================ */
+
+/* ── Africa ──────────────────────────────────────────────── */
+
+[data-team="Morocco"] {
+  --color-primary-container:    #C1272D;
+  --color-on-primary-container: #FFD6D7;
+  --color-secondary-container:  #006233;
+  --color-on-secondary:         #ffffff;
+  --color-green:                #C1272D;
+  --color-green-dim:            #a01f24;
+}
+
+[data-team="Senegal"] {
+  --color-primary-container:    #00853F;
+  --color-on-primary-container: #CCFFE2;
+  --color-secondary-container:  #FDEF42;
+  --color-on-secondary:         #2a2500;
+  --color-green:                #00853F;
+  --color-green-dim:            #006b32;
+}
+
+[data-team="Nigeria"] {
+  --color-primary-container:    #008751;
+  --color-on-primary-container: #CCFFE8;
+  --color-secondary-container:  #FFFFFF;
+  --color-on-secondary:         #000000;
+  --color-green:                #008751;
+  --color-green-dim:            #006b41;
+}
+
+[data-team="Cameroon"] {
+  --color-primary-container:    #007A5E;
+  --color-on-primary-container: #CCFFF3;
+  --color-secondary-container:  #CE1126;
+  --color-on-secondary:         #ffffff;
+  --color-green:                #007A5E;
+  --color-green-dim:            #005f49;
+}
+
+[data-team="Egypt"] {
+  --color-primary-container:    #CE1126;
+  --color-on-primary-container: #FFD6D9;
+  --color-secondary-container:  #000000;
+  --color-on-secondary:         #ffffff;
+  --color-green:                #CE1126;
+  --color-green-dim:            #a80d1e;
+}
+
+[data-team="Ghana"] {
+  --color-primary-container:    #CE1126;
+  --color-on-primary-container: #FFD6D9;
+  --color-secondary-container:  #FCD116;
+  --color-on-secondary:         #2a1e00;
+  --color-green:                #CE1126;
+  --color-green-dim:            #a80d1e;
+}
+
+[data-team="South Africa"] {
+  --color-primary-container:    #007A4D;
+  --color-on-primary-container: #CCFFE8;
+  --color-secondary-container:  #FFB612;
+  --color-on-secondary:         #2a1e00;
+  --color-green:                #007A4D;
+  --color-green-dim:            #005f3c;
+}
+
+/* ── Americas ────────────────────────────────────────────── */
+
+[data-team="Brazil"] {
+  --color-primary-container:    #009C3B;
+  --color-on-primary-container: #CCFFE0;
+  --color-secondary-container:  #FFDF00;
+  --color-on-secondary:         #2a2300;
+  --color-green:                #009C3B;
+  --color-green-dim:            #007d2f;
+}
+
+[data-team="Argentina"] {
+  --color-primary-container:    #74ACDF;
+  --color-on-primary-container: #001f3a;
+  --color-secondary-container:  #FFFFFF;
+  --color-on-secondary:         #000000;
+  --color-green:                #74ACDF;
+  --color-green-dim:            #5a95cb;
+}
+
+[data-team="Uruguay"] {
+  --color-primary-container:    #5EB6E4;
+  --color-on-primary-container: #001f3a;
+  --color-secondary-container:  #FFFFFF;
+  --color-on-secondary:         #000000;
+  --color-green:                #5EB6E4;
+  --color-green-dim:            #44a0d0;
+}
+
+[data-team="Colombia"] {
+  --color-primary-container:    #FCD116;
+  --color-on-primary-container: #2a2300;
+  --color-secondary-container:  #003087;
+  --color-on-secondary:         #ffffff;
+  --color-green:                #FCD116;
+  --color-green-dim:            #e0ba00;
+}
+
+[data-team="Ecuador"] {
+  --color-primary-container:    #FFDD00;
+  --color-on-primary-container: #2a2300;
+  --color-secondary-container:  #034EA2;
+  --color-on-secondary:         #ffffff;
+  --color-green:                #FFDD00;
+  --color-green-dim:            #e0c200;
+}
+
+[data-team="Peru"] {
+  --color-primary-container:    #D91023;
+  --color-on-primary-container: #FFD6D9;
+  --color-secondary-container:  #FFFFFF;
+  --color-on-secondary:         #000000;
+  --color-green:                #D91023;
+  --color-green-dim:            #b20d1d;
+}
+
+[data-team="Chile"] {
+  --color-primary-container:    #D52B1E;
+  --color-on-primary-container: #FFD6D7;
+  --color-secondary-container:  #003F87;
+  --color-on-secondary:         #ffffff;
+  --color-green:                #D52B1E;
+  --color-green-dim:            #b02217;
+}
+
+[data-team="Mexico"] {
+  --color-primary-container:    #006847;
+  --color-on-primary-container: #CCFFE8;
+  --color-secondary-container:  #CE1126;
+  --color-on-secondary:         #ffffff;
+  --color-green:                #006847;
+  --color-green-dim:            #005238;
+}
+
+[data-team="USA"] {
+  --color-primary-container:    #002868;
+  --color-on-primary-container: #D0D9FF;
+  --color-secondary-container:  #BF0A30;
+  --color-on-secondary:         #ffffff;
+  --color-green:                #002868;
+  --color-green-dim:            #001e50;
+}
+
+[data-team="Canada"] {
+  --color-primary-container:    #FF0000;
+  --color-on-primary-container: #FFD6D6;
+  --color-secondary-container:  #FFFFFF;
+  --color-on-secondary:         #000000;
+  --color-green:                #FF0000;
+  --color-green-dim:            #cc0000;
+}
+
+[data-team="Costa Rica"] {
+  --color-primary-container:    #002B7F;
+  --color-on-primary-container: #D0D9FF;
+  --color-secondary-container:  #CE1126;
+  --color-on-secondary:         #ffffff;
+  --color-green:                #002B7F;
+  --color-green-dim:            #001f60;
+}
+
+[data-team="Panama"] {
+  --color-primary-container:    #005293;
+  --color-on-primary-container: #CCE4FF;
+  --color-secondary-container:  #DB0000;
+  --color-on-secondary:         #ffffff;
+  --color-green:                #005293;
+  --color-green-dim:            #003e70;
+}
+
+/* ── Asia / Oceania ──────────────────────────────────────── */
+
+[data-team="Japan"] {
+  --color-primary-container:    #BC002D;
+  --color-on-primary-container: #FFD6DD;
+  --color-secondary-container:  #FFFFFF;
+  --color-on-secondary:         #000000;
+  --color-green:                #BC002D;
+  --color-green-dim:            #970024;
+}
+
+[data-team="South Korea"] {
+  --color-primary-container:    #CD2E3A;
+  --color-on-primary-container: #FFD6D9;
+  --color-secondary-container:  #003478;
+  --color-on-secondary:         #ffffff;
+  --color-green:                #CD2E3A;
+  --color-green-dim:            #a8242e;
+}
+
+[data-team="Australia"] {
+  --color-primary-container:    #00843D;
+  --color-on-primary-container: #CCFFE0;
+  --color-secondary-container:  #FFD700;
+  --color-on-secondary:         #2a2200;
+  --color-green:                #00843D;
+  --color-green-dim:            #006830;
+}
+
+[data-team="Saudi Arabia"] {
+  --color-primary-container:    #006C35;
+  --color-on-primary-container: #CCFFE0;
+  --color-secondary-container:  #FFFFFF;
+  --color-on-secondary:         #000000;
+  --color-green:                #006C35;
+  --color-green-dim:            #005529;
+}
+
+[data-team="Iran"] {
+  --color-primary-container:    #239F40;
+  --color-on-primary-container: #CCFFDA;
+  --color-secondary-container:  #DA0000;
+  --color-on-secondary:         #ffffff;
+  --color-green:                #239F40;
+  --color-green-dim:            #1b7f32;
+}
+
+[data-team="Qatar"] {
+  --color-primary-container:    #8D1B3D;
+  --color-on-primary-container: #FFD6E3;
+  --color-secondary-container:  #FFFFFF;
+  --color-on-secondary:         #000000;
+  --color-green:                #8D1B3D;
+  --color-green-dim:            #6e1430;
+}
+
+/* ── Europe ──────────────────────────────────────────────── */
+
+[data-team="France"] {
+  --color-primary-container:    #0055A4;
+  --color-on-primary-container: #CCE0FF;
+  --color-secondary-container:  #EF4135;
+  --color-on-secondary:         #ffffff;
+  --color-green:                #0055A4;
+  --color-green-dim:            #004082;
+}
+
+[data-team="England"] {
+  --color-primary-container:    #CF081F;
+  --color-on-primary-container: #FFD6D9;
+  --color-secondary-container:  #FFFFFF;
+  --color-on-secondary:         #000000;
+  --color-green:                #CF081F;
+  --color-green-dim:            #a80618;
+}
+
+[data-team="Spain"] {
+  --color-primary-container:    #AA151B;
+  --color-on-primary-container: #FFD6D7;
+  --color-secondary-container:  #F1BF00;
+  --color-on-secondary:         #2a2000;
+  --color-green:                #AA151B;
+  --color-green-dim:            #8a1015;
+}
+
+[data-team="Germany"] {
+  --color-primary-container:    #DD0000;
+  --color-on-primary-container: #FFD6D6;
+  --color-secondary-container:  #FFCE00;
+  --color-on-secondary:         #2a2200;
+  --color-green:                #DD0000;
+  --color-green-dim:            #b30000;
+}
+
+[data-team="Portugal"] {
+  --color-primary-container:    #006600;
+  --color-on-primary-container: #CCFFCC;
+  --color-secondary-container:  #FF0000;
+  --color-on-secondary:         #ffffff;
+  --color-green:                #006600;
+  --color-green-dim:            #004d00;
+}
+
+[data-team="Netherlands"] {
+  --color-primary-container:    #FF6600;
+  --color-on-primary-container: #FFE5CC;
+  --color-secondary-container:  #002868;
+  --color-on-secondary:         #ffffff;
+  --color-green:                #FF6600;
+  --color-green-dim:            #cc5200;
+}
+
+[data-team="Belgium"] {
+  --color-primary-container:    #FDDA24;
+  --color-on-primary-container: #2a2200;
+  --color-secondary-container:  #EF3340;
+  --color-on-secondary:         #ffffff;
+  --color-green:                #FDDA24;
+  --color-green-dim:            #d4b800;
+}
+
+[data-team="Croatia"] {
+  --color-primary-container:    #FF0000;
+  --color-on-primary-container: #FFD6D6;
+  --color-secondary-container:  #0038A8;
+  --color-on-secondary:         #ffffff;
+  --color-green:                #FF0000;
+  --color-green-dim:            #cc0000;
+}
+
+[data-team="Italy"] {
+  --color-primary-container:    #009246;
+  --color-on-primary-container: #CCFFE8;
+  --color-secondary-container:  #CE2B37;
+  --color-on-secondary:         #ffffff;
+  --color-green:                #009246;
+  --color-green-dim:            #007438;
+}
+
+[data-team="Denmark"] {
+  --color-primary-container:    #C60C30;
+  --color-on-primary-container: #FFD6DC;
+  --color-secondary-container:  #FFFFFF;
+  --color-on-secondary:         #000000;
+  --color-green:                #C60C30;
+  --color-green-dim:            #a00a27;
+}
+
+[data-team="Switzerland"] {
+  --color-primary-container:    #FF0000;
+  --color-on-primary-container: #FFD6D6;
+  --color-secondary-container:  #FFFFFF;
+  --color-on-secondary:         #000000;
+  --color-green:                #FF0000;
+  --color-green-dim:            #cc0000;
+}
+
+[data-team="Poland"] {
+  --color-primary-container:    #DC143C;
+  --color-on-primary-container: #FFD6DC;
+  --color-secondary-container:  #FFFFFF;
+  --color-on-secondary:         #000000;
+  --color-green:                #DC143C;
+  --color-green-dim:            #b31030;
+}
+
+[data-team="Serbia"] {
+  --color-primary-container:    #C6363C;
+  --color-on-primary-container: #FFD6D7;
+  --color-secondary-container:  #0C4076;
+  --color-on-secondary:         #ffffff;
+  --color-green:                #C6363C;
+  --color-green-dim:            #a02b30;
+}
+
+[data-team="Wales"] {
+  --color-primary-container:    #C8102E;
+  --color-on-primary-container: #FFD6DB;
+  --color-secondary-container:  #FFFFFF;
+  --color-on-secondary:         #000000;
+  --color-green:                #C8102E;
+  --color-green-dim:            #a30d25;
+}
+
+[data-team="Scotland"] {
+  --color-primary-container:    #005EB8;
+  --color-on-primary-container: #CCE2FF;
+  --color-secondary-container:  #FFFFFF;
+  --color-on-secondary:         #000000;
+  --color-green:                #005EB8;
+  --color-green-dim:            #004a92;
+}
+
+[data-team="Turkey"] {
+  --color-primary-container:    #E30A17;
+  --color-on-primary-container: #FFD6D7;
+  --color-secondary-container:  #FFFFFF;
+  --color-on-secondary:         #000000;
+  --color-green:                #E30A17;
+  --color-green-dim:            #b80812;
+}
+
+[data-team="Ukraine"] {
+  --color-primary-container:    #005BBB;
+  --color-on-primary-container: #CCE2FF;
+  --color-secondary-container:  #FFD500;
+  --color-on-secondary:         #2a2200;
+  --color-green:                #005BBB;
+  --color-green-dim:            #004796;
+}
+
+[data-team="Austria"] {
+  --color-primary-container:    #ED2939;
+  --color-on-primary-container: #FFD6D9;
+  --color-secondary-container:  #FFFFFF;
+  --color-on-secondary:         #000000;
+  --color-green:                #ED2939;
+  --color-green-dim:            #c1202d;
+}
+
+[data-team="Czech Republic"] {
+  --color-primary-container:    #D7141A;
+  --color-on-primary-container: #FFD6D7;
+  --color-secondary-container:  #11457E;
+  --color-on-secondary:         #ffffff;
+  --color-green:                #D7141A;
+  --color-green-dim:            #ae1015;
+}
+
+[data-team="Greece"] {
+  --color-primary-container:    #0D5EAF;
+  --color-on-primary-container: #CCE2FF;
+  --color-secondary-container:  #FFFFFF;
+  --color-on-secondary:         #000000;
+  --color-green:                #0D5EAF;
+  --color-green-dim:            #0a4a8a;
+}
+
 /* Unlayered * { padding: 0 } overrides @layer utilities — keep resets inside @layer base */
 @layer base {
   html {
@@ -60,7 +484,6 @@
     min-height: 100vh;
     overflow-x: hidden;
   }
-
 }
 
 @layer utilities {
@@ -85,7 +508,6 @@
     border: 1px solid rgba(255, 255, 255, 0.1);
   }
 
-  /* Solid cards: no backdrop-filter — prevents black tiles while scrolling on mobile */
   .card-solid {
     background: #1e2020;
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -116,7 +538,6 @@
     font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
   }
 
-  /* Auth form fields: dark fill, white text (fixes browser autofill white-on-white) */
   .auth-input {
     background-color: #0a0a0a;
     color: #ffffff;
@@ -151,4 +572,4 @@
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: #1a1c1c; }
 ::-webkit-scrollbar-thumb { background: #3b4b37; border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover { background: #00ff41; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-green); }

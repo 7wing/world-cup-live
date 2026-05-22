@@ -1,0 +1,143 @@
+{
+  "nav": {
+    "home": "Início",
+    "matches": "Jogos",
+    "groups": "Grupos",
+    "teams": "Seleções",
+    "fanZone": "Zona do Fã",
+    "settings": "Configurações",
+    "profile": "Perfil"
+  },
+  "common": {
+    "loading": "Carregando…",
+    "error": "Algo deu errado",
+    "retry": "Tentar novamente",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar",
+    "delete": "Excluir",
+    "edit": "Editar",
+    "close": "Fechar",
+    "search": "Pesquisar",
+    "share": "Compartilhar",
+    "viewAll": "Ver tudo",
+    "showMore": "Mostrar mais",
+    "showLess": "Mostrar menos",
+    "live": "Ao vivo",
+    "finished": "Finalizado",
+    "upcoming": "Em breve",
+    "min": "min",
+    "goals": "Gols",
+    "assists": "Assistências",
+    "points": "Pontos"
+  },
+  "matches": {
+    "title": "Jogos",
+    "noMatches": "Nenhum jogo agendado",
+    "kickOff": "Início",
+    "halfTime": "Intervalo",
+    "fullTime": "Tempo normal",
+    "extraTime": "Prorrogação",
+    "penalties": "Pênaltis",
+    "stats": "Estatísticas",
+    "lineups": "Escalações",
+    "timeline": "Linha do tempo",
+    "heatmap": "Mapa de calor",
+    "possession": "Posse de bola",
+    "shots": "Chutes",
+    "shotsOnTarget": "Chutes no gol",
+    "corners": "Escanteios",
+    "fouls": "Faltas",
+    "yellowCards": "Cartões amarelos",
+    "redCards": "Cartões vermelhos",
+    "offsides": "Impedimentos",
+    "passes": "Passes",
+    "passAccuracy": "Precisão de passes",
+    "setAlert": "Ativar alerta",
+    "removeAlert": "Desativar alerta"
+  },
+  "groups": {
+    "title": "Grupos",
+    "group": "Grupo {{letter}}",
+    "played": "J",
+    "won": "V",
+    "drawn": "E",
+    "lost": "D",
+    "gf": "GP",
+    "ga": "GC",
+    "gd": "SG",
+    "points": "Pts"
+  },
+  "teams": {
+    "title": "Seleções",
+    "squad": "Elenco",
+    "stats": "Estatísticas",
+    "fixtures": "Calendário",
+    "results": "Resultados",
+    "noData": "Sem dados disponíveis"
+  },
+  "fanZone": {
+    "title": "Zona do Fã",
+    "predictions": "Palpites",
+    "fantasy": "Fantasy",
+    "socialFeed": "Redes sociais",
+    "games": "Jogos",
+    "yourPick": "Seu palpite",
+    "submitPrediction": "Enviar palpite",
+    "predictionLocked": "Palpite confirmado",
+    "correctPrediction": "Correto!",
+    "wrongPrediction": "Errado",
+    "leaderboard": "Classificação"
+  },
+  "fantasy": {
+    "title": "Fantasy Draft",
+    "subtitle": "Escolha {{size}} jogadores com um orçamento de {{budget}} créditos",
+    "budget": "Orçamento",
+    "creditsLeft": "{{amount}} cr restantes",
+    "players": "jogadores",
+    "saveDraft": "Salvar rascunho",
+    "lockIn": "Confirmar time",
+    "squadLocked": "Time confirmado",
+    "selectPlayers": "Clique nos jogadores para adicioná-los",
+    "scoringRules": "Regras de pontuação",
+    "positions": {
+      "GK": "Goleiro",
+      "DEF": "Zagueiro",
+      "MID": "Meio-campo",
+      "FWD": "Atacante"
+    }
+  },
+  "settings": {
+    "title": "Configurações",
+    "language": "Idioma",
+    "notifications": "Notificações",
+    "matchAlerts": "Alertas de jogo",
+    "goalAlerts": "Alertas de gol",
+    "preferredTeam": "Seleção favorita",
+    "theme": "Tema",
+    "light": "Claro",
+    "dark": "Escuro",
+    "system": "Sistema"
+  },
+  "onboarding": {
+    "welcome": "Bem-vindo ao World Cup Live",
+    "selectTeam": "Escolha sua seleção",
+    "selectLanguage": "Escolha seu idioma",
+    "getStarted": "Começar",
+    "skip": "Pular"
+  },
+  "notifications": {
+    "enablePrompt": "Ative as notificações para receber alertas de gols",
+    "enable": "Ativar",
+    "disable": "Desativar",
+    "permissionDenied": "Permissão negada. Ative nas configurações do navegador.",
+    "goalScored": "Gol!",
+    "matchStarting": "Jogo começando em breve",
+    "fullTime": "Fim de jogo"
+  },
+  "errors": {
+    "networkError": "Erro de rede — verifique sua conexão",
+    "notFound": "Página não encontrada",
+    "unauthorized": "Faça login para continuar"
+  }
+}

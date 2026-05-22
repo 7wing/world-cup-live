@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
 import { TopBar } from '@/components/layout/TopBar'
 import { BottomNav } from '@/components/layout/BottomNav'
@@ -30,6 +31,16 @@ function NotificationToast() {
 export default function App() {
   useAuth()
 
+  // Apply team colour theme from localStorage
+  useEffect(() => {
+    const team = localStorage.getItem('preferredTeam')
+    if (team) {
+      document.documentElement.dataset.team = team
+    } else {
+      delete document.documentElement.dataset.team
+    }
+  }, [])
+
   return (
     <div className="dark min-h-screen bg-background">
       <TopBar />
@@ -40,3 +51,16 @@ export default function App() {
     </div>
   )
 }
+
+// ── Helper: call this from your settings/onboarding save handler ─────────────
+// Move to src/utils/theme.ts if you prefer:
+//
+// export function applyTeamTheme(team: string | null) {
+//   if (team) {
+//     localStorage.setItem('preferredTeam', team)
+//     document.documentElement.dataset.team = team
+//   } else {
+//     localStorage.removeItem('preferredTeam')
+//     delete document.documentElement.dataset.team
+//   }
+// }
