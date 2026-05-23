@@ -43,30 +43,37 @@ export function TopBar() {
           'w-[calc(100%-2rem)] max-w-4xl',
           'rounded-2xl',
           'transition-all duration-500 ease-out',
-          scrolled
-            ? 'bg-black/70 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,255,65,0.15),0_0_0_1px_rgba(255,255,255,0.07)]'
-            : 'bg-black/40 backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.05)]',
-          'flex items-center justify-between px-4 sm:px-5 h-14'
+          'flex items-center justify-between px-4 sm:px-5 h-14',
         )}
+        style={{
+          background: scrolled ? 'rgba(0,0,0,0.70)' : 'rgba(0,0,0,0.40)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          boxShadow: scrolled
+            ? '0 8px 32px color-mix(in srgb, var(--color-green) 15%, transparent), 0 0 0 1px rgba(255,255,255,0.07)'
+            : '0 4px 24px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05)',
+        }}
       >
+        {/* Logo */}
         <Link
           to="/"
           className="group flex items-center gap-2 shrink-0"
           aria-label="Home"
         >
           <span
-            className={cn(
-              'flex items-center justify-center w-8 h-8 rounded-xl',
-              'bg-[#00ff41]/10 border border-[#00ff41]/30',
-              'text-[#00ff41] text-base',
-              'transition-all duration-300',
-              'group-hover:bg-[#00ff41]/20 group-hover:scale-110 group-hover:shadow-[0_0_12px_rgba(0,255,65,0.5)]'
-            )}
+            className="flex items-center justify-center w-8 h-8 rounded-xl transition-all duration-300 group-hover:scale-110"
+            style={{
+              background: 'color-mix(in srgb, var(--color-green) 10%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--color-green) 30%, transparent)',
+              color: 'var(--color-green)',
+              // hover glow applied via JS workaround below isn't needed — scale is enough
+            }}
           >
             <span className="material-symbols-outlined text-[18px]">sports_soccer</span>
           </span>
         </Link>
 
+        {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-1 h-full">
           {navLinks.map(({ to, label }) => {
             const active = pathname.startsWith(to)
@@ -78,13 +85,22 @@ export function TopBar() {
                   'relative px-4 py-1.5 rounded-xl',
                   'font-lexend uppercase tracking-tight text-xs font-semibold',
                   'transition-all duration-300 ease-out',
-                  active
-                    ? 'text-[#00ff41] bg-[#00ff41]/10'
-                    : 'text-white/50 hover:text-white/90 hover:bg-white/5'
+                  active ? 'text-[--color-green]' : 'text-white/50 hover:text-white/90',
                 )}
+                style={
+                  active
+                    ? { background: 'color-mix(in srgb, var(--color-green) 10%, transparent)' }
+                    : undefined
+                }
               >
                 {active && (
-                  <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-[#00ff41] shadow-[0_0_6px_rgba(0,255,65,0.8)]" />
+                  <span
+                    className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full"
+                    style={{
+                      background: 'var(--color-green)',
+                      boxShadow: '0 0 6px color-mix(in srgb, var(--color-green) 80%, transparent)',
+                    }}
+                  />
                 )}
                 {label}
               </Link>
@@ -92,34 +108,41 @@ export function TopBar() {
           })}
         </nav>
 
-        {/* Desktop: profile only */}
+        {/* Desktop profile */}
         <div className="hidden md:flex items-center gap-2 shrink-0">
           <Link
             to={profileTo}
-            className={cn(
-              'flex items-center justify-center w-8 h-8 rounded-xl overflow-hidden',
-              'ring-1 ring-white/10 hover:ring-[#00ff41]/50',
-              'transition-all duration-300 hover:scale-105'
-            )}
+            className="flex items-center justify-center w-8 h-8 rounded-xl overflow-hidden transition-all duration-300 hover:scale-105"
+            style={{ border: '1px solid rgba(255,255,255,0.10)' }}
             aria-label={user ? 'Profile' : 'Login'}
+            onMouseEnter={(e) =>
+              ((e.currentTarget as HTMLElement).style.borderColor =
+                'color-mix(in srgb, var(--color-green) 50%, transparent)')
+            }
+            onMouseLeave={(e) =>
+              ((e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.10)')
+            }
           >
             {user?.avatar_url ? (
               <Avatar src={user.avatar_url} username={user.username} size="sm" />
             ) : (
-              <span className="w-full h-full flex items-center justify-center bg-[#00ff41]/15 text-[#00ff41] font-lexend font-bold text-xs uppercase">
+              <span
+                className="w-full h-full flex items-center justify-center font-lexend font-bold text-xs uppercase"
+                style={{
+                  background: 'color-mix(in srgb, var(--color-green) 15%, transparent)',
+                  color: 'var(--color-green)',
+                }}
+              >
                 {avatarFallback}
               </span>
             )}
           </Link>
         </div>
 
-        {/* Mobile: menu only */}
+        {/* Mobile hamburger */}
         <button
           type="button"
-          className={cn(
-            'md:hidden flex items-center justify-center w-10 h-10 rounded-xl',
-            'text-white/60 hover:text-white hover:bg-white/5 transition-colors'
-          )}
+          className="md:hidden flex items-center justify-center w-10 h-10 rounded-xl text-white/60 hover:text-white hover:bg-white/5 transition-colors"
           onClick={() => setMobileOpen((v) => !v)}
           aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
           aria-expanded={mobileOpen}
@@ -130,18 +153,22 @@ export function TopBar() {
         </button>
       </header>
 
+      {/* Mobile dropdown */}
       <div
         className={cn(
           'fixed top-[4.5rem] left-1/2 -translate-x-1/2 z-40 md:hidden',
           'w-[calc(100%-2rem)] max-w-sm',
           'rounded-2xl overflow-hidden',
-          'bg-black/90 border border-white/8',
           'shadow-[0_16px_40px_rgba(0,0,0,0.5)]',
           'transition-all duration-300 ease-out',
           mobileOpen
             ? 'opacity-100 translate-y-0 pointer-events-auto'
-            : 'opacity-0 -translate-y-3 pointer-events-none'
+            : 'opacity-0 -translate-y-3 pointer-events-none',
         )}
+        style={{
+          background: 'rgba(0,0,0,0.92)',
+          border: '1px solid rgba(255,255,255,0.08)',
+        }}
       >
         <nav className="flex flex-col p-2 gap-0.5">
           {navLinks.map(({ to, label }) => {
@@ -154,13 +181,19 @@ export function TopBar() {
                 className={cn(
                   'flex items-center gap-3 px-4 py-3 rounded-xl',
                   'font-lexend uppercase tracking-tight text-sm font-semibold transition-colors',
-                  active
-                    ? 'text-[#00ff41] bg-[#00ff41]/10'
-                    : 'text-white/50 hover:text-white hover:bg-white/5'
+                  active ? 'text-[--color-green]' : 'text-white/50 hover:text-white hover:bg-white/5',
                 )}
+                style={
+                  active
+                    ? { background: 'color-mix(in srgb, var(--color-green) 10%, transparent)' }
+                    : undefined
+                }
               >
                 {active && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#00ff41] shrink-0" />
+                  <span
+                    className="w-1.5 h-1.5 rounded-full shrink-0"
+                    style={{ background: 'var(--color-green)' }}
+                  />
                 )}
                 {label}
               </Link>
@@ -174,11 +207,20 @@ export function TopBar() {
             onClick={() => setMobileOpen(false)}
             className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/70 hover:bg-white/5 transition-colors"
           >
-            <span className="w-8 h-8 rounded-xl overflow-hidden ring-1 ring-white/10 flex items-center justify-center shrink-0">
+            <span
+              className="w-8 h-8 rounded-xl overflow-hidden flex items-center justify-center shrink-0"
+              style={{ border: '1px solid rgba(255,255,255,0.10)' }}
+            >
               {user?.avatar_url ? (
                 <Avatar src={user.avatar_url} username={user.username} size="sm" />
               ) : (
-                <span className="w-full h-full flex items-center justify-center bg-[#00ff41]/15 text-[#00ff41] font-lexend font-bold text-xs">
+                <span
+                  className="w-full h-full flex items-center justify-center font-lexend font-bold text-xs"
+                  style={{
+                    background: 'color-mix(in srgb, var(--color-green) 15%, transparent)',
+                    color: 'var(--color-green)',
+                  }}
+                >
                   {avatarFallback}
                 </span>
               )}
@@ -202,6 +244,7 @@ export function TopBar() {
         </nav>
       </div>
 
+      {/* Mobile backdrop */}
       {mobileOpen && (
         <div
           className="fixed inset-0 z-30 md:hidden bg-black/40"
