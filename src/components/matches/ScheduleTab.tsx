@@ -1,13 +1,13 @@
+// src/components/matches/ScheduleTab.tsx
+
 import { useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import * as Flags from 'country-flag-icons/react/3x2'
 import { GlassCard } from '@/components/ui/GlassCard'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-interface Fixture {
+export interface Fixture {
   id: string
-  /** UTC ISO-8601 kickoff timestamp, e.g. "2026-06-11T19:00:00.000Z"
-   *  All times were originally published in ET (UTC-4 / EDT).
-   *  We store UTC so every user sees the correct local time & date. */
   kickoff: string
   groupLabel: string
   home: { code: string; name: string }
@@ -28,13 +28,11 @@ function TeamFlag({ code }: { code: string }) {
 }
 
 // ── Timezone helpers ──────────────────────────────────────────────────────────
-/** Returns "HH:MM" in the user's local timezone */
 function localTime(isoUtc: string): string {
   const d = new Date(isoUtc)
   return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })
 }
 
-/** Returns a sort key "YYYY-MM-DD" in the user's local timezone for grouping */
 function localDateKey(isoUtc: string): string {
   const d = new Date(isoUtc)
   const y = d.getFullYear()
@@ -43,13 +41,11 @@ function localDateKey(isoUtc: string): string {
   return `${y}-${m}-${day}`
 }
 
-/** Returns "Mon DD · Weekday" in the user's local timezone */
 function formatDateLabel(isoUtc: string): string {
   const d = new Date(isoUtc)
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', weekday: 'long' })
 }
 
-/** Short timezone abbreviation, e.g. "EST", "JST", "CET" */
 function tzAbbr(): string {
   try {
     return new Intl.DateTimeFormat(undefined, { timeZoneName: 'short' })
@@ -61,11 +57,7 @@ function tzAbbr(): string {
 }
 
 // ── Fixture Data ──────────────────────────────────────────────────────────────
-// All kickoff times stored as UTC (original schedule published in ET / UTC-4).
-// The browser converts to the viewer's local timezone automatically.
-//
-// All 72 group-stage matches for FIFA World Cup 2026.
-const FIXTURES: Fixture[] = [
+export const FIXTURES: Fixture[] = [
   // ── Jun 11 (ET) ──
   { id: 'g1',  kickoff: '2026-06-11T19:00:00.000Z', groupLabel: 'Group A', home: { code: 'MX', name: 'Mexico' },         away: { code: 'ZA', name: 'South Africa' },   venue: 'Estadio Azteca',               city: 'Mexico City',   status: 'upcoming' },
   { id: 'g2',  kickoff: '2026-06-12T02:00:00.000Z', groupLabel: 'Group A', home: { code: 'KR', name: 'South Korea' },    away: { code: 'CZ', name: 'Czechia' },        venue: 'Estadio Akron',                city: 'Zapopan',       status: 'upcoming' },
@@ -173,7 +165,6 @@ const FIXTURES: Fixture[] = [
   { id: 'g72', kickoff: '2026-06-28T02:00:00.000Z', groupLabel: 'Group J', home: { code: 'JO', name: 'Jordan' },         away: { code: 'AR', name: 'Argentina' },      venue: 'AT&T Stadium',                 city: 'Dallas',        status: 'upcoming' },
 
   // ── Historical result — 2022 Final ──
-  // Dec 18 2022, 18:00 ET = 22:00 UTC
   {
     id: 'wc22-final',
     kickoff: '2022-12-18T22:00:00.000Z',
@@ -201,11 +192,15 @@ function groupByLocalDate(fixtures: Fixture[]): [string, Fixture[]][] {
 
 // ── Fixture Row ───────────────────────────────────────────────────────────────
 function FixtureRow({ fixture }: { fixture: Fixture }) {
+  const navigate = useNavigate()
   const isFinished = fixture.status === 'finished'
   const time = localTime(fixture.kickoff)
 
   return (
-    <div className="flex items-center gap-3 px-4 py-3 border-b border-white/5 last:border-0 hover:bg-white/3 transition-colors cursor-pointer group">
+    <div
+      onClick={() => navigate(`/matches/${fixture.id}`)}
+      className="flex items-center gap-3 px-4 py-3 border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors cursor-pointer group"
+    >
       {/* Local time / FT */}
       <div className="w-10 flex-shrink-0 text-center">
         {isFinished
@@ -260,13 +255,16 @@ function FixtureRow({ fixture }: { fixture: Fixture }) {
           {fixture.venue}, {fixture.city}
         </span>
       </div>
+
+      {/* Arrow indicator */}
+      <span className="material-symbols-outlined text-[14px] text-white/10 group-hover:text-white/30 transition-colors flex-shrink-0">
+        chevron_right
+      </span>
     </div>
   )
 }
 
 // ── Date Section ──────────────────────────────────────────────────────────────
-// `dateKey` is "YYYY-MM-DD" in local time; we derive a display label from any
-// fixture in the group (they all share the same local date by construction).
 function DateSection({ fixtures }: { fixtures: Fixture[] }) {
   const label = formatDateLabel(fixtures[0].kickoff)
   return (
@@ -278,7 +276,6 @@ function DateSection({ fixtures }: { fixtures: Fixture[] }) {
         <span className="text-[9px] font-lexend text-white/15">
           {fixtures.length} {fixtures.length === 1 ? 'match' : 'matches'}
         </span>
-
       </div>
       {fixtures.map((f) => (
         <FixtureRow key={f.id} fixture={f} />
@@ -303,13 +300,12 @@ export function ScheduleTab() {
 
   return (
     <div>
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 border-b border-white/5 pb-4">
         <div>
           <p className="text-[11px] font-lexend font-bold uppercase tracking-widest text-white/25">
             {view === 'upcoming'
-            ? `${upcoming.length} ${upcoming.length === 1 ? 'Fixture' : 'Fixtures'}`
-            : `${results.length} ${results.length === 1 ? 'Result' : 'Results'}`}
+              ? `${upcoming.length} ${upcoming.length === 1 ? 'Fixture' : 'Fixtures'}`
+              : `${results.length} ${results.length === 1 ? 'Result' : 'Results'}`}
           </p>
           {tz && (
             <p className="text-[9px] font-lexend text-white/15 mt-0.5">
@@ -318,7 +314,6 @@ export function ScheduleTab() {
           )}
         </div>
 
-        {/* Toggle */}
         <div className="flex bg-white/5 p-0.5 rounded-lg border border-white/10 self-end sm:self-auto">
           {(['upcoming', 'results'] as TabView[]).map((v) => (
             <button
@@ -334,7 +329,6 @@ export function ScheduleTab() {
         </div>
       </div>
 
-      {/* Content */}
       {view === 'upcoming' && (
         <GlassCard className="overflow-hidden">
           {upcomingByDate.map(([dateKey, fixtures]) => (

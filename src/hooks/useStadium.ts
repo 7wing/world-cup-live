@@ -1,86 +1,66 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  fetchStadiums, fetchStadiumById,
-  fetchStadiumReviews, submitStadiumReview,
-  fetchStadiumPhotos
+  fetchStadiums,
+  fetchStadiumById,
+  fetchStadiumReviews,
+  submitStadiumReview,
+  fetchStadiumPhotos,
+  uploadFanPhoto,
 } from '@/api/stadiums'
+import { MOCK_STADIUMS } from '@/components/stadiums/mockStadiums'
+import type { StadiumReview } from '@/types'
 import { useNotificationStore } from '@/store/notificationStore'
 
-// ─── Supabase image URL transformer ─────────────────────────────────────────
-// Appends width/quality params that Supabase Storage Image Transformations
-// understand, so images are resized server-side and arrive much smaller.
-// If your project doesn't have Image Transformations enabled, the original
-// URL is returned unchanged.
-/** Resize via Supabase Image Transformations (render/image), not query params on object URLs. */
+// ── Image optimisation ────────────────────────────────────────────────────────
 export function getOptimizedImageUrl(
-  url: string | null | undefined,
-  width = 800,
-  quality = 75,
+  url: string | null,
+  width: number,
+  quality: number
 ): string | null {
   if (!url) return null
-
-  try {
-    if (!url.includes('/storage/v1/object/')) return url
-
-    const parsed = new URL(url)
-    parsed.pathname = parsed.pathname
-      .replace('/storage/v1/object/public/', '/storage/v1/render/image/public/')
-      .replace('/storage/v1/object/sign/', '/storage/v1/render/image/sign/')
-    parsed.search = ''
-    parsed.searchParams.set('width', String(width))
-    parsed.searchParams.set('quality', String(quality))
-    parsed.searchParams.set('resize', 'cover')
-    return parsed.toString()
-  } catch {
-    return url
-  }
+  if (!url.includes('supabase.co/storage')) return url
+  const separator = url.includes('?') ? '&' : '?'
+  return `${url}${separator}width=${width}&quality=${quality}`
 }
 
-/** Fall back to the raw storage object if render/image is unavailable. */
-export function getStorageObjectUrl(renderOrObjectUrl: string | null | undefined): string | null {
-  if (!renderOrObjectUrl) return null
-  if (!renderOrObjectUrl.includes('/render/image/')) return renderOrObjectUrl
-  try {
-    const parsed = new URL(renderOrObjectUrl)
-    parsed.pathname = parsed.pathname
-      .replace('/storage/v1/render/image/public/', '/storage/v1/object/public/')
-      .replace('/storage/v1/render/image/sign/', '/storage/v1/object/sign/')
-    parsed.search = ''
-    return parsed.toString()
-  } catch {
-    return renderOrObjectUrl
-  }
-}
+// Alias for components that import this name
+export const getStorageObjectUrl = getOptimizedImageUrl
 
-// ─── Hooks ───────────────────────────────────────────────────────────────────
+// ── Feature flag ──────────────────────────────────────────────────────────────
+const USE_MOCK = import.meta.env.VITE_MOCK_STADIUMS === 'true'
 
+// ── Stadiums list ─────────────────────────────────────────────────────────────
 export function useStadiums() {
   return useQuery({
     queryKey: ['stadiums'],
-    queryFn: fetchStadiums,
-    // Cache for 5 minutes — stadium data is stable
-    staleTime: 5 * 60_000,
-    // Keep in memory for 10 minutes after last subscriber unmounts
-    gcTime: 10 * 60_000,
-    retry: 2,
+    queryFn: () => (USE_MOCK ? Promise.resolve(MOCK_STADIUMS) : fetchStadiums()),
+    staleTime: 1000 * 60 * 10,
   })
 }
 
-export function useStadium(id: string) {
+// ── Single stadium by slug ────────────────────────────────────────────────────
+export function useStadium(slug: string) {
   return useQuery({
-    queryKey: ['stadiums', id],
-    queryFn: () => fetchStadiumById(id),
-    enabled: !!id,
-    staleTime: 5 * 60_000,
+    queryKey: ['stadiums', slug],
+    queryFn: () => {
+      if (USE_MOCK) {
+        const s = MOCK_STADIUMS.find((s) => s.slug === slug)
+        if (!s) throw new Error(`Stadium "${slug}" not found in mock data`)
+        return Promise.resolve(s)
+      }
+      return fetchStadiumById(slug)
+    },
+    enabled: !!slug,
+    staleTime: 1000 * 60 * 10,
   })
 }
 
+// ── Reviews ───────────────────────────────────────────────────────────────────
 export function useStadiumReviews(stadiumId: string) {
   return useQuery({
     queryKey: ['stadiums', stadiumId, 'reviews'],
     queryFn: () => fetchStadiumReviews(stadiumId),
     enabled: !!stadiumId,
-    staleTime: 2 * 60_000,
   })
 }
 
@@ -89,21 +69,44 @@ export function useSubmitReview(stadiumId: string) {
   const { push } = useNotificationStore()
 
   return useMutation({
-    mutationFn: submitStadiumReview,
+    mutationFn: (review: Omit<StadiumReview, 'id' | 'created_at' | 'user'>) =>
+      submitStadiumReview(review),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['stadiums', stadiumId] })
       qc.invalidateQueries({ queryKey: ['stadiums', stadiumId, 'reviews'] })
+      qc.invalidateQueries({ queryKey: ['stadiums', stadiumId] })
       push('Review submitted!', 'success')
     },
     onError: () => push('Failed to submit review', 'error'),
   })
 }
 
+// ── Photos ────────────────────────────────────────────────────────────────────
 export function useStadiumPhotos(stadiumId: string) {
   return useQuery({
     queryKey: ['stadiums', stadiumId, 'photos'],
     queryFn: () => fetchStadiumPhotos(stadiumId),
     enabled: !!stadiumId,
-    staleTime: 2 * 60_000,
+  })
+}
+
+export function useUploadFanPhoto(stadiumId: string) {
+  const qc = useQueryClient()
+  const { push } = useNotificationStore()
+
+  return useMutation({
+    mutationFn: ({
+      userId,
+      file,
+      caption,
+    }: {
+      userId: string
+      file: File
+      caption: string
+    }) => uploadFanPhoto(userId, stadiumId, file, caption),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['stadiums', stadiumId, 'photos'] })
+      push('Photo uploaded!', 'success')
+    },
+    onError: () => push('Failed to upload photo', 'error'),
   })
 }

@@ -1,55 +1,66 @@
-import { useState } from 'react'
-import { GlassCard } from '@/components/ui/GlassCard'
-import { NeonButton } from '@/components/ui/NeonButton'
-import { Avatar } from '@/components/ui/Avatar'
-import { useAuthStore } from '@/store/authStore'
-import { useCreatePost } from '@/hooks/usePosts'
-import { getEffectiveUser } from '@/lib/guestUser'
+// src/components/fanzone/PostComposer.tsx
 
-export function PostComposer() {
-  const { user: authUser } = useAuthStore()
-  const user = getEffectiveUser(authUser)
+import { useState } from 'react'
+import { NeonButton } from '@/components/ui/NeonButton'
+
+interface PostComposerProps {
+  onPost: (content: string) => void
+  autoFocus?: boolean
+}
+
+export function PostComposer({ onPost, autoFocus = false }: PostComposerProps) {
   const [content, setContent] = useState('')
-  const { mutate, isPending } = useCreatePost()
 
   const handlePost = () => {
-    if (!content.trim() || !user) return
-    mutate({
-      user_id: user.id,
-      user,
-      content: content.trim(),
-      media_url: null,
-      media_type: null,
-      match_id: null,
-    })
+    if (!content.trim()) return
+    onPost(content.trim())
     setContent('')
   }
 
   return (
-    <GlassCard className="p-4">
-      <div className="flex gap-4">
-        <Avatar src={user?.avatar_url} username={user?.username} />
+    <div className="glass-card rounded-xl p-4">
+      <div className="flex gap-3">
+        {/* Avatar */}
+        <div className="w-9 h-9 rounded-full bg-primary-container/10 border border-outline-variant flex items-center justify-center text-base flex-shrink-0">
+          🌟
+        </div>
+
+        {/* Input area */}
         <div className="flex-1">
           <textarea
-            className="w-full bg-transparent border-none focus:ring-0 text-white/90 placeholder:text-white/30 resize-none h-20 text-base"
-            placeholder="Share your match energy..."
+            autoFocus={autoFocus}
             value={content}
             onChange={(e) => setContent(e.target.value)}
+            placeholder="Share your match energy..."
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && e.metaKey) handlePost()
+            }}
+            className="w-full bg-transparent border-none outline-none text-white/80 text-sm font-lexend resize-none h-[68px] leading-relaxed pt-1 placeholder:text-white/20"
           />
-          <div className="flex justify-between items-center pt-4 border-t border-white/10">
+
+          <div className="flex items-center justify-between pt-3 border-t border-white/5">
+            {/* Media buttons */}
             <div className="flex gap-4">
-              {['image', 'videocam', 'poll'].map((icon) => (
-                <button key={icon} className="text-white/40 hover:text-primary-container transition-colors">
-                  <span className="material-symbols-outlined">{icon}</span>
+              {['🖼️', '🎬', '📊'].map((ic) => (
+                <button
+                  key={ic}
+                  className="text-[15px] opacity-35 hover:opacity-80 transition-opacity"
+                >
+                  {ic}
                 </button>
               ))}
             </div>
-            <NeonButton size="sm" onClick={handlePost} disabled={isPending || !content.trim()}>
+
+            <NeonButton
+              onClick={handlePost}
+              disabled={!content.trim()}
+              className="px-4 py-1.5 text-[10px]"
+            >
               Post
             </NeonButton>
           </div>
         </div>
       </div>
-    </GlassCard>
+    </div>
   )
 }

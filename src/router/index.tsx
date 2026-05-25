@@ -13,7 +13,7 @@ import { GamesPage } from '@/pages/fanzone/GamesPage'
 import { TribesPage } from '@/pages/fanzone/TribesPage'
 import { StadiumsPage } from '@/pages/stadiums/StadiumsPage'
 import { StadiumDetailPage } from '@/pages/stadiums/StadiumDetailPage'
-import { PassportPage } from '@/pages/passport/PassportPage'
+import { WatchPartyPage } from '@/pages/fanzone/WatchPartyPage'
 import { ProfilePage } from '@/pages/profile/ProfilePage'
 import { FriendsPage } from '@/pages/profile/FriendsPage'
 import { NotFound } from '@/pages/NotFound'
@@ -26,17 +26,17 @@ export const router = createBrowserRouter([
       { index: true, element: <MatchesPage /> },
       { path: 'login', element: <LoginPage /> },
       { path: 'signup', element: <SignupPage /> },
-      {path: "/forgot-password", element: <ForgotPasswordPage /> }, 
-      {path: "/reset-password", element: <ResetPasswordPage /> }, 
+      { path: 'forgot-password', element: <ForgotPasswordPage /> },
+      { path: 'reset-password', element: <ResetPasswordPage /> },
       { path: 'matches', element: <MatchesPage /> },
       { path: 'matches/brackets', element: <BracketTab /> },
       { path: 'matches/:matchId', element: <MatchDetailPage /> },
       { path: 'fan-zone', element: <FanZonePage /> },
-      { path: 'fan-zone/games', element: <GamesPage /> },
+      { path: 'fan-zone/watch-party/:partyId', element: <WatchPartyPage /> },
       { path: 'fan-zone/tribes', element: <TribesPage /> },
+      { path: 'games', element: <GamesPage /> },          
       { path: 'stadiums', element: <StadiumsPage /> },
       { path: 'stadiums/:stadiumId', element: <StadiumDetailPage /> },
-      { path: 'passport', element: <PassportPage /> },
       { path: 'profile/:userId', element: <ProfilePage /> },
       { path: 'profile/:userId/friends', element: <FriendsPage /> },
       { path: '*', element: <NotFound /> },

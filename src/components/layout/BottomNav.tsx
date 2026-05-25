@@ -2,14 +2,17 @@ import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/utils/cn'
 
 const tabs = [
-  { to: '/matches', icon: 'sports_soccer', label: 'Matches' },
-  { to: '/fan-zone', icon: 'groups', label: 'Fan Zone' },
-  { to: '/passport', icon: 'military_tech', label: 'Passport' },
-  { to: '/stadiums', icon: 'stadium', label: 'Stadiums' },
+  { to: '/matches',  icon: 'sports_soccer',  label: 'Matches',  exact: false },
+  { to: '/fan-zone', icon: 'groups',          label: 'Fan Zone', exact: true  },
+  { to: '/games',    icon: 'sports_esports',  label: 'Games',    exact: false },
+  { to: '/stadiums', icon: 'stadium',         label: 'Stadiums', exact: false },
 ] as const
 
 export function BottomNav() {
   const { pathname } = useLocation()
+
+  const isActive = (to: string, exact: boolean) =>
+    exact ? pathname === to : pathname.startsWith(to)
 
   return (
     <nav
@@ -27,8 +30,8 @@ export function BottomNav() {
           '0 8px 32px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.07)',
       }}
     >
-      {tabs.map(({ to, icon, label }) => {
-        const active = pathname.startsWith(to)
+      {tabs.map(({ to, icon, label, exact }) => {
+        const active = isActive(to, exact)
         return (
           <Link
             key={to}

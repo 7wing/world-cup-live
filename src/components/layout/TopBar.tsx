@@ -6,10 +6,10 @@ import { cn } from '@/utils/cn'
 import { useState, useEffect } from 'react'
 
 const navLinks = [
-  { to: '/matches', label: 'Matches' },
-  { to: '/fan-zone', label: 'Fan Zone' },
-  { to: '/stadiums', label: 'Stadiums' },
-  { to: '/passport', label: 'Passport' },
+  { to: '/matches',   label: 'Matches',  exact: false },
+  { to: '/fan-zone',  label: 'Fan Zone', exact: true  },
+  { to: '/games',     label: 'Games',    exact: false },
+  { to: '/stadiums',  label: 'Stadiums', exact: false },
 ]
 
 export function TopBar() {
@@ -34,6 +34,9 @@ export function TopBar() {
     : '👤'
 
   const profileTo = user ? `/profile/${user.id}` : '/login'
+
+  const isActive = (to: string, exact: boolean) =>
+    exact ? pathname === to : pathname.startsWith(to)
 
   return (
     <>
@@ -66,7 +69,6 @@ export function TopBar() {
               background: 'color-mix(in srgb, var(--color-green) 10%, transparent)',
               border: '1px solid color-mix(in srgb, var(--color-green) 30%, transparent)',
               color: 'var(--color-green)',
-              // hover glow applied via JS workaround below isn't needed — scale is enough
             }}
           >
             <span className="material-symbols-outlined text-[18px]">sports_soccer</span>
@@ -75,8 +77,8 @@ export function TopBar() {
 
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-1 h-full">
-          {navLinks.map(({ to, label }) => {
-            const active = pathname.startsWith(to)
+          {navLinks.map(({ to, label, exact }) => {
+            const active = isActive(to, exact)
             return (
               <Link
                 key={to}
@@ -171,8 +173,8 @@ export function TopBar() {
         }}
       >
         <nav className="flex flex-col p-2 gap-0.5">
-          {navLinks.map(({ to, label }) => {
-            const active = pathname.startsWith(to)
+          {navLinks.map(({ to, label, exact }) => {
+            const active = isActive(to, exact)
             return (
               <Link
                 key={to}

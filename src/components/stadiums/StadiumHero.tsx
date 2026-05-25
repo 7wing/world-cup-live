@@ -1,8 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
 import type { Stadium } from '@/types'
-import { getOptimizedImageUrl } from '@/hooks/useStadium'
-
-const HERO_SLIDES = 5
 
 interface StadiumHeroProps {
   stadiums: Stadium[]
@@ -10,55 +7,58 @@ interface StadiumHeroProps {
 }
 
 export function StadiumHero({ stadiums, isLoading }: StadiumHeroProps) {
-  const slides = useMemo(
-    () =>
-      stadiums.slice(0, HERO_SLIDES).map((s) => ({
-        ...s,
-        hero_image_url: getOptimizedImageUrl(s.hero_image_url, 960, 75),
-      })),
-    [stadiums],
-  )
+  const slides = useMemo(() => stadiums, [stadiums])
 
   const [index, setIndex] = useState(0)
-  const current = slides[index]?.hero_image_url ?? null
+  const [visible, setVisible] = useState(true)
 
+  // Auto-advance with a brief fade-out/in between slides
   useEffect(() => {
     if (slides.length <= 1) return
     const id = setInterval(() => {
-      setIndex((i) => (i + 1) % slides.length)
+      setVisible(false)
+      setTimeout(() => {
+        setIndex((i) => (i + 1) % slides.length)
+        setVisible(true)
+      }, 300)
     }, 6000)
     return () => clearInterval(id)
   }, [slides.length])
 
-  // Warm hero slide images once (small set, resized server-side)
-  useEffect(() => {
-    slides.forEach((s) => {
-      if (!s.hero_image_url) return
-      const img = new Image()
-      img.src = s.hero_image_url
-    })
-  }, [slides])
+  function goTo(i: number) {
+    if (i === index) return
+    setVisible(false)
+    setTimeout(() => {
+      setIndex(i)
+      setVisible(true)
+    }, 300)
+  }
+
+  const current = slides[index]?.hero_image_url ?? null
 
   return (
     <div className="relative overflow-hidden rounded-2xl mb-8 h-64 isolate bg-surface-container-low">
       <div className="absolute inset-0 bg-gradient-to-br from-primary-container/15 via-surface-container to-black" />
 
+      {/* Preload all slide images so switching is instant */}
+      {slides.map((s) =>
+        s.hero_image_url ? (
+          <link key={s.slug} rel="preload" as="image" href={s.hero_image_url} />
+        ) : null
+      )}
+
       {current && (
         <img
-          key={current}
           src={current}
-          alt=""
-          width={960}
-          height={256}
-          loading="eager"
-          decoding="async"
-          fetchPriority="high"
-          className="absolute inset-0 w-full h-full object-cover"
+          alt={slides[index]?.name ?? ''}
+          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
+            visible ? 'opacity-100' : 'opacity-0'
+          }`}
         />
       )}
 
       {isLoading && !current && (
-        <div className="absolute inset-0 bg-white/5 z-[1]" />
+        <div className="absolute inset-0 bg-white/5 animate-pulse z-[1]" />
       )}
 
       <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-black/30 z-[2] pointer-events-none" />
@@ -98,7 +98,7 @@ export function StadiumHero({ stadiums, isLoading }: StadiumHeroProps) {
               <button
                 key={i}
                 type="button"
-                onClick={() => setIndex(i)}
+                onClick={() => goTo(i)}
                 aria-label={`Show stadium ${i + 1}`}
                 className={`h-1 rounded-full transition-[width,background-color] duration-300 ${
                   index === i ? 'w-4 bg-primary-container' : 'w-1 bg-white/20 hover:bg-white/40'

@@ -1,59 +1,59 @@
-import { Avatar } from '@/components/ui/Avatar'
-import { GlassCard } from '@/components/ui/GlassCard'
-import { formatRelative } from '@/utils/formatDate'
-import type { Post } from '@/types'
+// src/components/fanzone/PostCard.tsx
+
+import type { Post } from '../../lib/fanzoneData'
 
 interface PostCardProps {
   post: Post
-  onLike?: (postId: string) => void
+  onLike: (id: string) => void
+}
+
+function nfmt(n: number): string {
+  return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n)
 }
 
 export function PostCard({ post, onLike }: PostCardProps) {
   return (
-    <GlassCard className="overflow-hidden border-white/5">
-      <div className="p-4 flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          <Avatar src={post.user?.avatar_url} username={post.user?.username} size="sm" />
+    <div className="glass-card rounded-xl overflow-hidden">
+      {/* Header */}
+      <div className="px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="w-[34px] h-[34px] rounded-full bg-surface-container-high flex items-center justify-center text-base flex-shrink-0">
+            {post.avatar}
+          </div>
           <div>
-            <h5 className="font-lexend font-semibold text-sm text-white/90">{post.user?.username}</h5>
-            <p className="text-[11px] text-white/40">{formatRelative(post.created_at)}</p>
+            <p className="text-xs font-lexend font-bold text-white/80">{post.username}</p>
+            <p className="text-[10px] font-lexend text-white/30">{post.time}</p>
           </div>
         </div>
-        {post.is_official && (
-          <span className="text-[10px] font-lexend font-bold uppercase bg-primary-container/20 text-primary-container px-2 py-0.5 rounded-sm">Official</span>
+        {post.official && (
+          <span className="font-lexend font-black text-[8px] uppercase tracking-widest bg-primary-container/10 text-primary-container px-2 py-0.5 rounded border border-outline-variant">
+            Official
+          </span>
         )}
       </div>
 
-      {post.content && (
-        <p className="px-4 pb-4 text-white/80">{post.content}</p>
-      )}
+      {/* Body */}
+      <p className="px-4 pb-3.5 text-[13px] font-lexend leading-relaxed text-white/75">
+        {post.content}
+      </p>
 
-      {post.media_url && (
-        <div className="aspect-video w-full bg-surface-container">
-          <img src={post.media_url} alt="post media" className="w-full h-full object-cover" />
-        </div>
-      )}
-
-      <div className="p-4 flex gap-6 items-center border-t border-white/10">
+      {/* Footer */}
+      <div className="px-4 py-2.5 border-t border-white/5 flex gap-5 items-center">
         <button
-          onClick={() => onLike?.(post.id)}
-          className={`flex items-center gap-2 transition-colors ${
-            post.liked ? 'text-primary-container' : 'text-white/40 hover:text-primary-container'
+          onClick={() => onLike(post.id)}
+          className={`flex items-center gap-1.5 text-xs font-lexend font-semibold transition-colors ${
+            post.liked ? 'text-primary-container' : 'text-white/30 hover:text-white/50'
           }`}
         >
-          <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: post.liked ? "'FILL' 1" : undefined }}>
-            favorite
-          </span>
-          <span className="text-xs font-lexend font-semibold">{post.likes.toLocaleString()}</span>
+          {post.liked ? '❤️' : '🤍'} {nfmt(post.likes)}
         </button>
-        <button className="flex items-center gap-2 text-white/40 hover:text-white/80 transition-colors">
-          <span className="material-symbols-outlined text-sm">chat_bubble</span>
-          <span className="text-xs font-lexend font-semibold">{post.comment_count}</span>
+        <button className="flex items-center gap-1.5 text-xs font-lexend font-semibold text-white/30 hover:text-white/50 transition-colors">
+          💬 {post.comments}
         </button>
-        <button className="flex items-center gap-2 text-white/40 hover:text-white/80 transition-colors ml-auto">
-          <span className="material-symbols-outlined text-sm">share</span>
+        <button className="ml-auto text-[13px] text-white/30 hover:text-white/50 transition-colors">
+          ↗
         </button>
       </div>
-    </GlassCard>
+    </div>
   )
 }
