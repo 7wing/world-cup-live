@@ -4,7 +4,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState } from 'react'
-import { glassStyle, capStyle, LiveDot } from '../../shared/ui'
+import { glassStyle, capStyle, LiveDot } from '../ui/ui'
 import { TRIVIA_QUESTIONS } from '../../lib/fanzoneData'
 
 const TOTAL_PTS = TRIVIA_QUESTIONS.reduce((sum, q) => sum + q.pts, 0)

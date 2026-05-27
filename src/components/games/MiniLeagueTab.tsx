@@ -3,7 +3,7 @@
 // Mini League leaderboard with your-row highlight, progress bars, stats sidebar.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { glassStyle, capStyle, NeonBtn } from '../../shared/ui'
+import { glassStyle, capStyle, NeonBtn } from '../ui/ui'
 import { MINI_LEAGUE } from '../../lib/fanzoneData'
 
 const MEDALS = ['🥇', '🥈', '🥉']

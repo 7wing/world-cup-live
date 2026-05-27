@@ -4,7 +4,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState } from 'react'
-import { glassStyle, capStyle, LiveDot } from '../../shared/ui'
+import { glassStyle, capStyle, LiveDot } from '../ui/ui'
 import { DUEL_OPPONENTS } from '../../lib/fanzoneData'
 
 const DUEL_QUESTION = {

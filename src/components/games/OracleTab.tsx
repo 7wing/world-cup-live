@@ -4,7 +4,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState } from 'react'
-import { glassStyle, capStyle } from '../../shared/ui'
+import { glassStyle, capStyle } from '../ui/ui'
 import { ORACLE_QUESTIONS } from '../../lib/fanzoneData'
 
 export function OracleTab() {

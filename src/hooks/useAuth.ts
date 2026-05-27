@@ -4,14 +4,12 @@ import { useAuthStore } from '@/store/authStore'
 import { fetchUserById } from '@/api/profile'
 
 export function useAuth() {
-  const { setUser, setSession, setLoading, signOut } = useAuthStore()
+  const { setUser, setSession, setLoading } = useAuthStore()
 
   useEffect(() => {
     let cancelled = false
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      // Always unblock profile queries — must run even if StrictMode cancelled this effect,
-      // because INITIAL_SESSION does not re-fire on remount.
       setSession(session)
       setLoading(false)
 
@@ -48,6 +46,9 @@ export function useAuth() {
     }
   }, [])
 
-  const { user, session, loading } = useAuthStore.getState()
+  const user = useAuthStore((s) => s.user)
+  const session = useAuthStore((s) => s.session)
+  const loading = useAuthStore((s) => s.loading)
+  const signOut = useAuthStore((s) => s.signOut)
   return { user, session, loading, signOut }
 }

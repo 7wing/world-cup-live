@@ -5,7 +5,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { LiveDot } from '@/shared/ui'
+import { LiveDot } from '@/components/ui/ui'
 import { CHAT_INIT, WATCH_MEMBERS, WATCH_PARTIES, QUICK_REACTS } from '@/lib/fanzoneData'
 import type { ChatMessage } from '@/lib/fanzoneData'
 

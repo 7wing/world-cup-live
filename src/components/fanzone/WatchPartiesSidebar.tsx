@@ -1,6 +1,6 @@
 // src/components/fanzone/WatchPartiesSidebar.tsx
 
-import { LiveDot } from '@/shared/ui'
+import { LiveDot } from '@/components/ui/ui'
 import { NeonButton } from '@/components/ui/NeonButton'
 import type { WatchParty } from '../../lib/fanzoneData'
 

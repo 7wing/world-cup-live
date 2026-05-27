@@ -5,7 +5,7 @@
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LiveDot } from '@/shared/ui'
+import { LiveDot } from '@/components/ui/ui'
 import { PostCard } from '@/components/fanzone/PostCard'
 import { PostComposer } from '@/components/fanzone/PostComposer'
 import { FeedFilter } from '@/components/fanzone/FeedFilter'

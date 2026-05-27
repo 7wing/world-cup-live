@@ -179,7 +179,7 @@ export function TribesPage() {
             />
           </div>
           {/* Challenger Leagues live on the Friends page */}
-          <NeonButton size="sm" onClick={() => navigate(`/friends/${user?.id}`)}>
+          <NeonButton size="sm" onClick={() => navigate(`/profile/${user?.id}/friends`)}>
             <span className="material-symbols-outlined text-base">emoji_events</span>
             My Leagues
           </NeonButton>

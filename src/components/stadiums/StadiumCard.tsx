@@ -24,8 +24,8 @@ export const StadiumCard = memo(function StadiumCard({
   priority = false,
 }: StadiumCardProps) {
   const [src, setSrc] = useState(stadium.hero_image_url)
-  const fallback = getStorageObjectUrl(stadium.hero_image_url)
-
+  const fallback = getStorageObjectUrl(stadium.hero_image_url, 512, 60)
+  
   return (
     <article
       className="card-solid overflow-hidden cursor-pointer hover:border-primary-container/30 transition-[border-color] duration-200"

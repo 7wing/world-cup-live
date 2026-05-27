@@ -3,7 +3,7 @@ import type { User } from '@/types'
 export const GUEST_USER: User = {
   id: 'guest-local',
   username: 'You',
-  avatar_url: '⚽',
+  avatar_url: null,
   tier: 'fan',
   xp: 0,
   global_rank: null,
