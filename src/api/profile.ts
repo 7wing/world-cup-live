@@ -1,5 +1,4 @@
 import { supabase } from '@/lib/supabase'
-import { isMockProfileEnabled, MOCK_PROFILE } from '@/lib/mockProfile'
 import type { User, Friendship, FanPhoto, PassportBadge, Prediction } from '@/types'
 
 // ── User ──────────────────────────────────────────────────────────────────────
@@ -13,7 +12,6 @@ export async function fetchUserById(userId: string): Promise<User> {
 
   if (error) {
     console.error('[fetchUserById] error:', error.message, '| code:', error.code)
-    if (isMockProfileEnabled()) return { ...MOCK_PROFILE, id: userId }
     throw error
   }
   return data as User
@@ -23,8 +21,15 @@ export async function updateUserProfile(
   userId: string,
   updates: Partial<Pick<User, 'username' | 'avatar_url'>>
 ): Promise<void> {
-  const { error } = await supabase.from('users').update(updates).eq('id', userId)
+  const { data, error } = await supabase
+    .from('users')
+    .update(updates)
+    .eq('id', userId)
+    .select('id')
+    .single()
+
   if (error) throw error
+  if (!data) throw new Error(`[updateUserProfile] no user found for id: ${userId}`)
 }
 
 export async function uploadAvatar(userId: string, file: File): Promise<string> {

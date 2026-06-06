@@ -1,155 +1,128 @@
 // src/components/games/TriviaTab.tsx
-// ─────────────────────────────────────────────────────────────────────────────
-// Trivia questions with answer feedback + live session score tracker sidebar.
-// ─────────────────────────────────────────────────────────────────────────────
+// Queries trivia_questions from Supabase. No mock data.
 
 import { useState } from 'react'
-import { glassStyle, capStyle, LiveDot } from '../ui/ui'
-import { TRIVIA_QUESTIONS } from '../../lib/fanzoneData'
+import { useQuery } from '@tanstack/react-query'
+import { GlassCard } from '@/components/ui/GlassCard'
+import { fetchTriviaQuestions } from '@/api/trivia'
+import type { TriviaQuestion } from '@/types'
 
-const TOTAL_PTS = TRIVIA_QUESTIONS.reduce((sum, q) => sum + q.pts, 0)
+interface TriviaTabProps {
+  /** Optional: scope questions to a specific match */
+  matchId?: string
+  /** Prepend a live Gemini question if available */
+  liveQuestion?: TriviaQuestion | null
+}
 
-export function TriviaTab() {
+export function TriviaTab({ matchId, liveQuestion }: TriviaTabProps) {
+  const { data: dbQuestions = [], isLoading } = useQuery({
+    queryKey: ['trivia_questions', matchId ?? 'global'],
+    queryFn:  () => fetchTriviaQuestions(matchId, 10),
+    staleTime: 5 * 60_000,
+  })
+
+  const questions: TriviaQuestion[] = liveQuestion
+    ? [liveQuestion, ...dbQuestions.filter((q) => q.id !== liveQuestion.id)]
+    : dbQuestions
+
+  const totalPts = questions.reduce((sum, q) => sum + q.points, 0)
+
   // answers: { [questionId]: selectedOptionIndex }
   const [answers, setAnswers] = useState<Record<string, number>>({})
-  const [score, setScore] = useState(0)
+  const [score, setScore]     = useState(0)
 
-  const answer = (qid: string, idx: number, correct: number, pts: number) => {
+  function handleAnswer(qid: string, idx: number, correct: number, pts: number) {
     if (answers[qid] !== undefined) return
     setAnswers((prev) => ({ ...prev, [qid]: idx }))
     if (idx === correct) setScore((s) => s + pts)
   }
 
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="h-40 glass-card rounded-xl animate-pulse" />
+        ))}
+      </div>
+    )
+  }
+
+  if (questions.length === 0) {
+    return (
+      <GlassCard className="p-12 text-center">
+        <span className="material-symbols-outlined text-4xl text-white/10 block mb-3">psychology</span>
+        <p className="font-lexend font-black text-sm text-white/20">No trivia questions available yet</p>
+      </GlassCard>
+    )
+  }
+
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 20 }}>
-      {/* ── Questions ──────────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {TRIVIA_QUESTIONS.map((q) => {
-          const picked = answers[q.id] ?? null
+    <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-5">
+      {/* ── Questions ── */}
+      <div className="space-y-4">
+        {questions.map((q) => {
+          const picked   = answers[q.id] ?? null
+          const isLiveAi = q.source === 'gemini'
 
           return (
-            <div
-              key={q.id}
-              className="fade-up"
-              style={{ ...glassStyle, overflow: 'hidden' }}
-            >
+            <GlassCard key={q.id} className="overflow-hidden">
               {/* Header */}
-              <div
-                style={{
-                  padding: '10px 16px',
-                  borderBottom: '1px solid var(--border-soft)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                }}
-              >
-                {q.live ? (
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 5,
-                      background: 'var(--primary-dim)',
-                      border: '1px solid var(--primary-border)',
-                      borderRadius: 10,
-                      padding: '2px 8px',
-                    }}
-                  >
-                    <LiveDot />
-                    <span style={{ ...capStyle, color: 'var(--primary)', fontSize: 8 }}>
-                      {q.tag}
+              <div className="px-4 py-2.5 border-b border-white/8 flex items-center justify-between">
+                {isLiveAi ? (
+                  <div className="flex items-center gap-1.5 bg-primary-container/10 px-2 py-0.5 rounded-full border border-primary-container/20">
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary-container animate-pulse" />
+                    <span className="text-[9px] font-lexend font-black text-primary-container uppercase">
+                      {q.tag ?? 'AI'}
                     </span>
                   </div>
                 ) : (
-                  <span
-                    style={{
-                      ...capStyle,
-                      fontSize: 8,
-                      color: 'var(--t4)',
-                      background: 'rgba(255,255,255,0.04)',
-                      padding: '2px 8px',
-                      borderRadius: 10,
-                    }}
-                  >
-                    {q.tag}
+                  <span className="text-[9px] font-lexend font-bold text-white/25 uppercase tracking-widest bg-white/5 px-2 py-0.5 rounded-full">
+                    {q.tag ?? q.difficulty}
                   </span>
                 )}
-                <span
-                  style={{ fontSize: 10, fontWeight: 800, color: 'var(--primary)' }}
-                >
-                  +{q.pts} pts
-                </span>
+                <div className="flex items-center gap-1 text-[10px] font-lexend font-black text-primary-container">
+                  <span className="material-symbols-outlined text-[13px]">emoji_events</span>
+                  +{q.points} pts
+                </div>
               </div>
 
               {/* Body */}
-              <div style={{ padding: 16 }}>
-                <p
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: 'rgba(255,255,255,0.85)',
-                    lineHeight: 1.6,
-                    marginBottom: 12,
-                  }}
-                >
+              <div className="p-4">
+                <p className="font-lexend font-semibold text-sm text-white leading-relaxed mb-4">
                   {q.question}
                 </p>
 
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 1fr',
-                    gap: 7,
-                  }}
-                >
+                <div className="grid grid-cols-2 gap-2">
                   {q.options.map((opt, i) => {
                     const isCorrect = picked !== null && i === q.answer
-                    const isWrong = picked === i && i !== q.answer
+                    const isWrong   = picked === i && i !== q.answer
 
                     return (
                       <button
                         key={i}
-                        onClick={() => answer(q.id, i, q.answer, q.pts)}
-                        style={{
-                          textAlign: 'left',
-                          padding: '9px 11px',
-                          borderRadius: 8,
-                          fontSize: 12,
-                          fontWeight: 600,
-                          lineHeight: 1.4,
-                          transition: 'all 0.15s',
-                          cursor: picked !== null ? 'default' : 'pointer',
-                          background: isCorrect
-                            ? 'var(--primary-dim)'
+                        onClick={() => handleAnswer(q.id, i, q.answer, q.points)}
+                        className={`text-left px-3 py-2.5 rounded-lg border text-xs font-lexend font-semibold transition-all ${
+                          isCorrect
+                            ? 'bg-primary-container/15 border-primary-container/40 text-primary-container'
                             : isWrong
-                              ? 'var(--red-dim)'
+                              ? 'bg-red-400/10 border-red-400/30 text-red-400'
                               : picked !== null
-                                ? 'transparent'
-                                : 'var(--surface-hi)',
-                          border: `1px solid ${
-                            isCorrect
-                              ? 'var(--primary-border)'
-                              : isWrong
-                                ? 'rgba(255,78,78,0.3)'
-                                : picked !== null
-                                  ? 'var(--border-soft)'
-                                  : 'var(--border)'
-                          }`,
-                          color: isCorrect
-                            ? 'var(--primary)'
-                            : isWrong
-                              ? 'var(--red)'
-                              : picked !== null
-                                ? 'var(--t4)'
-                                : 'var(--t2)',
-                        }}
+                                ? 'bg-transparent border-white/5 text-white/20 cursor-default'
+                                : 'bg-white/3 border-white/8 text-white/60 hover:bg-white/8 hover:border-white/15'
+                        }`}
                       >
-                        <span style={{ marginRight: 5, opacity: 0.4 }}>
-                          {String.fromCharCode(65 + i)}.
-                        </span>
+                        <span className="mr-1.5 text-white/20">{String.fromCharCode(65 + i)}.</span>
                         {opt}
-                        {isCorrect ? ' ✓' : ''}
-                        {isWrong ? ' ✗' : ''}
+                        {isCorrect && (
+                          <span className="material-symbols-outlined text-[13px] float-right mt-0.5">
+                            check_circle
+                          </span>
+                        )}
+                        {isWrong && (
+                          <span className="material-symbols-outlined text-[13px] float-right mt-0.5">
+                            cancel
+                          </span>
+                        )}
                       </button>
                     )
                   })}
@@ -157,115 +130,74 @@ export function TriviaTab() {
 
                 {picked !== null && (
                   <p
-                    style={{
-                      textAlign: 'center',
-                      fontSize: 11,
-                      fontWeight: 800,
-                      marginTop: 10,
-                      color:
-                        picked === q.answer ? 'var(--primary)' : 'var(--red)',
-                    }}
+                    className={`mt-3 text-center text-[11px] font-lexend font-black ${
+                      picked === q.answer ? 'text-primary-container' : 'text-red-400'
+                    }`}
                   >
                     {picked === q.answer
-                      ? `Correct! +${q.pts} pts`
-                      : 'Incorrect — no points'}
+                      ? `Correct! +${q.points} points`
+                      : 'Incorrect — no points this time'}
                   </p>
                 )}
               </div>
-            </div>
+            </GlassCard>
           )
         })}
       </div>
 
-      {/* ── Score sidebar ──────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* ── Score sidebar ── */}
+      <div className="space-y-3">
         {/* Score card */}
-        <div style={{ ...glassStyle, padding: 20, textAlign: 'center' }}>
-          <p style={{ ...capStyle, color: 'var(--t4)', marginBottom: 8 }}>
+        <GlassCard className="p-5 text-center">
+          <p className="font-lexend font-black text-[9px] uppercase tracking-widest text-white/20 mb-2">
             Session Score
           </p>
-          <p
-            style={{
-              fontSize: 52,
-              fontWeight: 900,
-              color: 'var(--primary)',
-              lineHeight: 1,
-            }}
-          >
+          <p className="font-lexend font-black text-5xl text-primary-container leading-none">
             {score}
           </p>
-          <p style={{ fontSize: 10, color: 'var(--t3)', marginTop: 4 }}>pts earned</p>
+          <p className="text-[10px] font-lexend text-white/20 mt-1">pts earned</p>
 
-          {/* Progress bar */}
-          <div
-            style={{
-              marginTop: 14,
-              height: 3,
-              background: 'var(--border)',
-              borderRadius: 2,
-            }}
-          >
+          <div className="mt-4 h-1 bg-white/5 rounded-full overflow-hidden">
             <div
-              style={{
-                height: '100%',
-                background: 'var(--primary)',
-                borderRadius: 2,
-                width: `${Math.min(100, (score / TOTAL_PTS) * 100)}%`,
-                transition: 'width 0.4s',
-              }}
+              className="h-full bg-primary-container rounded-full transition-all"
+              style={{ width: `${totalPts > 0 ? Math.min(100, (score / totalPts) * 100) : 0}%` }}
             />
           </div>
-          <p style={{ fontSize: 9, color: 'var(--t4)', marginTop: 5 }}>
-            {TOTAL_PTS} pts available
-          </p>
-        </div>
+          <p className="text-[9px] font-lexend text-white/20 mt-1.5">{totalPts} pts available</p>
+        </GlassCard>
 
         {/* Progress tracker */}
-        <div style={{ ...glassStyle, padding: 16 }}>
-          <p style={{ ...capStyle, color: 'var(--t4)', marginBottom: 10 }}>
+        <GlassCard className="p-4">
+          <p className="font-lexend font-black text-[9px] uppercase tracking-widest text-white/20 mb-3">
             Progress
           </p>
-          {TRIVIA_QUESTIONS.map((q) => {
-            const a = answers[q.id]
-            return (
-              <div
-                key={q.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  marginBottom: 8,
-                  opacity: a === undefined ? 0.4 : 1,
-                }}
-              >
-                <span style={{ fontSize: 12 }}>
-                  {a === undefined ? '⬜' : a === q.answer ? '✅' : '❌'}
-                </span>
-                <span
-                  style={{
-                    fontSize: 11,
-                    color: 'var(--t2)',
-                    flex: 1,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
+          <div className="space-y-2">
+            {questions.map((q) => {
+              const a = answers[q.id]
+              return (
+                <div
+                  key={q.id}
+                  className="flex items-center gap-2"
+                  style={{ opacity: a === undefined ? 0.4 : 1 }}
                 >
-                  {q.tag}
-                </span>
-                <span
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: a === q.answer ? 'var(--primary)' : 'var(--t4)',
-                  }}
-                >
-                  {a === undefined ? '—' : a === q.answer ? `+${q.pts}` : '+0'}
-                </span>
-              </div>
-            )
-          })}
-        </div>
+                  <span className="text-xs shrink-0">
+                    {a === undefined ? '⬜' : a === q.answer ? '✅' : '❌'}
+                  </span>
+                  <span className="text-[11px] font-lexend text-white/50 flex-1 truncate">
+                    {q.tag ?? q.difficulty}
+                  </span>
+                  <span
+                    className={`text-[10px] font-lexend font-bold shrink-0 ${
+                      a === q.answer ? 'text-primary-container' : 'text-white/20'
+                    }`}
+                  >
+                    {a === undefined ? '—' : a === q.answer ? `+${q.points}` : '+0'}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </GlassCard>
       </div>
     </div>
   )

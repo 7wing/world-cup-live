@@ -13,7 +13,7 @@ export type Database = {
           id: string
           username: string
           avatar_url: string | null
-          tier: string
+          tier: 'fan' | 'elite' | 'pro' | 'mvp'
           xp: number
           global_rank: number | null
           tribe_id: string | null
@@ -22,40 +22,130 @@ export type Database = {
         Insert: Omit<Database['public']['Tables']['users']['Row'], 'created_at'>
         Update: Partial<Database['public']['Tables']['users']['Insert']>
       }
+      teams: {
+        Row: {
+          id: string
+          name: string
+          code: string | null
+          flag_url: string | null
+          group_letter: string | null
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['teams']['Row'], 'created_at'>
+        Update: Partial<Database['public']['Tables']['teams']['Insert']>
+      }
       matches: {
         Row: {
           id: string
-          home_team_id: string
-          away_team_id: string
-          stadium_id: string
+          home_team_id: string | null
+          away_team_id: string | null
+          stadium_id: string | null
           stage: string
-          home_score: number
-          away_score: number
+          group_letter: string | null
+          home_score: number | null
+          away_score: number | null
+          home_score_pens: number | null
+          away_score_pens: number | null
+          decided_by_pens: boolean
           minute: number
           status: 'upcoming' | 'live' | 'finished'
           home_possession: number
           kickoff_at: string
           created_at: string
         }
-        Insert: Omit<Database['public']['Tables']['matches']['Row'], 'id' | 'created_at'>
+        Insert: Omit<Database['public']['Tables']['matches']['Row'], 'created_at'>
         Update: Partial<Database['public']['Tables']['matches']['Insert']>
+      }
+      match_events: {
+        Row: {
+          id: string
+          match_id: string
+          team_id: string | null
+          event_type:
+            | 'goal'
+            | 'yellow_card'
+            | 'red_card'
+            | 'substitution'
+            | 'corner'
+            | 'shot'
+            | 'penalty'
+            | 'kick_off'
+            | 'half_time'
+            | 'full_time'
+          player_name: string | null
+          player_in: string | null
+          minute: number | null
+          extra_time: boolean
+          description: string | null
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['match_events']['Row'], 'id' | 'created_at'>
+        Update: Partial<Database['public']['Tables']['match_events']['Insert']>
+      }
+      match_stats: {
+        Row: {
+          match_id: string
+          home_shots: number | null
+          away_shots: number | null
+          home_shots_on_target: number | null
+          away_shots_on_target: number | null
+          home_corners: number | null
+          away_corners: number | null
+          home_fouls: number | null
+          away_fouls: number | null
+          home_yellow_cards: number | null
+          away_yellow_cards: number | null
+          home_red_cards: number | null
+          away_red_cards: number | null
+          home_passes: number | null
+          away_passes: number | null
+          home_pass_accuracy: number | null
+          away_pass_accuracy: number | null
+          home_possession: number | null
+          updated_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['match_stats']['Row'], 'updated_at'>
+        Update: Partial<Database['public']['Tables']['match_stats']['Insert']>
+      }
+      lineups: {
+        Row: {
+          id: string
+          match_id: string
+          team_id: string
+          player_name: string
+          player_number: number | null
+          position: 'GK' | 'DEF' | 'MID' | 'FWD' | null
+          position_x: number | null
+          position_y: number | null
+          is_starter: boolean
+          is_captain: boolean
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['lineups']['Row'], 'id' | 'created_at'>
+        Update: Partial<Database['public']['Tables']['lineups']['Insert']>
       }
       stadiums: {
         Row: {
           id: string
+          slug: string
           name: string
           city: string
           country: string
-          capacity: number
+          flag: string | null
+          capacity: number | null
           hero_image_url: string | null
+          note: string | null
           avg_atmosphere: number
           avg_food: number
           avg_hotel: number
           avg_safety: number
           avg_rating: number
           total_reviews: number
-          transport_status: string
-          security_score: number
+          transport_status: string | null
+          security_score: number | null
+          year_opened: number | null
+          surface: string | null
+          roof_type: string | null
           created_at: string
         }
         Insert: Omit<Database['public']['Tables']['stadiums']['Row'], 'id' | 'created_at'>
@@ -66,7 +156,7 @@ export type Database = {
           id: string
           user_id: string
           match_id: string | null
-          content: string | null
+          content: string
           media_url: string | null
           media_type: string | null
           likes: number
@@ -74,8 +164,30 @@ export type Database = {
           is_official: boolean
           created_at: string
         }
-        Insert: Omit<Database['public']['Tables']['posts']['Row'], 'id' | 'created_at' | 'likes' | 'comment_count'>
+        Insert: Omit<
+          Database['public']['Tables']['posts']['Row'],
+          'id' | 'created_at' | 'likes' | 'comment_count'
+        >
         Update: Partial<Database['public']['Tables']['posts']['Insert']>
+      }
+      post_likes: {
+        Row: {
+          post_id: string
+          user_id: string
+        }
+        Insert: Database['public']['Tables']['post_likes']['Row']
+        Update: Partial<Database['public']['Tables']['post_likes']['Insert']>
+      }
+      chat_messages: {
+        Row: {
+          id: string
+          match_id: string
+          user_id: string
+          content: string
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['chat_messages']['Row'], 'id' | 'created_at'>
+        Update: Partial<Database['public']['Tables']['chat_messages']['Insert']>
       }
       tribes: {
         Row: {
@@ -90,6 +202,15 @@ export type Database = {
         Insert: Omit<Database['public']['Tables']['tribes']['Row'], 'id' | 'created_at'>
         Update: Partial<Database['public']['Tables']['tribes']['Insert']>
       }
+      tribe_members: {
+        Row: {
+          user_id: string
+          tribe_id: string
+          joined_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['tribe_members']['Row'], 'joined_at'>
+        Update: Partial<Database['public']['Tables']['tribe_members']['Insert']>
+      }
       predictions: {
         Row: {
           id: string
@@ -101,7 +222,10 @@ export type Database = {
           is_correct: boolean | null
           created_at: string
         }
-        Insert: Omit<Database['public']['Tables']['predictions']['Row'], 'id' | 'created_at' | 'points_earned' | 'is_correct'>
+        Insert: Omit<
+          Database['public']['Tables']['predictions']['Row'],
+          'id' | 'created_at' | 'points_earned' | 'is_correct'
+        >
         Update: Partial<Database['public']['Tables']['predictions']['Insert']>
       }
       stadium_reviews: {
@@ -113,10 +237,14 @@ export type Database = {
           food_score: number
           hotel_score: number
           safety_score: number
+          overall_rating: number  // GENERATED ALWAYS AS … STORED
           body: string | null
           created_at: string
         }
-        Insert: Omit<Database['public']['Tables']['stadium_reviews']['Row'], 'id' | 'created_at'>
+        Insert: Omit<
+          Database['public']['Tables']['stadium_reviews']['Row'],
+          'id' | 'created_at' | 'overall_rating'
+        >
         Update: Partial<Database['public']['Tables']['stadium_reviews']['Insert']>
       }
       fan_photos: {
@@ -148,17 +276,6 @@ export type Database = {
         Insert: Omit<Database['public']['Tables']['passport_badges']['Row'], 'id' | 'created_at'>
         Update: Partial<Database['public']['Tables']['passport_badges']['Insert']>
       }
-      chat_messages: {
-        Row: {
-          id: string
-          match_id: string
-          user_id: string
-          content: string
-          created_at: string
-        }
-        Insert: Omit<Database['public']['Tables']['chat_messages']['Row'], 'id' | 'created_at'>
-        Update: Partial<Database['public']['Tables']['chat_messages']['Insert']>
-      }
       friendships: {
         Row: {
           id: string
@@ -169,6 +286,82 @@ export type Database = {
         }
         Insert: Omit<Database['public']['Tables']['friendships']['Row'], 'id' | 'created_at'>
         Update: Partial<Database['public']['Tables']['friendships']['Insert']>
+      }
+      trivia_questions: {
+        Row: {
+          id: string
+          question: string
+          options: string[]       // jsonb array of 4 strings
+          answer: number          // 0-3 index
+          points: number
+          tag: string | null
+          difficulty: 'easy' | 'medium' | 'hard'
+          source: 'gemini' | 'manual'
+          match_id: string | null
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['trivia_questions']['Row'], 'id' | 'created_at'>
+        Update: Partial<Database['public']['Tables']['trivia_questions']['Insert']>
+      }
+      oracle_predictions: {
+        Row: {
+          id: string
+          match_id: string
+          home_win: number
+          draw: number
+          away_win: number
+          predicted_home: number | null
+          predicted_away: number | null
+          confidence: number | null
+          generated_by: 'gemini' | 'static'
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['oracle_predictions']['Row'], 'id' | 'created_at'>
+        Update: Partial<Database['public']['Tables']['oracle_predictions']['Insert']>
+      }
+      push_subscriptions: {
+        Row: {
+          id: string
+          user_id: string
+          endpoint: string
+          p256dh: string
+          auth: string
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['push_subscriptions']['Row'], 'id' | 'created_at'>
+        Update: Partial<Database['public']['Tables']['push_subscriptions']['Insert']>
+      }
+      match_alerts: {
+        Row: {
+          user_id: string
+          match_id: string | null
+          team_id: string | null
+          goals: boolean
+          red_cards: boolean
+          lineups: boolean
+          kickoff: boolean
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['match_alerts']['Row'], 'created_at'>
+        Update: Partial<Database['public']['Tables']['match_alerts']['Insert']>
+      }
+      duel_sessions: {
+        Row: {
+          id: string
+          challenger_id: string
+          opponent_id: string
+          match_id: string | null
+          challenger_score: number
+          opponent_score: number
+          status: 'pending' | 'active' | 'finished'
+          played_at: string | null
+          created_at: string
+        }
+        Insert: Omit<
+          Database['public']['Tables']['duel_sessions']['Row'],
+          'id' | 'created_at' | 'challenger_score' | 'opponent_score'
+        >
+        Update: Partial<Database['public']['Tables']['duel_sessions']['Insert']>
       }
     }
   }

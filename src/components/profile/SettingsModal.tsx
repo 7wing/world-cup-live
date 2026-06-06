@@ -74,6 +74,9 @@ export function SettingsModal() {
               <span className="material-symbols-outlined text-primary-container text-base">notifications</span>
               Match alerts
             </h3>
+            <p className="text-[10px] font-lexend text-white/20 mb-3 leading-relaxed">
+              Global defaults — applied when you subscribe to a match from the match page.
+            </p>
             <div className="rounded-xl border border-white/10 divide-y divide-white/5 overflow-hidden">
               {MATCH_ALERT_OPTIONS.map(({ key, label, icon }) => (
                 <div key={key} className="flex items-center gap-3 px-4 py-3 bg-white/[0.02]">

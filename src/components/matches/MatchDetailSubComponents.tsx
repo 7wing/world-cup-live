@@ -1,10 +1,46 @@
 // src/components/matches/MatchDetailSubComponents.tsx
 // All sub-components for the Match Detail screen.
-// Data contracts match the exports from mockMatchData.ts exactly.
+// Phase 6: no mock data. All types defined inline — mockMatchData.ts is deleted.
 
 import { useState } from 'react'
 import { GlassCard } from '@/components/ui/GlassCard'
-import type { H2HMatch, PlayerStat, PitchPlayer } from './mockMatchData'
+import type { MatchEvent } from '@/api/matchEvents'
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared types (previously in mockMatchData.ts — now inlined here)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface PitchPlayer {
+  name: string
+  number: number
+  x: number   // 0-100 pitch coordinate
+  y: number   // 0-100 pitch coordinate
+}
+
+export interface H2HMatch {
+  date: string
+  home: string
+  away: string
+  score: string
+  result: 'home' | 'draw' | 'away'
+  tournament: string
+}
+
+export interface PlayerStat {
+  name: string
+  flag: string
+  team: 'home' | 'away'
+  speed: number
+  passes: number
+  distance: number
+  rating: number
+}
+
+export interface POTMCandidate {
+  name: string
+  flag: string
+  votes: number
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // StatBar
@@ -12,7 +48,11 @@ import type { H2HMatch, PlayerStat, PitchPlayer } from './mockMatchData'
 export function StatBar({
   label, home, away, unit,
 }: {
-  label: string; home: number; away: number; unit: string; isPercent: boolean
+  label: string
+  home: number
+  away: number
+  unit: string
+  isPercent?: boolean
 }) {
   const total   = home + away
   const homePct = total > 0 ? (home / total) * 100 : 50
@@ -39,7 +79,7 @@ export function StatBar({
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MomentumChart
-// Expects: { minute: number; home: number; away: number }[]
+// Expects MomentumPoint[] from buildMomentumSeries() in api/matchEvents.ts
 // ─────────────────────────────────────────────────────────────────────────────
 export function MomentumChart({
   data,
@@ -50,11 +90,17 @@ export function MomentumChart({
   homeLabel?: string
   awayLabel?: string
 }) {
-  const W = 540; const H = 80
-  const pts  = (key: 'home' | 'away') =>
-    data.map((d, i) => `${(i / (data.length - 1)) * W},${H - (d[key] / 100) * H}`).join(' ')
+  if (!data.length) return null
 
-  // goal marker: first point where home jumps by ≥20
+  const W = 540
+  const H = 80
+
+  const pts = (key: 'home' | 'away') =>
+    data
+      .map((d, i) => `${(i / (data.length - 1)) * W},${H - (d[key] / 100) * H}`)
+      .join(' ')
+
+  // Goal marker: first bucket where home jumps by ≥20 points
   const goalIdx = data.findIndex((d, i) => i > 0 && d.home - data[i - 1].home >= 20)
   const markerX = goalIdx >= 0 ? (goalIdx / (data.length - 1)) * W : null
   const markerY = goalIdx >= 0 ? H - (data[goalIdx].home / 100) * H : null
@@ -77,18 +123,33 @@ export function MomentumChart({
         </div>
       </div>
 
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" preserveAspectRatio="none" style={{ height: 80 }}>
-        {/* midline */}
-        <line x1="0" y1={H / 2} x2={W} y2={H / 2} stroke="rgba(255,255,255,0.06)" strokeWidth="1" strokeDasharray="4 4" />
-        {/* away line */}
-        <polyline points={pts('away')} fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
-        {/* home line */}
-        <polyline points={pts('home')} fill="none" stroke="#00ff41" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-        {/* goal marker */}
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        className="w-full"
+        preserveAspectRatio="none"
+        style={{ height: 80 }}
+      >
+        <line
+          x1="0" y1={H / 2} x2={W} y2={H / 2}
+          stroke="rgba(255,255,255,0.06)" strokeWidth="1" strokeDasharray="4 4"
+        />
+        <polyline
+          points={pts('away')}
+          fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5"
+          strokeLinejoin="round" strokeLinecap="round"
+        />
+        <polyline
+          points={pts('home')}
+          fill="none" stroke="#00ff41" strokeWidth="2"
+          strokeLinejoin="round" strokeLinecap="round"
+        />
         {markerX !== null && markerY !== null && (
           <>
             <circle cx={markerX} cy={markerY} r="4" fill="#00ff41" />
-            <line x1={markerX} y1="0" x2={markerX} y2={H} stroke="#00ff41" strokeWidth="0.5" strokeOpacity="0.3" />
+            <line
+              x1={markerX} y1="0" x2={markerX} y2={H}
+              stroke="#00ff41" strokeWidth="0.5" strokeOpacity="0.3"
+            />
           </>
         )}
       </svg>
@@ -102,7 +163,6 @@ export function MomentumChart({
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FormationPitch
-// Expects PitchPlayer[] from mockMatchData
 // ─────────────────────────────────────────────────────────────────────────────
 function PlayerDot({ player, flipped }: { player: PitchPlayer; flipped?: boolean }) {
   const x = flipped ? 100 - player.x : player.x
@@ -114,7 +174,9 @@ function PlayerDot({ player, flipped }: { player: PitchPlayer; flipped?: boolean
     >
       <div className="flex flex-col items-center gap-0.5">
         <div className="w-7 h-7 rounded-full bg-primary-container/20 border border-primary-container/50 flex items-center justify-center">
-          <span className="text-[9px] font-lexend font-black text-primary-container">{player.number}</span>
+          <span className="text-[9px] font-lexend font-black text-primary-container">
+            {player.number}
+          </span>
         </div>
         <span className="text-[8px] font-lexend font-bold text-white/60 whitespace-nowrap bg-black/40 px-1 rounded">
           {player.name}
@@ -127,8 +189,8 @@ function PlayerDot({ player, flipped }: { player: PitchPlayer; flipped?: boolean
 export function FormationPitch({
   homeXI,
   awayXI,
-  homeLabel = '🇧🇷 Home',
-  awayLabel = '🇩🇪 Away',
+  homeLabel = 'Home',
+  awayLabel = 'Away',
 }: {
   homeXI: PitchPlayer[]
   awayXI: PitchPlayer[]
@@ -151,7 +213,11 @@ export function FormationPitch({
           height: 380,
         }}
       >
-        <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
+        <svg
+          className="absolute inset-0 w-full h-full"
+          preserveAspectRatio="none"
+          viewBox="0 0 100 100"
+        >
           <line x1="0" y1="50" x2="100" y2="50" stroke="rgba(0,255,65,0.15)" strokeWidth="0.3" />
           <circle cx="50" cy="50" r="12" fill="none" stroke="rgba(0,255,65,0.15)" strokeWidth="0.3" />
           <circle cx="50" cy="50" r="0.8" fill="rgba(0,255,65,0.3)" />
@@ -168,8 +234,12 @@ export function FormationPitch({
             {awayLabel}
           </span>
         </div>
-        {homeXI.map((p) => <PlayerDot key={p.number}         player={p} />)}
-        {awayXI.map((p) => <PlayerDot key={`away-${p.number}`} player={p} flipped />)}
+        {homeXI.map((p) => (
+          <PlayerDot key={p.number} player={p} />
+        ))}
+        {awayXI.map((p) => (
+          <PlayerDot key={`away-${p.number}`} player={p} flipped />
+        ))}
       </div>
     </GlassCard>
   )
@@ -199,7 +269,6 @@ export function H2HCard({
         </p>
       </div>
 
-      {/* Summary row */}
       <div className="flex items-center gap-3 px-4 py-4 border-b border-white/5">
         <div className="flex-1 text-center">
           <p className="font-lexend font-black text-2xl text-primary-container">{homeW}</p>
@@ -219,7 +288,6 @@ export function H2HCard({
         </div>
       </div>
 
-      {/* Match rows */}
       <div className="divide-y divide-white/5">
         {matches.map((m, i) => (
           <div key={i} className="flex items-center gap-3 px-4 py-2.5 text-xs font-lexend">
@@ -228,9 +296,11 @@ export function H2HCard({
               {m.home}
             </span>
             <span className={`font-black text-sm px-2 rounded min-w-[56px] text-center ${
-              m.result === 'home' ? 'text-primary-container bg-primary-container/10'
-              : m.result === 'away' ? 'text-red-400 bg-red-400/10'
-              : 'text-white/40 bg-white/5'
+              m.result === 'home'
+                ? 'text-primary-container bg-primary-container/10'
+                : m.result === 'away'
+                ? 'text-red-400 bg-red-400/10'
+                : 'text-white/40 bg-white/5'
             }`}>
               {m.score}
             </span>
@@ -247,17 +317,19 @@ export function H2HCard({
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POTMPoll
+// Phase 6: no hardcoded candidates — caller passes them in as props.
+// Fetch from match_events where event_type='goal' to build candidate list,
+// or supply manually from a dedicated potm_votes table if you add one.
 // ─────────────────────────────────────────────────────────────────────────────
-const POTM_CANDIDATES = [
-  { name: 'Vini Jr.',  flag: '🇧🇷', votes: 38 },
-  { name: 'Kimmich',   flag: '🇩🇪', votes: 24 },
-  { name: 'Casemiro',  flag: '🇧🇷', votes: 21 },
-  { name: 'Gnabry',    flag: '🇩🇪', votes: 17 },
-]
-
-export function POTMPoll() {
+export function POTMPoll({
+  candidates,
+}: {
+  candidates: POTMCandidate[]
+}) {
   const [voted, setVoted] = useState<string | null>(null)
-  const total = POTM_CANDIDATES.reduce((s, c) => s + c.votes, 0)
+  const total = candidates.reduce((s, c) => s + c.votes, 0)
+
+  if (!candidates.length) return null
 
   return (
     <GlassCard className="overflow-hidden">
@@ -265,11 +337,13 @@ export function POTMPoll() {
         <p className="font-lexend font-black text-[9px] uppercase tracking-widest text-white/20">
           Player of the Match
         </p>
-        <span className="text-[10px] font-lexend text-white/20">{total.toLocaleString()} votes</span>
+        <span className="text-[10px] font-lexend text-white/20">
+          {total.toLocaleString()} votes
+        </span>
       </div>
       <div className="divide-y divide-white/5">
-        {POTM_CANDIDATES.map((c) => {
-          const pct     = Math.round((c.votes / total) * 100)
+        {candidates.map((c) => {
+          const pct     = total > 0 ? Math.round((c.votes / total) * 100) : 0
           const isVoted = voted === c.name
           return (
             <button
@@ -308,16 +382,50 @@ export function POTMPoll() {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LiveFeed  (commentary ticker)
+// Phase 6: no hardcoded LIVE_EVENTS — accepts real MatchEvent[] from
+// fetchMatchEvents() in api/matchEvents.ts via the parent MatchDetailPage.
 // ─────────────────────────────────────────────────────────────────────────────
-const LIVE_EVENTS = [
-  { min: "82'", type: 'goal',   icon: 'sports_soccer', text: 'GOAL! Vini Jr. fires low into the corner. Brazil lead 2–1.' },
-  { min: "74'", type: 'yellow', icon: 'square',        text: 'Yellow card — Kimmich for a late challenge on Rodrygo.' },
-  { min: "68'", type: 'goal',   icon: 'sports_soccer', text: 'GOAL! Havertz equalises from close range. Germany level at 1–1.' },
-  { min: "45'", type: 'text',   icon: 'sports',        text: 'Half-time. Brazil lead 1–0. Dominant first half.' },
-  { min: "31'", type: 'goal',   icon: 'sports_soccer', text: 'GOAL! Richarlison heads home from a Raphinha cross. 1–0!' },
-]
 
-export function LiveFeed() {
+const EVENT_ICON: Partial<Record<MatchEvent['event_type'], string>> = {
+  goal:         'sports_soccer',
+  yellow_card:  'square',
+  red_card:     'dangerous',
+  substitution: 'swap_horiz',
+  penalty:      'gps_fixed',
+  corner:       'flag',
+  shot:         'sports',
+  kick_off:     'sports',
+  half_time:    'sports',
+  full_time:    'sports',
+}
+
+const EVENT_COLOUR: Partial<Record<MatchEvent['event_type'], string>> = {
+  goal:        'text-primary-container',
+  yellow_card: 'text-yellow-400',
+  red_card:    'text-red-500',
+  penalty:     'text-orange-400',
+}
+
+export function LiveFeed({ events }: { events: MatchEvent[] }) {
+  if (!events.length) {
+    return (
+      <GlassCard className="overflow-hidden">
+        <div className="px-4 py-2.5 border-b border-white/8 flex items-center gap-2">
+          <div className="w-1.5 h-1.5 rounded-full bg-primary-container animate-pulse" />
+          <p className="font-lexend font-black text-[9px] uppercase tracking-widest text-white/20">
+            Live Commentary
+          </p>
+        </div>
+        <p className="px-4 py-6 text-center text-xs font-lexend text-white/20">
+          No events yet
+        </p>
+      </GlassCard>
+    )
+  }
+
+  // Most recent first for display
+  const sorted = [...events].reverse()
+
   return (
     <GlassCard className="overflow-hidden">
       <div className="px-4 py-2.5 border-b border-white/8 flex items-center gap-2">
@@ -327,21 +435,32 @@ export function LiveFeed() {
         </p>
       </div>
       <div className="divide-y divide-white/5 max-h-64 overflow-y-auto">
-        {LIVE_EVENTS.map((ev, i) => (
-          <div key={i} className="flex items-start gap-3 px-4 py-2.5">
-            <span className="text-[10px] font-lexend font-black text-white/20 w-8 flex-shrink-0 pt-0.5">
-              {ev.min}
-            </span>
-            <span className={`material-symbols-outlined text-[14px] flex-shrink-0 mt-0.5 ${
-              ev.type === 'goal' ? 'text-primary-container' : ev.type === 'yellow' ? 'text-yellow-400' : 'text-white/20'
-            }`}>
-              {ev.icon}
-            </span>
-            <p className={`text-xs font-lexend leading-relaxed ${ev.type === 'goal' ? 'text-white font-bold' : 'text-white/40'}`}>
-              {ev.text}
-            </p>
-          </div>
-        ))}
+        {sorted.map((ev) => {
+          const isGoal = ev.event_type === 'goal'
+          const icon   = EVENT_ICON[ev.event_type] ?? 'sports'
+          const colour = EVENT_COLOUR[ev.event_type] ?? 'text-white/20'
+          const minuteLabel = ev.minute
+            ? `${ev.minute}${ev.extra_time ? '+' : ''}'`
+            : '–'
+          const body = ev.description
+            ?? (ev.player_name
+                ? `${ev.event_type.replace('_', ' ')} — ${ev.player_name}`
+                : ev.event_type.replace('_', ' '))
+
+          return (
+            <div key={ev.id} className="flex items-start gap-3 px-4 py-2.5">
+              <span className="text-[10px] font-lexend font-black text-white/20 w-8 flex-shrink-0 pt-0.5">
+                {minuteLabel}
+              </span>
+              <span className={`material-symbols-outlined text-[14px] flex-shrink-0 mt-0.5 ${colour}`}>
+                {icon}
+              </span>
+              <p className={`text-xs font-lexend leading-relaxed ${isGoal ? 'text-white font-bold' : 'text-white/40'}`}>
+                {body}
+              </p>
+            </div>
+          )
+        })}
       </div>
     </GlassCard>
   )
@@ -350,23 +469,35 @@ export function LiveFeed() {
 // ─────────────────────────────────────────────────────────────────────────────
 // PlayerStatRow
 // ─────────────────────────────────────────────────────────────────────────────
-const METRIC_MAX: Record<string, number> = { speed: 40, passes: 100, distance: 12, rating: 10 }
-const METRIC_UNIT: Record<string, string> = { speed: 'km/h', passes: '%', distance: 'km', rating: '' }
+const METRIC_MAX: Record<string, number> = {
+  speed:    40,
+  passes:   100,
+  distance: 12,
+  rating:   10,
+}
+const METRIC_UNIT: Record<string, string> = {
+  speed:    'km/h',
+  passes:   '%',
+  distance: 'km',
+  rating:   '',
+}
 
 export function PlayerStatRow({
   player,
   metric,
 }: {
   player: PlayerStat
-  metric: keyof PlayerStat & ('speed' | 'passes' | 'distance' | 'rating')
+  metric: 'speed' | 'passes' | 'distance' | 'rating'
 }) {
-  const value  = player[metric] as number
-  const pct    = (value / METRIC_MAX[metric]) * 100
+  const value = player[metric] as number
+  const pct   = (value / METRIC_MAX[metric]) * 100
 
   return (
     <div className="flex items-center gap-3 py-2 border-b border-white/5 last:border-0">
       <span className="text-sm leading-none">{player.flag}</span>
-      <span className="font-lexend font-bold text-xs text-white/60 flex-1 truncate">{player.name}</span>
+      <span className="font-lexend font-bold text-xs text-white/60 flex-1 truncate">
+        {player.name}
+      </span>
       <div className="w-20 h-1 bg-white/5 rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full ${player.team === 'home' ? 'bg-primary-container' : 'bg-white/20'}`}
@@ -375,7 +506,9 @@ export function PlayerStatRow({
       </div>
       <span className="font-lexend font-black text-sm text-white w-14 text-right">
         {metric === 'distance' ? value.toFixed(1) : value}
-        <span className="text-[9px] text-white/20 font-normal ml-0.5">{METRIC_UNIT[metric]}</span>
+        <span className="text-[9px] text-white/20 font-normal ml-0.5">
+          {METRIC_UNIT[metric]}
+        </span>
       </span>
     </div>
   )

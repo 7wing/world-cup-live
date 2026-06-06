@@ -1,5 +1,8 @@
-import { useState } from 'react'
+// src/pages/stadiums/StadiumDetailPage.tsx
+
+import { useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { VenueHero } from '@/components/stadiums/VenueHero'
 import { ReviewForm } from '@/components/stadiums/ReviewForm'
@@ -7,8 +10,11 @@ import { GlassCard } from '@/components/ui/GlassCard'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { StatBadge } from '@/components/ui/StatBadge'
 import { Avatar } from '@/components/ui/Avatar'
-import { useStadium, useStadiumReviews, useStadiumPhotos, getOptimizedImageUrl } from '@/hooks/useStadium'
+import { useStadium, useStadiumReviews, useStadiumPhotos, useUploadFanPhoto, getOptimizedImageUrl } from '@/hooks/useStadium'
+import { useAuthStore } from '@/store/authStore'
 import { formatRelative } from '@/utils/formatDate'
+import { supabase } from '@/lib/supabase'
+import type { Match } from '@/types'
 
 type Tab = 'overview' | 'matches' | 'photos' | 'reviews' | 'info'
 
@@ -20,14 +26,57 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'info',     label: 'Transport', icon: 'directions_bus' },
 ]
 
-const MOCK_MATCHES = [
-  { id: 1, date: 'Jun 11', time: '20:00', teams: 'Mexico vs TBD',   round: 'Opening Match', roundColor: 'text-primary-container bg-primary-container/10 border-primary-container/30' },
-  { id: 2, date: 'Jun 17', time: '17:00', teams: 'TBD vs TBD',      round: 'Group Stage',   roundColor: 'text-white/60 bg-white/5 border-white/10' },
-  { id: 3, date: 'Jun 23', time: '20:00', teams: 'TBD vs TBD',      round: 'Group Stage',   roundColor: 'text-white/60 bg-white/5 border-white/10' },
-  { id: 4, date: 'Jul 2',  time: '20:00', teams: 'TBD vs TBD',      round: 'Round of 16',   roundColor: 'text-amber-400 bg-amber-400/10 border-amber-400/30' },
-  { id: 5, date: 'Jul 9',  time: '20:00', teams: 'TBD vs TBD',      round: 'Quarterfinal',  roundColor: 'text-orange-400 bg-orange-400/10 border-orange-400/30' },
-  { id: 6, date: 'Jul 19', time: '20:00', teams: 'TBD vs TBD',      round: 'Semifinal',     roundColor: 'text-rose-400 bg-rose-400/10 border-rose-400/30' },
-]
+const MATCH_SELECT = `
+  *,
+  home_team:teams!matches_home_team_id_fkey(*),
+  away_team:teams!matches_away_team_id_fkey(*),
+  stadium:stadiums(*)
+`
+
+async function fetchMatchesByStadium(stadiumId: string): Promise<Match[]> {
+  const { data, error } = await supabase
+    .from('matches')
+    .select(MATCH_SELECT)
+    .eq('stadium_id', stadiumId)
+    .order('kickoff_at', { ascending: true })
+
+  if (error) throw error
+  return data as Match[]
+}
+
+function useStadiumMatches(stadiumId: string) {
+  return useQuery({
+    queryKey: ['matches', 'stadium', stadiumId],
+    queryFn: () => fetchMatchesByStadium(stadiumId),
+    enabled: !!stadiumId,
+    staleTime: 60_000,
+  })
+}
+
+function stageColor(stage: string): string {
+  if (stage === 'final')         return 'text-amber-400 bg-amber-400/10 border-amber-400/30'
+  if (stage === 'semi_final')    return 'text-rose-400 bg-rose-400/10 border-rose-400/30'
+  if (stage === 'quarter_final') return 'text-orange-400 bg-orange-400/10 border-orange-400/30'
+  if (stage === 'round_of_16')   return 'text-amber-400 bg-amber-400/10 border-amber-400/30'
+  return 'text-white/60 bg-white/5 border-white/10'
+}
+
+function stageLabel(stage: string): string {
+  if (stage === 'final')         return 'Final'
+  if (stage === 'semi_final')    return 'Semifinal'
+  if (stage === 'quarter_final') return 'Quarterfinal'
+  if (stage === 'round_of_16')   return 'Round of 16'
+  if (stage === 'third_place')   return 'Third Place'
+  return 'Group Stage'
+}
+
+function localTime(isoUtc: string): string {
+  return new Date(isoUtc).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })
+}
+
+function localDate(isoUtc: string): string {
+  return new Date(isoUtc).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
 
 function StarRating({ value }: { value: number }) {
   return (
@@ -46,7 +95,6 @@ function StarRating({ value }: { value: number }) {
   )
 }
 
-// Lazy photo tile with skeleton
 function PhotoTile({ src, caption }: { src: string; caption: string | null }) {
   const [loaded, setLoaded] = useState(false)
   const [error, setError] = useState(false)
@@ -80,13 +128,30 @@ function PhotoTile({ src, caption }: { src: string; caption: string | null }) {
 export function StadiumDetailPage() {
   const { stadiumId } = useParams<{ stadiumId: string }>()
   const navigate = useNavigate()
+  const { user } = useAuthStore()
 
-  const { data: stadium, isLoading } = useStadium(stadiumId!)
-  const { data: reviews }            = useStadiumReviews(stadiumId!)
-  const { data: photos }             = useStadiumPhotos(stadiumId!)
+  const { data: stadium, isLoading }  = useStadium(stadiumId!)
+  const { data: reviews = [] }        = useStadiumReviews(stadium?.id ?? '')
+  const { data: photos = [] }         = useStadiumPhotos(stadium?.id ?? '')
+  const { data: matches = [], isLoading: matchesLoading } = useStadiumMatches(stadium?.id ?? '')
+  const { mutate: uploadPhoto, isPending: uploading } = useUploadFanPhoto(stadium?.id ?? '')
 
   const [activeTab, setActiveTab]           = useState<Tab>('overview')
   const [showReviewForm, setShowReviewForm] = useState(false)
+  const fileInputRef                        = useRef<HTMLInputElement>(null)
+
+  function handleUploadClick() {
+    if (!user) return
+    fileInputRef.current?.click()
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !user) return
+    uploadPhoto({ userId: user.id, file, caption: '' })
+    // Reset so the same file can be re-selected if needed
+    e.target.value = ''
+  }
 
   if (isLoading) {
     return (
@@ -132,8 +197,15 @@ export function StadiumDetailPage() {
             : String(stadium.total_reviews)}
           label="Total Reviews"
         />
-        <StatBadge value={stadium.security_score.toFixed(1)} label="Security Score" highlighted />
-        <StatBadge value={stadium.transport_status} label="Transport" />
+        <StatBadge
+          value={stadium.security_score != null ? stadium.security_score.toFixed(1) : '—'}
+          label="Security Score"
+          highlighted
+        />
+        <StatBadge
+          value={stadium.transport_status ?? '—'}
+          label="Transport"
+        />
         <StatBadge value={`${stadium.avg_rating.toFixed(1)}/5`} label="Avg Rating" highlighted />
       </div>
 
@@ -166,25 +238,27 @@ export function StadiumDetailPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-4">
                 {[
-                  { label: 'Atmosphere',   value: stadium.avg_atmosphere * 20 },
-                  { label: 'Food & Bev',   value: stadium.avg_food * 20 },
-                  { label: 'Hotels Nearby', value: (stadium.avg_hotel ?? 4.2) * 20 },
+                  { label: 'Atmosphere',    value: stadium.avg_atmosphere * 20 },
+                  { label: 'Food & Bev',    value: stadium.avg_food * 20 },
+                  { label: 'Hotels Nearby', value: stadium.avg_hotel * 20 },
                   { label: 'Safety',        value: stadium.avg_safety * 20 },
                 ].map(({ label, value }) => (
                   <ProgressBar key={label} value={value} label={label} showLabel />
                 ))}
               </div>
               <div className="flex flex-col items-center justify-center bg-primary-container/5 border border-primary-container/20 rounded-xl p-6 text-center gap-2">
-                <span className="font-lexend text-6xl font-black text-primary-container leading-none">A+</span>
-                <p className="font-lexend font-bold text-xs uppercase tracking-widest text-white/70">Elite Venue Rating</p>
-                <p className="text-xs text-white/35 italic leading-relaxed mt-1">
-                  "The thunderous roar at Azteca is unlike anything in world football."
-                </p>
+                <span className="font-lexend text-6xl font-black text-primary-container leading-none">
+                  {stadium.avg_rating >= 4.5 ? 'A+' : stadium.avg_rating >= 4.0 ? 'A' : 'B+'}
+                </span>
+                <p className="font-lexend font-bold text-xs uppercase tracking-widest text-white/70">Venue Rating</p>
+                {stadium.note && (
+                  <p className="text-xs text-white/35 italic leading-relaxed mt-1">"{stadium.note}"</p>
+                )}
               </div>
             </div>
           </GlassCard>
 
-          {reviews && reviews.length > 0 && (
+          {reviews.length > 0 && (
             <GlassCard className="p-6">
               <div className="flex items-center justify-between mb-5">
                 <h2 className="font-lexend font-bold uppercase text-[11px] tracking-widest text-white/40">Recent Reviews</h2>
@@ -222,32 +296,62 @@ export function StadiumDetailPage() {
           <h2 className="font-lexend font-bold uppercase text-[11px] tracking-widest text-white/40 mb-5">
             Scheduled Matches · FIFA World Cup 2026
           </h2>
-          <div className="space-y-2">
-            {MOCK_MATCHES.map((match) => (
-              <div
-                key={match.id}
-                className="flex items-center gap-4 px-4 py-3.5 bg-white/3 hover:bg-white/5 rounded-xl border border-white/5 transition-colors group"
-              >
-                <div className="w-14 flex-shrink-0">
-                  <p className="text-[11px] font-lexend font-black text-white/80 uppercase">{match.date}</p>
-                  <p className="text-[10px] text-white/30 font-lexend mt-0.5">{match.time}</p>
+
+          {matchesLoading && (
+            <div className="space-y-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="h-16 bg-white/5 rounded-xl animate-pulse" />
+              ))}
+            </div>
+          )}
+
+          {!matchesLoading && matches.length === 0 && (
+            <div className="py-16 text-center">
+              <span className="material-symbols-outlined text-4xl text-white/15 block mb-3">sports_soccer</span>
+              <p className="text-white/30 text-sm font-lexend">No matches scheduled yet.</p>
+            </div>
+          )}
+
+          {!matchesLoading && matches.length > 0 && (
+            <div className="space-y-2">
+              {matches.map((match) => (
+                <div
+                  key={match.id}
+                  onClick={() => navigate(`/matches/${match.id}`)}
+                  className="flex items-center gap-4 px-4 py-3.5 bg-white/3 hover:bg-white/5 rounded-xl border border-white/5 transition-colors group cursor-pointer"
+                >
+                  <div className="w-14 flex-shrink-0">
+                    <p className="text-[11px] font-lexend font-black text-white/80 uppercase">
+                      {localDate(match.kickoff_at)}
+                    </p>
+                    <p className="text-[10px] text-white/30 font-lexend mt-0.5">
+                      {localTime(match.kickoff_at)}
+                    </p>
+                  </div>
+                  <div className="w-px self-stretch bg-white/8" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-lexend font-bold text-sm text-white group-hover:text-primary-container transition-colors truncate">
+                      {match.home_team?.name ?? 'TBD'} vs {match.away_team?.name ?? 'TBD'}
+                    </p>
+                    <p className="text-[10px] text-white/30 mt-0.5 font-lexend">
+                      {stadium.name} · {stadium.city}
+                    </p>
+                  </div>
+                  {match.status === 'finished' && (
+                    <span className="font-lexend font-black text-sm text-white/60 flex-shrink-0">
+                      {match.home_score} – {match.away_score}
+                    </span>
+                  )}
+                  <span className={`text-[10px] font-lexend font-bold uppercase tracking-wide px-2.5 py-1 rounded-lg border flex-shrink-0 ${stageColor(match.stage)}`}>
+                    {stageLabel(match.stage)}
+                  </span>
+                  <span className="material-symbols-outlined text-sm text-white/20 group-hover:text-white/50 transition-colors flex-shrink-0">
+                    chevron_right
+                  </span>
                 </div>
-                <div className="w-px self-stretch bg-white/8" />
-                <div className="flex-1">
-                  <p className="font-lexend font-bold text-sm text-white group-hover:text-primary-container transition-colors">
-                    {match.teams}
-                  </p>
-                  <p className="text-[10px] text-white/30 mt-0.5 font-lexend">Estadio Azteca · Mexico City</p>
-                </div>
-                <span className={`text-[10px] font-lexend font-bold uppercase tracking-wide px-2.5 py-1 rounded-lg border ${match.roundColor}`}>
-                  {match.round}
-                </span>
-                <span className="material-symbols-outlined text-sm text-white/20 group-hover:text-white/50 transition-colors">
-                  chevron_right
-                </span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </GlassCard>
       )}
 
@@ -256,13 +360,39 @@ export function StadiumDetailPage() {
         <GlassCard className="p-6">
           <div className="flex items-center justify-between mb-5">
             <h2 className="font-lexend font-bold uppercase text-[11px] tracking-widest text-white/40">Fan Photos</h2>
-            <button className="flex items-center gap-1.5 text-[11px] font-lexend font-bold uppercase tracking-widest text-primary-container/70 hover:text-primary-container transition-colors">
-              <span className="material-symbols-outlined text-base">upload</span>
-              Upload
-            </button>
+
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+
+            {user ? (
+              <button
+                onClick={handleUploadClick}
+                disabled={uploading}
+                className="flex items-center gap-1.5 text-[11px] font-lexend font-bold uppercase tracking-widest text-primary-container/70 hover:text-primary-container transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <span className={`material-symbols-outlined text-base ${uploading ? 'animate-spin' : ''}`}>
+                  {uploading ? 'progress_activity' : 'upload'}
+                </span>
+                {uploading ? 'Uploading…' : 'Upload'}
+              </button>
+            ) : (
+              <button
+                onClick={() => navigate('/login')}
+                className="flex items-center gap-1.5 text-[11px] font-lexend font-bold uppercase tracking-widest text-white/30 hover:text-white/60 transition-colors"
+              >
+                <span className="material-symbols-outlined text-base">lock</span>
+                Sign in to upload
+              </button>
+            )}
           </div>
 
-          {photos && photos.length > 0 ? (
+          {photos.length > 0 ? (
             <div className="grid grid-cols-3 gap-2">
               {photos.slice(0, 9).map((photo) => (
                 <PhotoTile key={photo.id} src={photo.image_url} caption={photo.caption} />
@@ -292,7 +422,7 @@ export function StadiumDetailPage() {
             </button>
           )}
 
-          {reviews && reviews.length > 0 ? (
+          {reviews.length > 0 ? (
             <GlassCard className="p-6">
               <h2 className="font-lexend font-bold uppercase text-[11px] tracking-widest text-white/40 mb-5">
                 {reviews.length} Review{reviews.length !== 1 ? 's' : ''}
@@ -353,18 +483,9 @@ export function StadiumDetailPage() {
             </h2>
             <div className="space-y-3">
               {[
-                {
-                  icon: 'directions_bus', title: 'Official Shuttle', status: 'Active',
-                  detail: 'Runs every 8 mins from Zócalo. Last shuttle 90 min after final whistle.',
-                },
-                {
-                  icon: 'directions_subway', title: 'Metro Line 3', status: 'Active',
-                  detail: 'Station: Estadio Azteca (Line 3). 10 min walk to gates. Extended hours on match days.',
-                },
-                {
-                  icon: 'local_parking', title: 'Official Parking', status: 'Limited',
-                  detail: 'Lots A–F open 3 hrs before kickoff. Pre-booking required via official app.',
-                },
+                { icon: 'directions_bus',    title: 'Official Shuttle', status: 'Active',   detail: 'Runs from designated fan zones. Last shuttle 90 min after final whistle.' },
+                { icon: 'directions_subway', title: 'Public Transit',   status: 'Active',   detail: 'Extended service hours on match days. Check local transit authority for routes.' },
+                { icon: 'local_parking',     title: 'Official Parking', status: 'Limited',  detail: 'Pre-booking required. Lots open 3 hrs before kickoff via official app.' },
               ].map(({ icon, title, status, detail }) => (
                 <div key={title} className="flex gap-4 p-4 bg-white/4 rounded-xl border-l-2 border-primary-container/60">
                   <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary-container/10 flex items-center justify-center">
@@ -410,9 +531,11 @@ export function StadiumDetailPage() {
                 <p className="font-lexend font-black text-2xl text-white">#555</p>
               </div>
             </div>
-            <div className="mt-4 pt-4 border-t border-white/6">
-              <ProgressBar value={stadium.security_score * 20} label="Security Score" showLabel />
-            </div>
+            {stadium.security_score != null && (
+              <div className="mt-4 pt-4 border-t border-white/6">
+                <ProgressBar value={stadium.security_score * 20} label="Security Score" showLabel />
+              </div>
+            )}
           </GlassCard>
 
           <GlassCard className="p-6">
@@ -422,11 +545,11 @@ export function StadiumDetailPage() {
             </h2>
             <div className="space-y-3">
               {[
-                { icon: 'stadium',        label: 'Capacity', value: stadium.capacity?.toLocaleString() ?? '87,523' },
-                { icon: 'calendar_month', label: 'Opened',   value: stadium.year_opened ?? '1966'                  },
-                { icon: 'location_on',    label: 'City',     value: stadium.city ?? 'Mexico City, Mexico'          },
-                { icon: 'grass',          label: 'Surface',  value: stadium.surface ?? 'Natural Grass'             },
-                { icon: 'wb_sunny',       label: 'Roof',     value: stadium.roof_type ?? 'Open Air'                },
+                { icon: 'stadium',        label: 'Capacity', value: stadium.capacity?.toLocaleString() ?? '—'    },
+                { icon: 'calendar_month', label: 'Opened',   value: stadium.year_opened?.toString() ?? '—'       },
+                { icon: 'location_on',    label: 'City',     value: `${stadium.city}, ${stadium.country}`        },
+                { icon: 'grass',          label: 'Surface',  value: stadium.surface ?? '—'                       },
+                { icon: 'wb_sunny',       label: 'Roof',     value: stadium.roof_type ?? '—'                     },
               ].map(({ icon, label, value }) => (
                 <div key={label} className="flex items-center justify-between py-2.5 border-b border-white/5 last:border-0">
                   <div className="flex items-center gap-2.5">

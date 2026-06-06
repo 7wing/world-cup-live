@@ -1,3 +1,5 @@
+// src/hooks/useStadium.ts
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   fetchStadiums,
@@ -7,7 +9,6 @@ import {
   fetchStadiumPhotos,
   uploadFanPhoto,
 } from '@/api/stadiums'
-import { MOCK_STADIUMS } from '@/components/stadiums/mockStadiums'
 import type { StadiumReview } from '@/types'
 import { useNotificationStore } from '@/store/notificationStore'
 
@@ -23,17 +24,13 @@ export function getOptimizedImageUrl(
   return `${url}${separator}width=${width}&quality=${quality}`
 }
 
-// Alias for components that import this name
 export const getStorageObjectUrl = getOptimizedImageUrl
-
-// ── Feature flag ──────────────────────────────────────────────────────────────
-const USE_MOCK = import.meta.env.VITE_MOCK_STADIUMS === 'true'
 
 // ── Stadiums list ─────────────────────────────────────────────────────────────
 export function useStadiums() {
   return useQuery({
     queryKey: ['stadiums'],
-    queryFn: () => (USE_MOCK ? Promise.resolve(MOCK_STADIUMS) : fetchStadiums()),
+    queryFn: fetchStadiums,
     staleTime: 1000 * 60 * 10,
   })
 }
@@ -42,14 +39,7 @@ export function useStadiums() {
 export function useStadium(slug: string) {
   return useQuery({
     queryKey: ['stadiums', slug],
-    queryFn: () => {
-      if (USE_MOCK) {
-        const s = MOCK_STADIUMS.find((s) => s.slug === slug)
-        if (!s) throw new Error(`Stadium "${slug}" not found in mock data`)
-        return Promise.resolve(s)
-      }
-      return fetchStadiumById(slug)
-    },
+    queryFn: () => fetchStadiumById(slug),
     enabled: !!slug,
     staleTime: 1000 * 60 * 10,
   })
@@ -69,7 +59,7 @@ export function useSubmitReview(stadiumId: string) {
   const { push } = useNotificationStore()
 
   return useMutation({
-    mutationFn: (review: Omit<StadiumReview, 'id' | 'created_at' | 'user'>) =>
+    mutationFn: (review: Omit<StadiumReview, 'id' | 'created_at' | 'overall_rating' | 'user'>) =>
       submitStadiumReview(review),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['stadiums', stadiumId, 'reviews'] })

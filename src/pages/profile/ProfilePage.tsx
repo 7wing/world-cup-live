@@ -22,15 +22,25 @@ import { useAuthStore } from '@/store/authStore'
 import { cn } from '@/utils/cn'
 import type { Prediction } from '@/types'
 
-// ── Tier colours ──────────────────────────────────────────────────────────────
 const TIER_COLORS: Record<string, string> = {
-  fan: 'from-white/20 to-white/5',
-  elite: 'from-blue-400/30 to-blue-600/10',
-  pro: 'from-purple-400/30 to-purple-600/10',
-  mvp: 'from-primary-container/30 to-primary-container/5',
+  fan:  'from-white/20 to-white/5',
+  elite:'from-blue-400/30 to-blue-600/10',
+  pro:  'from-purple-400/30 to-purple-600/10',
+  mvp:  'from-primary-container/30 to-primary-container/5',
 }
 
 type Tab = 'overview' | 'badges' | 'predictions' | 'photos'
+
+// ── Matched prediction shape returned by fetchPredictionHistory ───────────────
+interface PredictionWithMatch extends Prediction {
+  match?: {
+    id: string
+    kickoff_at: string
+    status: 'upcoming' | 'live' | 'finished'
+    home_team: { name: string; code: string }
+    away_team: { name: string; code: string }
+  }
+}
 
 // ── Edit Profile Modal ────────────────────────────────────────────────────────
 function EditProfileModal({
@@ -46,14 +56,12 @@ function EditProfileModal({
 }) {
   const [name, setName] = useState(username)
   const fileRef = useRef<HTMLInputElement>(null)
-  const { mutate: updateProfile, isPending: saving } = useUpdateProfile(userId)
-  const { mutate: uploadAvatar, isPending: uploading } = useUploadAvatar(userId)
+  const { mutate: updateProfile, isPending: saving }   = useUpdateProfile(userId)
+  const { mutate: uploadAvatar,  isPending: uploading } = useUploadAvatar(userId)
   const busy = saving || uploading
 
   function handleSave() {
-    if (name.trim() && name !== username) {
-      updateProfile({ username: name.trim() })
-    }
+    if (name.trim() && name !== username) updateProfile({ username: name.trim() })
     onClose()
   }
 
@@ -67,10 +75,7 @@ function EditProfileModal({
       className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/70"
       onClick={onClose}
     >
-      <GlassCard
-        className="w-full max-w-sm p-6 space-y-5"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <GlassCard className="w-full max-w-sm p-6 space-y-5" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="font-lexend font-black uppercase text-lg">Edit Profile</h2>
           <button
@@ -81,7 +86,6 @@ function EditProfileModal({
           </button>
         </div>
 
-        {/* Avatar upload */}
         <div className="flex flex-col items-center gap-3">
           <button
             onClick={() => fileRef.current?.click()}
@@ -93,9 +97,7 @@ function EditProfileModal({
             </div>
             {uploading && (
               <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                <span className="material-symbols-outlined text-primary-container animate-spin text-2xl">
-                  progress_activity
-                </span>
+                <span className="material-symbols-outlined text-primary-container animate-spin text-2xl">progress_activity</span>
               </div>
             )}
           </button>
@@ -103,11 +105,8 @@ function EditProfileModal({
           <p className="text-[10px] text-white/30 font-lexend">Tap to change avatar</p>
         </div>
 
-        {/* Username */}
         <div className="space-y-1.5">
-          <label className="text-[10px] font-lexend font-semibold uppercase text-white/40 tracking-wider">
-            Username
-          </label>
+          <label className="text-[10px] font-lexend font-semibold uppercase text-white/40 tracking-wider">Username</label>
           <input
             type="text"
             value={name}
@@ -126,27 +125,21 @@ function EditProfileModal({
 }
 
 // ── Prediction row ────────────────────────────────────────────────────────────
-function PredictionRow({
-  prediction,
-  userId,
-}: {
-  prediction: Prediction & { match?: any }
-  userId: string
-}) {
+function PredictionRow({ prediction, userId }: { prediction: PredictionWithMatch; userId: string }) {
   const [editing, setEditing] = useState(false)
-  const [home, setHome] = useState(prediction.predicted_home)
-  const [away, setAway] = useState(prediction.predicted_away)
-  const { mutate: submit, isPending: saving } = useSubmitPrediction(userId)
+  const [home, setHome]       = useState(prediction.predicted_home)
+  const [away, setAway]       = useState(prediction.predicted_away)
+  const { mutate: submit, isPending: saving }   = useSubmitPrediction(userId)
   const { mutate: remove, isPending: removing } = useDeletePrediction(userId)
 
-  const match = prediction.match
-  const kickoff = match?.kickoff_at ? new Date(match.kickoff_at) : null
-  const canEdit = kickoff ? kickoff > new Date() : false
+  const match       = prediction.match
+  const kickoff     = match?.kickoff_at ? new Date(match.kickoff_at) : null
+  const canEdit     = kickoff ? kickoff > new Date() : false
   const matchStatus = match?.status ?? 'upcoming'
 
   const statusColor: Record<string, string> = {
     upcoming: 'text-white/40',
-    live: 'text-green-400',
+    live:     'text-green-400',
     finished: prediction.is_correct ? 'text-primary-container' : 'text-red-400/70',
   }
 
@@ -220,14 +213,15 @@ function PredictionsSection({ userId, isOwn }: { userId: string; isOwn: boolean 
   const { data: predictions, isLoading } = usePredictionHistory(userId)
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'finished'>('all')
 
-  const filtered = (predictions ?? []).filter((p: any) => {
-    if (filter === 'all') return true
+  const all      = (predictions ?? []) as PredictionWithMatch[]
+  const filtered = all.filter((p) => {
+    if (filter === 'all')      return true
     if (filter === 'upcoming') return p.match?.status === 'upcoming'
     return p.match?.status === 'finished'
   })
 
-  const correct = (predictions ?? []).filter((p: any) => p.is_correct).length
-  const total = (predictions ?? []).filter((p: any) => p.is_correct !== null).length
+  const correct = all.filter((p) => p.is_correct).length
+  const total   = all.filter((p) => p.is_correct !== null).length
 
   if (isLoading)
     return (
@@ -274,7 +268,7 @@ function PredictionsSection({ userId, isOwn }: { userId: string; isOwn: boolean 
         <p className="text-white/30 font-lexend text-sm text-center py-8">No predictions here.</p>
       ) : (
         <div className="space-y-2">
-          {filtered.map((p: any) => <PredictionRow key={p.id} prediction={p} userId={userId} />)}
+          {filtered.map((p) => <PredictionRow key={p.id} prediction={p} userId={userId} />)}
         </div>
       )}
 
@@ -289,19 +283,22 @@ function PredictionsSection({ userId, isOwn }: { userId: string; isOwn: boolean 
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export function ProfilePage() {
-  const { userId } = useParams<{ userId: string }>()
+  const { userId }                         = useParams<{ userId: string }>()
   const { user: currentUser, loading: authLoading } = useAuthStore()
-  const navigate = useNavigate()
+  const navigate                           = useNavigate()
 
   const { data: profile, isLoading: profileLoading, error } = useProfile(userId!)
-  const { data: friends } = useFriends(userId!)
-  const { data: photos } = useUserPhotos(userId!)
+  const { data: friends }                  = useFriends(userId!)
+  const { data: photos }                   = useUserPhotos(userId!)
   const { data: badges, isLoading: badgesLoading } = useUserBadges(userId!)
-  const { mutate: sendRequest, isPending: sendingRequest } = useSendFriendRequest()
+
+  // Pass currentUser.id so the hook invalidates the right friends cache key
+  const { mutate: sendRequest, isPending: sendingRequest } =
+    useSendFriendRequest(currentUser?.id ?? '')
 
   const isOwn = currentUser?.id === userId
   const [activeTab, setActiveTab] = useState<Tab>('overview')
-  const [editOpen, setEditOpen] = useState(false)
+  const [editOpen, setEditOpen]   = useState(false)
 
   if (authLoading || profileLoading)
     return (
@@ -328,9 +325,9 @@ export function ProfilePage() {
     )
 
   const tabs: { id: Tab; label: string; icon: string }[] = [
-    { id: 'overview', label: 'Overview', icon: 'person' },
-    { id: 'badges', label: 'Badges', icon: 'military_tech' },
-    { id: 'predictions', label: 'Predictions', icon: 'track_changes' },
+    { id: 'overview',     label: 'Overview',    icon: 'person' },
+    { id: 'badges',       label: 'Badges',       icon: 'military_tech' },
+    { id: 'predictions',  label: 'Predictions',  icon: 'track_changes' },
     ...(photos && photos.length > 0 ? [{ id: 'photos' as Tab, label: 'Photos', icon: 'photo_library' }] : []),
   ]
 
@@ -400,7 +397,11 @@ export function ProfilePage() {
 
           {!isOwn && currentUser && (
             <div className="mt-4 flex gap-3 justify-center md:justify-start">
-              <NeonButton size="sm" disabled={sendingRequest} onClick={() => sendRequest({ userId: currentUser.id, friendId: userId! })}>
+              <NeonButton
+                size="sm"
+                disabled={sendingRequest}
+                onClick={() => sendRequest({ userId: currentUser.id, friendId: userId! })}
+              >
                 <span className="material-symbols-outlined text-base">person_add</span>
                 Add Friend
               </NeonButton>

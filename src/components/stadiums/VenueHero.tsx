@@ -1,3 +1,5 @@
+// src/components/stadiums/VenueHero.tsx
+
 import { useState } from 'react'
 import { NeonButton } from '@/components/ui/NeonButton'
 import type { Stadium } from '@/types'
@@ -27,7 +29,7 @@ export function VenueHero({ stadium, onReview }: VenueHeroProps) {
           alt={stadium.name}
           fetchPriority="high"
           loading="eager"
-          decoding="async"          // async — never blocks paint
+          decoding="async"
           onLoad={() => setImgLoaded(true)}
           onError={() => setImgError(true)}
           className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${
@@ -44,9 +46,11 @@ export function VenueHero({ stadium, onReview }: VenueHeroProps) {
             <span className="bg-primary-container text-on-primary font-lexend text-[10px] px-3 py-1 rounded-sm uppercase font-semibold">
               Category 1 Venue
             </span>
-            <span className="bg-white/10 text-white font-lexend text-[10px] px-3 py-1 rounded-sm uppercase backdrop-blur-md">
-              {stadium.capacity.toLocaleString()} Capacity
-            </span>
+            {stadium.capacity != null && (
+              <span className="bg-white/10 text-white font-lexend text-[10px] px-3 py-1 rounded-sm uppercase backdrop-blur-md">
+                {stadium.capacity.toLocaleString()} Capacity
+              </span>
+            )}
             <div className="flex items-center gap-1 text-yellow-400">
               <span
                 className="material-symbols-outlined text-lg"

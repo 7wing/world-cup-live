@@ -58,7 +58,7 @@ interface OFScore {
   ft: [number, number]
   ht?: [number, number]
   et?: [number, number]
-  p?: [number, number]
+  p?: [number, number]   // penalty shootout scores
 }
 
 interface OFMatch {
@@ -117,10 +117,10 @@ function teamId2022(code: string): string {
 function adaptStage2022(roundName: string): string {
   const n = roundName.toLowerCase()
   if (n.includes('matchday') || n.includes('group')) return 'group'
-  if (n.includes('round of 16'))    return 'round-of-16'
-  if (n.includes('quarter'))        return 'quarter-final'
-  if (n.includes('semi'))           return 'semi-final'
-  if (n.includes('third') || n.includes('third place') || n.includes('match for third')) return 'third-place'
+  if (n.includes('round of 16'))    return 'round_of_16'
+  if (n.includes('quarter'))        return 'quarter_final'
+  if (n.includes('semi'))           return 'semi_final'
+  if (n.includes('third') || n.includes('third place') || n.includes('match for third')) return 'third_place'
   if (n.includes('final'))          return 'final'
   return 'group'
 }
@@ -170,10 +170,23 @@ async function seed2022FromOpenFootball() {
       ? new Date(`${match.date}T${match.time}:00Z`).toISOString()
       : new Date(`${match.date}T12:00:00Z`).toISOString()
 
-    const homeScore = match.score?.et?.[0] ?? match.score?.ft?.[0] ?? null
-    const awayScore = match.score?.et?.[1] ?? match.score?.ft?.[1] ?? null
+    // FIX: use null for unplayed scores, not 0.
+    // Use et score if available (includes extra time), otherwise ft, otherwise null.
+    const homeScore: number | null = match.score?.et?.[0] ?? match.score?.ft?.[0] ?? null
+    const awayScore: number | null = match.score?.et?.[1] ?? match.score?.ft?.[1] ?? null
+
+    // FIX: seed penalty shootout data from score.p field
+    const homeScorePens: number | null = match.score?.p?.[0] ?? null
+    const awayScorePens: number | null = match.score?.p?.[1] ?? null
+    const decidedByPens = homeScorePens !== null && awayScorePens !== null
+
     const status    = homeScore !== null ? 'finished' : 'upcoming'
     const stage     = adaptStage2022(match.round)
+
+    // FIX: extract group letter from "Group A" → "A"
+    const groupLetter = match.group
+      ? match.group.replace(/^Group\s*/i, '').trim() || null
+      : null
 
     const { error } = await supabase.from('matches').upsert({
       id:              `of-2022-${i + 1}`,
@@ -181,8 +194,13 @@ async function seed2022FromOpenFootball() {
       away_team_id:    awayId,
       stadium_id:      null,
       stage,
-      home_score:      homeScore ?? 0,
-      away_score:      awayScore ?? 0,
+      group_letter:    groupLetter,
+      // FIX: null for unplayed matches, not 0
+      home_score:      homeScore,
+      away_score:      awayScore,
+      home_score_pens: homeScorePens,
+      away_score_pens: awayScorePens,
+      decided_by_pens: decidedByPens,
       minute:          status === 'finished' ? 90 : 0,
       status,
       home_possession: 50,
@@ -192,7 +210,9 @@ async function seed2022FromOpenFootball() {
     if (error) {
       console.error(`  ⚠️  Match upsert failed (${match.team1} vs ${match.team2}): ${error.message}`)
     } else {
-      const scoreStr = homeScore !== null ? ` ${homeScore}-${awayScore}` : ''
+      const scoreStr = homeScore !== null
+        ? ` ${homeScore}-${awayScore}${decidedByPens ? ` (pens ${homeScorePens}-${awayScorePens})` : ''}`
+        : ''
       console.log(`  ✅  [${stage}] ${match.team1} vs ${match.team2}${scoreStr} (${status})`)
       total++
     }
@@ -275,13 +295,13 @@ function adaptStatus2026(status: string): 'upcoming' | 'live' | 'finished' {
   return 'upcoming'
 }
 
-function adaptStage2026(stage: string, group: string | null): string {
+function adaptStage2026(stage: string): string {
   const map: Record<string, string> = {
-    GROUP_STAGE:    group ? `Group ${group.replace('GROUP_', '')}` : 'group',
-    ROUND_OF_16:    'round-of-16',
-    QUARTER_FINALS: 'quarter-final',
-    SEMI_FINALS:    'semi-final',
-    THIRD_PLACE:    'third-place',
+    GROUP_STAGE:    'group',
+    ROUND_OF_16:    'round_of_16',
+    QUARTER_FINALS: 'quarter_final',
+    SEMI_FINALS:    'semi_final',
+    THIRD_PLACE:    'third_place',
     FINAL:          'final',
   }
   return map[stage] ?? stage.toLowerCase().replace(/_/g, '-')
@@ -289,23 +309,40 @@ function adaptStage2026(stage: string, group: string | null): string {
 
 async function upsertFDMatch(m: FDMatch, season: number) {
   if (!m.homeTeam?.id || !m.awayTeam?.id || !m.homeTeam?.name || !m.awayTeam?.name) {
-    console.log(`  ⏭️  Skipping TBD match (${adaptStage2026(m.stage, m.group)}) — teams not yet determined`)
+    console.log(`  ⏭️  Skipping TBD match (${adaptStage2026(m.stage)}) — teams not yet determined`)
     return
   }
 
   await upsertTeamById(String(m.homeTeam.id), m.homeTeam.name, m.homeTeam.tla, m.homeTeam.crest)
   await upsertTeamById(String(m.awayTeam.id), m.awayTeam.name, m.awayTeam.tla, m.awayTeam.crest)
 
+  const matchStatus = adaptStatus2026(m.status)
+
+  // FIX: extract group letter from "GROUP_A" → "A"
+  const groupLetter = m.stage === 'GROUP_STAGE' && m.group
+    ? m.group.replace(/^GROUP_/i, '').trim() || null
+    : null
+
+  // FIX: null for unplayed scores, not 0
+  const homeScore: number | null = matchStatus === 'upcoming' ? null : (m.score.fullTime.home ?? null)
+  const awayScore: number | null = matchStatus === 'upcoming' ? null : (m.score.fullTime.away ?? null)
+
   const { error } = await supabase.from('matches').upsert({
     id:              `fd-${season}-${m.id}`,
     home_team_id:    String(m.homeTeam.id),
     away_team_id:    String(m.awayTeam.id),
     stadium_id:      null,
-    stage:           adaptStage2026(m.stage, m.group),
-    home_score:      m.score.fullTime.home ?? 0,
-    away_score:      m.score.fullTime.away ?? 0,
+    stage:           adaptStage2026(m.stage),
+    group_letter:    groupLetter,
+    home_score:      homeScore,
+    away_score:      awayScore,
+    // Penalty data not available from football-data.org basic tier;
+    // update manually or via a webhook when knockout rounds are decided.
+    home_score_pens: null,
+    away_score_pens: null,
+    decided_by_pens: false,
     minute:          0,
-    status:          adaptStatus2026(m.status),
+    status:          matchStatus,
     home_possession: 50,
     kickoff_at:      m.utcDate,
   }, { onConflict: 'id' })
@@ -313,10 +350,8 @@ async function upsertFDMatch(m: FDMatch, season: number) {
   if (error) {
     console.error(`  ⚠️  Match upsert failed (${m.homeTeam.name} vs ${m.awayTeam.name}): ${error.message}`)
   } else {
-    const score = m.score.fullTime.home !== null
-      ? ` ${m.score.fullTime.home}-${m.score.fullTime.away}`
-      : ''
-    console.log(`  ✅  [${adaptStage2026(m.stage, m.group)}] ${m.homeTeam.name} vs ${m.awayTeam.name}${score} [${adaptStatus2026(m.status)}]`)
+    const score = homeScore !== null ? ` ${homeScore}-${awayScore}` : ''
+    console.log(`  ✅  [${adaptStage2026(m.stage)}] ${m.homeTeam.name} vs ${m.awayTeam.name}${score} [${matchStatus}]`)
   }
 }
 

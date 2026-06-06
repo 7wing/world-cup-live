@@ -10,10 +10,9 @@ export function useAuth() {
     let cancelled = false
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session)
-      setLoading(false)
-
       if (cancelled) return
+
+      setSession(session)
 
       if (session?.user) {
         try {
@@ -22,22 +21,12 @@ export function useAuth() {
         } catch {
           if (!cancelled) setUser(null)
         }
-      } else if (!cancelled) {
+      } else {
         setUser(null)
       }
-    })
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (cancelled) return
-      setSession(session)
-      setLoading(false)
-      if (!session?.user) {
-        setUser(null)
-        return
-      }
-      fetchUserById(session.user.id)
-        .then((profile) => { if (!cancelled) setUser(profile) })
-        .catch(() => { if (!cancelled) setUser(null) })
+      // Only mark loading done after user row is resolved
+      if (!cancelled) setLoading(false)
     })
 
     return () => {
@@ -46,7 +35,7 @@ export function useAuth() {
     }
   }, [])
 
-  const user = useAuthStore((s) => s.user)
+  const user    = useAuthStore((s) => s.user)
   const session = useAuthStore((s) => s.session)
   const loading = useAuthStore((s) => s.loading)
   const signOut = useAuthStore((s) => s.signOut)

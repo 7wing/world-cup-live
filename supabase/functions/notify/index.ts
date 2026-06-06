@@ -11,71 +11,99 @@
 //   SUPABASE_URL              – injected automatically
 //   SUPABASE_SERVICE_ROLE_KEY – injected automatically
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve }        from 'https://deno.land/std@0.168.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import {
+  ApplicationServerKeys,
+  generatePushHTTPRequest,
+} from 'https://deno.land/x/web_push@0.0.2/mod.ts'
 
 // --------------------------------------------------------------------------
-// Types
+// Types — aligned to match_events schema exactly
 // --------------------------------------------------------------------------
 
 interface MatchEvent {
-  id: string;
-  match_id: string;
-  team_id: string;
+  id:          string
+  match_id:    string
+  team_id:     string | null   // nullable — neutral events have no team
   event_type:
-    | "goal"
-    | "red_card"
-    | "yellow_card"
-    | "substitution"
-    | "penalty"
-    | "kick_off"
-    | "full_time";
-  player_name?: string;
-  minute?: number;
-  extra_time?: boolean;
-  description?: string;
+    | 'goal'
+    | 'yellow_card'
+    | 'red_card'
+    | 'substitution'
+    | 'corner'
+    | 'shot'
+    | 'penalty'
+    | 'kick_off'
+    | 'half_time'
+    | 'full_time'
+  player_name: string | null
+  player_in:   string | null   // substitution only
+  minute:      number | null
+  extra_time:  boolean
+  description: string | null
+  created_at:  string
 }
 
 interface PushSubscriptionRecord {
-  id: string;
-  user_id: string;
-  endpoint: string;
-  p256dh: string;
-  auth: string;
+  id:       string
+  user_id:  string
+  endpoint: string
+  p256dh:   string
+  auth:     string
+}
+
+interface MatchAlertRecord {
+  user_id:   string
+  goals:     boolean
+  red_cards: boolean
+  kickoff:   boolean
+  lineups:   boolean
 }
 
 interface WebhookPayload {
-  type: "INSERT" | "UPDATE" | "DELETE";
-  table: string;
-  schema: string;
-  record: MatchEvent;
-  old_record?: MatchEvent;
+  type:        'INSERT' | 'UPDATE' | 'DELETE'
+  table:       string
+  schema:      string
+  record:      MatchEvent
+  old_record?: MatchEvent
 }
 
 // --------------------------------------------------------------------------
-// Event label map
+// Which event_type maps to which alert boolean column in match_alerts
 // --------------------------------------------------------------------------
 
-const EVENT_LABELS: Record<
-  MatchEvent["event_type"],
-  { emoji: string; label: string }
-> = {
-  goal:         { emoji: "⚽", label: "GOAL"        },
-  red_card:     { emoji: "🟥", label: "Red card"    },
-  yellow_card:  { emoji: "🟨", label: "Yellow card" },
-  substitution: { emoji: "🔄", label: "Sub"         },
-  penalty:      { emoji: "🎯", label: "Penalty"     },
-  kick_off:     { emoji: "🏁", label: "Kick-off"    },
-  full_time:    { emoji: "🔔", label: "Full time"   },
-};
+const EVENT_TO_ALERT_COL: Partial<Record<MatchEvent['event_type'], keyof MatchAlertRecord>> = {
+  goal:      'goals',
+  penalty:   'goals',     // penalty that results in a goal — use goals flag
+  red_card:  'red_cards',
+  kick_off:  'kickoff',
+  full_time: 'kickoff',   // reuse kickoff toggle for match start/end
+}
 
-const NOTIFY_TYPES: MatchEvent["event_type"][] = [
-  "goal",
-  "red_card",
-  "penalty",
-  "kick_off",
-  "full_time",
-];
+// Only fire push for these event types — filter out shots/corners/substitutions
+const NOTIFY_TYPES: MatchEvent['event_type'][] = [
+  'goal',
+  'red_card',
+  'penalty',
+  'kick_off',
+  'full_time',
+]
+
+// --------------------------------------------------------------------------
+// Notification label map
+// --------------------------------------------------------------------------
+
+const EVENT_LABELS: Partial<Record<MatchEvent['event_type'], { emoji: string; label: string }>> = {
+  goal:         { emoji: '⚽', label: 'GOAL'        },
+  red_card:     { emoji: '🟥', label: 'Red card'    },
+  yellow_card:  { emoji: '🟨', label: 'Yellow card' },
+  substitution: { emoji: '🔄', label: 'Sub'         },
+  penalty:      { emoji: '🎯', label: 'Penalty'     },
+  kick_off:     { emoji: '🏁', label: 'Kick-off'    },
+  half_time:    { emoji: '⏸',  label: 'Half time'   },
+  full_time:    { emoji: '🔔', label: 'Full time'   },
+}
 
 // --------------------------------------------------------------------------
 // Build notification payload
@@ -83,49 +111,48 @@ const NOTIFY_TYPES: MatchEvent["event_type"][] = [
 
 function buildNotification(
   event: MatchEvent,
-  matchTitle: string
+  matchTitle: string,
 ): { title: string; body: string; url: string } {
-  const { emoji, label } =
-    EVENT_LABELS[event.event_type] ?? { emoji: "🏆", label: event.event_type };
+  const meta   = EVENT_LABELS[event.event_type] ?? { emoji: '🏆', label: event.event_type }
   const minute = event.minute
-    ? ` (${event.minute}${event.extra_time ? "+" : ""}')`
-    : "";
-  const player = event.player_name ? ` — ${event.player_name}` : "";
+    ? ` (${event.minute}${event.extra_time ? '+' : ''}')`
+    : ''
+  const player = event.player_name ? ` — ${event.player_name}` : ''
 
   return {
-    title: `${emoji} ${label}${minute}`,
-    body: `${matchTitle}${player}`,
-    url: `/matches/${event.match_id}`,
-  };
+    title: `${meta.emoji} ${meta.label}${minute}`,
+    body:  `${matchTitle}${player}`,
+    url:   `/matches/${event.match_id}`,
+  }
 }
 
 // --------------------------------------------------------------------------
-// Send a single Web Push notification
+// Send a single Web Push notification using a real VAPID JWT
 // --------------------------------------------------------------------------
 
 async function sendPush(
   subscription: PushSubscriptionRecord,
-  payload: object
+  payload: object,
+  appServerKeys: ApplicationServerKeys,
 ): Promise<void> {
-  const body = JSON.stringify(payload);
-
-  const res = await fetch(subscription.endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Content-Encoding": "aes128gcm",
-      TTL: "86400",
-      // For production use https://deno.land/x/web_push to generate a real
-      // VAPID JWT instead of this placeholder.
-      Authorization: `vapid t=TODO_JWT,k=${Deno.env.get("VAPID_PUBLIC_KEY")}`,
+  const { request } = await generatePushHTTPRequest({
+    applicationServerKeys: appServerKeys,
+    payload:               JSON.stringify(payload),
+    target: {
+      endpoint: subscription.endpoint,
+      keys: {
+        p256dh: subscription.p256dh,
+        auth:   subscription.auth,
+      },
     },
-    body,
-  });
+    adminContact: Deno.env.get('VAPID_SUBJECT') ?? 'mailto:admin@example.com',
+    ttl:          86400,
+  })
+
+  const res = await fetch(request)
 
   if (!res.ok && res.status !== 201) {
-    console.error(
-      `[notify] Push failed for ${subscription.user_id}: ${res.status}`
-    );
+    console.error(`[notify] Push failed for ${subscription.user_id}: ${res.status}`)
   }
 }
 
@@ -135,70 +162,105 @@ async function sendPush(
 
 serve(async (req: Request) => {
   try {
-    const payload = (await req.json()) as WebhookPayload;
+    const payload = (await req.json()) as WebhookPayload
 
-    if (payload.type !== "INSERT") {
-      return new Response(JSON.stringify({ skipped: true }), { status: 200 });
+    if (payload.type !== 'INSERT') {
+      return new Response(JSON.stringify({ skipped: true }), { status: 200 })
     }
 
-    const event = payload.record;
+    const event = payload.record
+
     if (!NOTIFY_TYPES.includes(event.event_type)) {
       return new Response(
-        JSON.stringify({ skipped: true, reason: "event_type not in NOTIFY_TYPES" }),
-        { status: 200 }
-      );
+        JSON.stringify({ skipped: true, reason: 'event_type not in NOTIFY_TYPES' }),
+        { status: 200 },
+      )
     }
+
+    // Determine which boolean column gates this notification type
+    const alertCol = EVENT_TO_ALERT_COL[event.event_type]
 
     const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+      Deno.env.get('SUPABASE_URL')              ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    )
 
+    // Resolve match title from FK-joined teams
     const { data: match } = await supabase
-      .from("matches")
-      .select("home_team_name, away_team_name")
-      .eq("id", event.match_id)
-      .single();
+      .from('matches')
+      .select(`
+        home_team:teams!matches_home_team_id_fkey(name),
+        away_team:teams!matches_away_team_id_fkey(name)
+      `)
+      .eq('id', event.match_id)
+      .single()
 
-    const matchTitle = match
-      ? `${match.home_team_name} vs ${match.away_team_name}`
-      : "Match update";
+    const homeTeamName = (match?.home_team as { name: string } | null)?.name
+    const awayTeamName = (match?.away_team as { name: string } | null)?.name
+    const matchTitle   = homeTeamName && awayTeamName
+      ? `${homeTeamName} vs ${awayTeamName}`
+      : 'Match update'
 
-    const { data: alertUsers } = await supabase
-      .from("match_alerts")
-      .select("user_id")
-      .or(`match_id.eq.${event.match_id},team_id.eq.${event.team_id}`);
+    // Find users subscribed to alerts for this match or team,
+    // AND who have enabled the specific alert type boolean column.
+    const alertQuery = supabase
+      .from('match_alerts')
+      .select('user_id, goals, red_cards, kickoff, lineups')
 
-    if (!alertUsers || alertUsers.length === 0) {
-      return new Response(JSON.stringify({ sent: 0 }), { status: 200 });
+    const matchOrTeamFilter = event.team_id
+      ? `match_id.eq.${event.match_id},team_id.eq.${event.team_id}`
+      : `match_id.eq.${event.match_id}`
+
+    const { data: alertRows } = await alertQuery.or(matchOrTeamFilter)
+
+    if (!alertRows || alertRows.length === 0) {
+      return new Response(JSON.stringify({ sent: 0 }), { status: 200 })
     }
 
-    const userIds = alertUsers.map((a: { user_id: string }) => a.user_id);
+    // Filter by the per-event-type boolean column
+    const eligibleUserIds = (alertRows as MatchAlertRecord[])
+      .filter(row => alertCol === undefined || row[alertCol] === true)
+      .map(row => row.user_id)
+
+    if (eligibleUserIds.length === 0) {
+      return new Response(
+        JSON.stringify({ sent: 0, reason: 'no users with this alert type enabled' }),
+        { status: 200 },
+      )
+    }
 
     const { data: subscriptions } = await supabase
-      .from("push_subscriptions")
-      .select("id, user_id, endpoint, p256dh, auth")
-      .in("user_id", userIds);
+      .from('push_subscriptions')
+      .select('id, user_id, endpoint, p256dh, auth')
+      .in('user_id', eligibleUserIds)
 
     if (!subscriptions || subscriptions.length === 0) {
-      return new Response(JSON.stringify({ sent: 0 }), { status: 200 });
+      return new Response(JSON.stringify({ sent: 0 }), { status: 200 })
     }
 
-    const notification = buildNotification(event, matchTitle);
-    await Promise.allSettled(
-      subscriptions.map((sub: PushSubscriptionRecord) =>
-        sendPush(sub, notification)
-      )
-    );
+    // Build VAPID keys once, reuse for all sends
+    const appServerKeys = await ApplicationServerKeys.fromJSON({
+      publicKey:  Deno.env.get('VAPID_PUBLIC_KEY')  ?? '',
+      privateKey: Deno.env.get('VAPID_PRIVATE_KEY') ?? '',
+    })
 
-    return new Response(JSON.stringify({ sent: subscriptions.length }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    const notification = buildNotification(event, matchTitle)
+
+    await Promise.allSettled(
+      (subscriptions as PushSubscriptionRecord[]).map(sub =>
+        sendPush(sub, notification, appServerKeys),
+      ),
+    )
+
+    return new Response(
+      JSON.stringify({ sent: subscriptions.length }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    )
   } catch (err) {
-    console.error("[notify] Error:", err);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500,
-    });
+    console.error('[notify] Error:', err)
+    return new Response(
+      JSON.stringify({ error: 'Internal server error' }),
+      { status: 500 },
+    )
   }
-});
+})

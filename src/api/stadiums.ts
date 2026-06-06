@@ -35,7 +35,6 @@ export async function fetchStadiums(): Promise<Stadium[]> {
   return Promise.race([fetchPromise, timeout])
 }
 
-// Accepts a slug (e.g. "azteca") — matches the URL param from StadiumsPage
 export async function fetchStadiumById(slug: string): Promise<Stadium> {
   const { data, error } = await supabase
     .from('stadiums')
@@ -59,7 +58,7 @@ export async function fetchStadiumReviews(stadiumId: string): Promise<StadiumRev
 }
 
 export async function submitStadiumReview(
-  review: Omit<StadiumReview, 'id' | 'created_at' | 'user'>
+  review: Omit<StadiumReview, 'id' | 'created_at' | 'overall_rating' | 'user'>
 ): Promise<void> {
   const { error } = await supabase.from('stadium_reviews').insert(review)
   if (error) throw error
@@ -91,12 +90,16 @@ export async function uploadFanPhoto(
 
   const { data: urlData } = supabase.storage.from('fan-photos').getPublicUrl(path)
 
-  const { error } = await supabase.from('fan_photos').insert({
+  const { error: insertError } = await supabase.from('fan_photos').insert({
     user_id: userId,
     stadium_id: stadiumId,
     image_url: urlData.publicUrl,
     caption,
   })
 
-  if (error) throw error
+  if (insertError) {
+    // Attempt to clean up the orphaned storage file
+    await supabase.storage.from('fan-photos').remove([path])
+    throw insertError
+  }
 }

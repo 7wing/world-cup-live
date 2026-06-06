@@ -1,3 +1,5 @@
+// src/components/stadiums/StadiumHero.tsx
+
 import { useState, useEffect, useMemo } from 'react'
 import type { Stadium } from '@/types'
 
@@ -6,11 +8,27 @@ interface StadiumHeroProps {
   isLoading: boolean
 }
 
+function formatCapacity(total: number): string {
+  if (total >= 1_000_000) return `${(total / 1_000_000).toFixed(1)}M+`
+  if (total >= 1_000)     return `${Math.round(total / 1_000)}K+`
+  return String(total)
+}
+
 export function StadiumHero({ stadiums, isLoading }: StadiumHeroProps) {
   const slides = useMemo(() => stadiums, [stadiums])
 
   const [index, setIndex] = useState(0)
   const [visible, setVisible] = useState(true)
+
+  // Derived stats from live data
+  const nationsCount = useMemo(
+    () => new Set(stadiums.map((s) => s.country)).size,
+    [stadiums]
+  )
+  const totalCapacity = useMemo(
+    () => stadiums.reduce((sum, s) => sum + (s.capacity ?? 0), 0),
+    [stadiums]
+  )
 
   // Auto-advance with a brief fade-out/in between slides
   useEffect(() => {
@@ -80,10 +98,23 @@ export function StadiumHero({ stadiums, isLoading }: StadiumHeroProps) {
 
         <div className="flex gap-4 sm:gap-6 mt-4">
           {[
-            { val: stadiums.length > 0 ? String(stadiums.length) : '16', label: 'Host Venues' },
-            { val: '3', label: 'Nations' },
-            { val: '1M+', label: 'Total Capacity' },
-            { val: '104', label: 'Matches' },
+            {
+              val: stadiums.length > 0 ? String(stadiums.length) : '—',
+              label: 'Host Venues',
+            },
+            {
+              val: nationsCount > 0 ? String(nationsCount) : '—',
+              label: 'Nations',
+            },
+            {
+              val: totalCapacity > 0 ? formatCapacity(totalCapacity) : '—',
+              label: 'Total Capacity',
+            },
+            {
+              // 104 is the confirmed total match count for FIFA World Cup 2026
+              val: '104',
+              label: 'Matches',
+            },
           ].map(({ val, label }) => (
             <div key={label}>
               <p className="font-lexend font-black text-lg sm:text-xl text-primary-container leading-none">{val}</p>

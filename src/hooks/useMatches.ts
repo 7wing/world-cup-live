@@ -1,30 +1,17 @@
 // src/hooks/useMatches.ts
 
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { fetchMatches, fetchLiveMatches, fetchMatchById } from '@/api/matches'
-import { FIXTURES, type Fixture } from '@/components/matches/ScheduleTab'
+import { supabase } from '@/lib/supabase'
+import type { Prediction } from '@/types'
 
-function fixtureToMatch(f: Fixture) {
-  return {
-    id:             f.id,
-    status:         f.status,
-    kickoff_at:     f.kickoff,   // ← what ScoreCard reads
-    stage:          f.groupLabel, // ← what ScoreCard reads
-    venue:          f.venue,
-    city:           f.city,
-    minute:         null,
-    home_possession: null,
-    home_team: { name: f.home.name, code: f.home.code, flag_url: '' },
-    away_team: { name: f.away.name, code: f.away.code, flag_url: '' },
-    home_score:     f.homeScore ?? null,
-    away_score:     f.awayScore ?? null,
-  }
-}
+// ── Matches ───────────────────────────────────────────────────────────────────
 
 export function useMatches() {
   return useQuery({
     queryKey: ['matches'],
-    queryFn: fetchMatches,
+    queryFn:  fetchMatches,
+    staleTime: 30_000,
     refetchInterval: 30_000,
   })
 }
@@ -32,7 +19,8 @@ export function useMatches() {
 export function useLiveMatches() {
   return useQuery({
     queryKey: ['matches', 'live'],
-    queryFn: fetchLiveMatches,
+    queryFn:  fetchLiveMatches,
+    staleTime: 15_000,
     refetchInterval: 15_000,
   })
 }
@@ -40,18 +28,59 @@ export function useLiveMatches() {
 export function useMatch(id: string) {
   return useQuery({
     queryKey: ['matches', id],
-    queryFn: async () => {
-      try {
-        const remote = await fetchMatchById(id)
-        if (remote) return remote
-      } catch {
-        // API doesn't know this ID — fall through to local data
-      }
+    queryFn:  () => fetchMatchById(id),
+    enabled:  !!id,
+    staleTime: 30_000,
+  })
+}
 
-      const local = FIXTURES.find((f) => f.id === id)
-      return local ? fixtureToMatch(local) : null
+// ── Predictions (used by GamesPage PredictorTab) ──────────────────────────────
+
+/**
+ * Fetch predictions for a batch of match IDs for a specific user.
+ * Returns an empty array if userId is missing (guest).
+ */
+export function usePredictionsForMatches(
+  userId: string | undefined,
+  matchIds: string[]
+) {
+  return useQuery({
+    queryKey: ['predictions', userId, matchIds],
+    queryFn: async (): Promise<Prediction[]> => {
+      if (!userId || matchIds.length === 0) return []
+      const { data, error } = await supabase
+        .from('predictions')
+        .select('*')
+        .eq('user_id', userId)
+        .in('match_id', matchIds)
+      if (error) throw error
+      return (data ?? []) as Prediction[]
     },
-    enabled: !!id,
-    refetchInterval: 15_000,
+    enabled: !!userId && matchIds.length > 0,
+    staleTime: 30_000,
+  })
+}
+
+/**
+ * Upsert a single prediction. Invalidates both the match-batch query and
+ * the user's full prediction history.
+ */
+export function useSubmitMatchPrediction() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (
+      pred: Pick<Prediction, 'user_id' | 'match_id' | 'predicted_home' | 'predicted_away'>
+    ): Promise<void> => {
+      const { error } = await supabase
+        .from('predictions')
+        .upsert(pred, { onConflict: 'user_id,match_id' })
+      if (error) throw error
+    },
+    onSuccess: (_data, pred) => {
+      // Invalidate the batch predictions cache for this user
+      qc.invalidateQueries({ queryKey: ['predictions', pred.user_id] })
+      // Also invalidate the profile prediction history if open
+      qc.invalidateQueries({ queryKey: ['users', pred.user_id, 'predictions'] })
+    },
   })
 }

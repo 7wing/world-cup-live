@@ -1,3 +1,5 @@
+// src/components/stadiums/StadiumCard.tsx
+
 import { memo, useState } from 'react'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { getStorageObjectUrl } from '@/hooks/useStadium'
@@ -25,7 +27,7 @@ export const StadiumCard = memo(function StadiumCard({
 }: StadiumCardProps) {
   const [src, setSrc] = useState(stadium.hero_image_url)
   const fallback = getStorageObjectUrl(stadium.hero_image_url, 512, 60)
-  
+
   return (
     <article
       className="card-solid overflow-hidden cursor-pointer hover:border-primary-container/30 transition-[border-color] duration-200"
@@ -53,12 +55,14 @@ export const StadiumCard = memo(function StadiumCard({
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
 
         <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/50 border border-white/10 rounded-full px-2.5 py-1 text-[11px] font-lexend font-bold text-white/70">
-          {stadium.flag} {stadium.country}
+          {stadium.flag ?? ''} {stadium.country}
         </div>
 
-        <div className="absolute top-3 right-3 bg-black/60 border border-white/10 rounded-lg px-2 py-0.5 text-[10px] font-lexend font-bold text-white/40 uppercase tracking-wide">
-          {(stadium.capacity / 1000).toFixed(0)}K seats
-        </div>
+        {stadium.capacity != null && (
+          <div className="absolute top-3 right-3 bg-black/60 border border-white/10 rounded-lg px-2 py-0.5 text-[10px] font-lexend font-bold text-white/40 uppercase tracking-wide">
+            {(stadium.capacity / 1000).toFixed(0)}K seats
+          </div>
+        )}
 
         <div className="absolute bottom-3 left-3 right-3">
           <h3 className="font-lexend font-black uppercase text-base leading-tight text-white">

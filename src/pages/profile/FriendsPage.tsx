@@ -4,22 +4,21 @@ import { PageWrapper } from '@/components/layout/PageWrapper'
 import { FriendList } from '@/components/profile/FriendList'
 import { GlassCard } from '@/components/ui/GlassCard'
 import { NeonButton } from '@/components/ui/NeonButton'
-import { useFriends } from '@/hooks/useProfile'
+import { useFriends, useSendFriendRequest } from '@/hooks/useProfile'
 import { useAuthStore } from '@/store/authStore'
 import { cn } from '@/utils/cn'
-
-// ── Mock challenge leaderboard for friends (mini-league) ─────────────────────
-// In production wire this to a real supabase query:
-// supabase.from('friend_leagues').select('*').eq('owner_id', userId)
-const MINI_LEAGUE_MOCK = [
-  { rank: 1, username: 'YourFriend01', xp: 8240, tier: 'pro', isOnline: true },
-  { rank: 2, username: 'CousinLuka', xp: 6100, tier: 'elite', isOnline: false },
-  { rank: 3, username: 'OfficeRival', xp: 5500, tier: 'elite', isOnline: true },
-]
+import type { Friendship } from '@/types'
 
 // ── Friend Challenge Leaderboard ──────────────────────────────────────────────
-function FriendLeague() {
+function FriendLeague({ friends }: { friends: Friendship[] }) {
   const [invited, setInvited] = useState(false)
+
+  // Sort by xp descending for the league view
+  const ranked = [...friends]
+    .filter((f) => f.friend)
+    .sort((a, b) => (b.friend!.xp ?? 0) - (a.friend!.xp ?? 0))
+    .slice(0, 3)
+
   return (
     <GlassCard className="p-6">
       <div className="flex items-center gap-2 mb-5">
@@ -31,52 +30,59 @@ function FriendLeague() {
       </div>
 
       <div className="space-y-2 mb-5">
-        {MINI_LEAGUE_MOCK.map((entry) => (
-          <div
-            key={entry.username}
-            className={cn(
-              'flex items-center gap-3 p-3 rounded-lg border transition-colors',
-              entry.rank === 1
-                ? 'bg-primary-container/10 border-primary-container/30'
-                : 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.06]'
-            )}
-          >
-            <span
-              className={cn(
-                'font-lexend font-black text-lg w-6 text-center',
-                entry.rank === 1 ? 'text-primary-container' : 'text-white/30'
-              )}
-            >
-              {entry.rank}
-            </span>
+        {ranked.length === 0 ? (
+          <p className="text-white/30 font-lexend text-xs text-center py-4">
+            Add friends to start competing
+          </p>
+        ) : (
+          ranked.map((entry, idx) => {
+            const rank = idx + 1
+            return (
+              <div
+                key={entry.id}
+                className={cn(
+                  'flex items-center gap-3 p-3 rounded-lg border transition-colors',
+                  rank === 1
+                    ? 'bg-primary-container/10 border-primary-container/30'
+                    : 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.06]'
+                )}
+              >
+                <span
+                  className={cn(
+                    'font-lexend font-black text-lg w-6 text-center',
+                    rank === 1 ? 'text-primary-container' : 'text-white/30'
+                  )}
+                >
+                  {rank}
+                </span>
 
-            {/* Avatar placeholder with online dot */}
-            <div className="relative">
-              <div className="w-8 h-8 rounded-full bg-surface-container-high border border-white/10 flex items-center justify-center">
-                <span className="font-lexend font-black text-xs text-white/60">
-                  {entry.username.slice(0, 2).toUpperCase()}
+                <div className="w-8 h-8 rounded-full bg-surface-container-high border border-white/10 flex items-center justify-center shrink-0">
+                  <span className="font-lexend font-black text-xs text-white/60">
+                    {(entry.friend?.username ?? '??').slice(0, 2).toUpperCase()}
+                  </span>
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <p className="font-lexend font-bold uppercase text-sm truncate">
+                    {entry.friend?.username ?? '—'}
+                  </p>
+                  <p className="text-[10px] text-white/30 font-lexend uppercase">
+                    {entry.friend?.tier ?? '—'}
+                  </p>
+                </div>
+
+                <span
+                  className={cn(
+                    'font-lexend font-black text-base',
+                    rank === 1 ? 'text-primary-container' : 'text-white/70'
+                  )}
+                >
+                  {(entry.friend?.xp ?? 0).toLocaleString()}
                 </span>
               </div>
-              {entry.isOnline && (
-                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-primary-container border-2 border-surface-container-lowest" />
-              )}
-            </div>
-
-            <div className="flex-1 min-w-0">
-              <p className="font-lexend font-bold uppercase text-sm truncate">{entry.username}</p>
-              <p className="text-[10px] text-white/30 font-lexend uppercase">{entry.tier}</p>
-            </div>
-
-            <span
-              className={cn(
-                'font-lexend font-black text-base',
-                entry.rank === 1 ? 'text-primary-container' : 'text-white/70'
-              )}
-            >
-              {entry.xp.toLocaleString()}
-            </span>
-          </div>
-        ))}
+            )
+          })
+        )}
       </div>
 
       <NeonButton
@@ -93,9 +99,16 @@ function FriendLeague() {
 }
 
 // ── Friend Search / Invite ────────────────────────────────────────────────────
-function FindFriends() {
+function FindFriends({ viewerUserId }: { viewerUserId: string }) {
   const [query, setQuery] = useState('')
-  const [sent, setSent] = useState(false)
+  const { mutate: sendRequest, isPending, isSuccess } = useSendFriendRequest(viewerUserId)
+
+  function handleSend() {
+    if (!query.trim()) return
+    // query is treated as a userId/username lookup — wire to a real users search
+    // query as friend_id for now; replace with a username→id lookup when ready
+    sendRequest({ userId: viewerUserId, friendId: query.trim() })
+  }
 
   return (
     <GlassCard className="p-6">
@@ -114,19 +127,20 @@ function FindFriends() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder="Search by username..."
             className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-lg font-lexend text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-primary-container/60 transition-colors"
           />
         </div>
         <NeonButton
           size="sm"
-          disabled={!query.trim() || sent}
-          onClick={() => setSent(true)}
+          disabled={!query.trim() || isPending || isSuccess}
+          onClick={handleSend}
         >
-          {sent ? '✓' : 'Search'}
+          {isSuccess ? '✓' : isPending ? '…' : 'Send'}
         </NeonButton>
       </div>
-      {sent && (
+      {isSuccess && (
         <p className="mt-3 text-xs text-primary-container font-lexend font-semibold uppercase">
           Friend request sent!
         </p>
@@ -136,13 +150,16 @@ function FindFriends() {
 }
 
 // ── Stat Summary Banner ───────────────────────────────────────────────────────
-function FriendStats({ count }: { count: number }) {
+function FriendStats({ friends }: { friends: Friendship[] }) {
+  const count   = friends.length
+  // League = friends with xp data available (all accepted friends qualify)
+  const inLeague = Math.min(friends.length, 3)
+
   return (
     <div className="grid grid-cols-3 gap-4 mb-8">
       {[
-        { label: 'Friends', value: count, icon: 'group' },
-        { label: 'Online Now', value: MINI_LEAGUE_MOCK.filter((f) => f.isOnline).length, icon: 'wifi' },
-        { label: 'In League', value: MINI_LEAGUE_MOCK.length, icon: 'shield' },
+        { label: 'Friends',  value: count,    icon: 'group'  },
+        { label: 'In League', value: inLeague, icon: 'shield' },
       ].map(({ label, value, icon }) => (
         <div
           key={label}
@@ -161,10 +178,10 @@ function FriendStats({ count }: { count: number }) {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export function FriendsPage() {
-  const { userId } = useParams<{ userId: string }>()
+  const { userId }    = useParams<{ userId: string }>()
   const { user: currentUser } = useAuthStore()
-  const navigate = useNavigate()
-  const { data: friends, isLoading } = useFriends(userId!)
+  const navigate      = useNavigate()
+  const { data: friends = [], isLoading } = useFriends(userId!)
   const isOwn = currentUser?.id === userId
 
   return (
@@ -181,7 +198,7 @@ export function FriendsPage() {
       </div>
 
       {/* ── Stats Row ── */}
-      <FriendStats count={friends?.length ?? 0} />
+      <FriendStats friends={friends} />
 
       {/* ── Main content: Friends List + Sidebar ── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -189,7 +206,7 @@ export function FriendsPage() {
         <div className="lg:col-span-7">
           {isLoading ? (
             <div className="glass-card h-64 rounded-xl animate-pulse" />
-          ) : friends && friends.length > 0 ? (
+          ) : friends.length > 0 ? (
             <FriendList friends={friends} />
           ) : (
             <div className="flex flex-col items-center justify-center py-20 gap-4 text-center glass-card rounded-xl border border-white/5">
@@ -209,8 +226,8 @@ export function FriendsPage() {
 
         {/* Sidebar */}
         <aside className="lg:col-span-5 space-y-5">
-          {isOwn && <FindFriends />}
-          <FriendLeague />
+          {isOwn && currentUser && <FindFriends viewerUserId={currentUser.id} />}
+          <FriendLeague friends={friends} />
         </aside>
       </div>
     </PageWrapper>

@@ -8,16 +8,13 @@ import { fetchTribes, joinTribe } from '@/api/fanzone'
 import { useAuthStore } from '@/store/authStore'
 import { useNotificationStore } from '@/store/notificationStore'
 import { cn } from '@/utils/cn'
-
-// ── Mock leaderboard (top tribes globally) ────────────────────────────────────
-const TOP_TRIBES = [
-  { rank: 1, name: 'Les Bleus Nation', flag: '🇫🇷', points: 142800 },
-  { rank: 2, name: 'Three Lions FC', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', points: 138400 },
-  { rank: 3, name: 'Seleção Fans', flag: '🇧🇷', points: 129900 },
-]
+import type { Tribe } from '@/types'
 
 // ── Global Tribe Leaderboard ──────────────────────────────────────────────────
-function TribeLeaderboard() {
+function TribeLeaderboard({ tribes }: { tribes: Tribe[] }) {
+  const top3 = tribes.slice(0, 3)
+  const medals = ['🥇', '🥈', '🥉']
+
   return (
     <GlassCard className="p-6 mb-8">
       <h2 className="font-lexend font-black text-xl uppercase mb-5 flex items-center gap-2">
@@ -25,28 +22,22 @@ function TribeLeaderboard() {
         Global Tribe Leaderboard
       </h2>
       <div className="space-y-3">
-        {TOP_TRIBES.map((tribe) => (
+        {top3.map((tribe, i) => (
           <div
-            key={tribe.rank}
+            key={tribe.id}
             className={cn(
               'flex items-center gap-4 p-3 rounded-lg border transition-colors',
-              tribe.rank === 1
+              i === 0
                 ? 'bg-primary-container/10 border-primary-container/30'
                 : 'bg-white/[0.03] border-white/[0.07]'
             )}
           >
-            <span
-              className={cn(
-                'font-lexend font-black text-2xl w-8 text-center',
-                tribe.rank === 1 ? 'text-primary-container' : 'text-white/30'
-              )}
-            >
-              {tribe.rank === 1 ? '🥇' : tribe.rank === 2 ? '🥈' : '🥉'}
+            <span className={cn('font-lexend font-black text-2xl w-8 text-center', i === 0 ? 'text-primary-container' : 'text-white/30')}>
+              {medals[i]}
             </span>
-            <span className="text-xl">{tribe.flag}</span>
             <span className="font-lexend font-bold uppercase flex-1 text-sm">{tribe.name}</span>
             <span className="font-lexend font-black text-lg text-primary-container">
-              {tribe.points.toLocaleString()}
+              {tribe.total_points.toLocaleString()}
             </span>
           </div>
         ))}
@@ -62,14 +53,7 @@ function TribeCard({
   isPending,
   isLoggedIn,
 }: {
-  tribe: {
-    id: string
-    name: string
-    member_count: number
-    total_points: number
-    active_now?: number
-    description?: string
-  }
+  tribe: Tribe
   onJoin: (id: string) => void
   isPending: boolean
   isLoggedIn: boolean
@@ -89,37 +73,18 @@ function TribeCard({
         </div>
         <div className="flex-1 min-w-0">
           <h3 className="font-lexend font-bold uppercase truncate">{tribe.name}</h3>
-          <div className="flex items-center gap-3 mt-0.5">
-            <p className="text-[11px] text-white/40 uppercase font-lexend">
-              {tribe.member_count.toLocaleString()} members
-            </p>
-            {tribe.active_now != null && tribe.active_now > 0 && (
-              <p className="text-[11px] text-primary-container uppercase font-lexend font-semibold flex items-center gap-1">
-                <span className="relative flex h-1.5 w-1.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-container opacity-75" />
-                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary-container" />
-                </span>
-                {tribe.active_now} online
-              </p>
-            )}
-          </div>
+          <p className="text-[11px] text-white/40 uppercase font-lexend mt-0.5">
+            {tribe.member_count.toLocaleString()} members
+          </p>
         </div>
       </div>
-
-      {tribe.description && (
-        <p className="text-xs text-white/40 font-lexend leading-relaxed line-clamp-2">
-          {tribe.description}
-        </p>
-      )}
 
       <div className="flex justify-between items-center pt-2 border-t border-white/5">
         <div>
           <span className="font-lexend font-black text-2xl text-primary-container">
             {tribe.total_points.toLocaleString()}
           </span>
-          <span className="text-[10px] text-white/40 uppercase font-semibold font-lexend ml-2">
-            pts
-          </span>
+          <span className="text-[10px] text-white/40 uppercase font-semibold font-lexend ml-2">pts</span>
         </div>
         <NeonButton
           variant={joined ? undefined : 'outline'}
@@ -161,15 +126,11 @@ export function TribesPage() {
 
   return (
     <PageWrapper>
-      {/* ── Page Header ── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <h1 className="font-lexend font-black text-5xl uppercase italic">Tribes</h1>
         <div className="flex gap-3">
-          {/* Search */}
           <div className="relative">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-white/30 text-base">
-              search
-            </span>
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-white/30 text-base">search</span>
             <input
               type="text"
               value={search}
@@ -178,7 +139,6 @@ export function TribesPage() {
               className="pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-lg font-lexend text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-primary-container/60 transition-colors w-48"
             />
           </div>
-          {/* Challenger Leagues live on the Friends page */}
           <NeonButton size="sm" onClick={() => navigate(`/profile/${user?.id}/friends`)}>
             <span className="material-symbols-outlined text-base">emoji_events</span>
             My Leagues
@@ -186,10 +146,9 @@ export function TribesPage() {
         </div>
       </div>
 
-      {/* ── Global Leaderboard ── */}
-      <TribeLeaderboard />
+      {/* ── Global Leaderboard — driven by live data ── */}
+      {tribes && tribes.length > 0 && <TribeLeaderboard tribes={tribes} />}
 
-      {/* ── Tribes Grid ── */}
       <div className="flex items-center justify-between mb-5">
         <h2 className="font-lexend font-bold uppercase text-lg flex items-center gap-2">
           <span className="material-symbols-outlined text-primary-container">groups</span>
@@ -227,14 +186,11 @@ export function TribesPage() {
         </div>
       )}
 
-      {/* ── Invite Banner ── */}
       {!user && (
         <div className="mt-10 p-6 rounded-xl border border-white/10 bg-white/[0.02] flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
           <div>
             <p className="font-lexend font-black uppercase text-lg">Join the Community</p>
-            <p className="text-white/40 text-sm font-lexend mt-1">
-              Sign in to join tribes and compete with friends
-            </p>
+            <p className="text-white/40 text-sm font-lexend mt-1">Sign in to join tribes and compete with friends</p>
           </div>
           <NeonButton size="sm">Sign In</NeonButton>
         </div>

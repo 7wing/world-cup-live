@@ -1,26 +1,25 @@
-// src/pages/MatchDetailPage.tsx
-// Uses all mock data from mockMatchData.ts and sub-components from MatchDetailSubComponents.tsx
+// src/pages/matches/MatchDetailPage.tsx
+// Phase 6: all data from Supabase. No mock data.
 
-import { useState } from 'react'
-import { useParams } from 'react-router-dom'
-import { PageWrapper } from '@/components/layout/PageWrapper'
-import { ScoreCard } from '@/components/matches/ScoreCard'
-import { VibeMeter } from '@/components/matches/VibeMeter'
-import { LiveChatPanel } from '@/components/fanzone/LiveChatPanel'
-import { OraclePrediction } from '@/components/games/OraclePrediction'
-import { GlassCard } from '@/components/ui/GlassCard'
-import { useMatch } from '@/hooks/useMatches'
-import { useOraclePrediction } from '@/hooks/useOracle'
-import { ScorePredictor } from '@/components/matches/ScorePredictor'
-
+import { useState, useMemo } from 'react'
+import { useParams }         from 'react-router-dom'
+import { PageWrapper }       from '@/components/layout/PageWrapper'
+import { ScoreCard }         from '@/components/matches/ScoreCard'
+import { VibeMeter }         from '@/components/matches/VibeMeter'
+import { LiveChatPanel }     from '@/components/fanzone/LiveChatPanel'
+import { OraclePrediction }  from '@/components/games/OraclePrediction'
+import { GlassCard }         from '@/components/ui/GlassCard'
+import { ScorePredictor }    from '@/components/matches/ScorePredictor'
 import {
-  MOCK_MOMENTUM,
-  MOCK_TEAM_STATS,
-  MOCK_PLAYER_STATS,
-  MOCK_HOME_XI,
-  MOCK_AWAY_XI,
-  MOCK_H2H,
-} from '@/components/matches/mockMatchData'
+  useMatch,
+  useMatchStats,
+  useLineups,
+  useMatchEvents,
+  useH2H,
+} from '@/hooks/useMatches'
+import { useOraclePrediction } from '@/hooks/useOracle'
+import { buildMomentumSeries } from '@/api/matchEvents'
+import type { Lineup, MatchStat, MatchEvent } from '@/types'
 
 import {
   StatBar,
@@ -29,10 +28,104 @@ import {
   H2HCard,
   POTMPoll,
   LiveFeed,
-  PlayerStatRow,
+  type PitchPlayer,
+  type H2HMatch,
+  type POTMCandidate,
 } from '@/components/matches/MatchDetailSubComponents'
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ── Data transformation helpers ───────────────────────────────────────────────
+
+type StatRow = { label: string; home: number; away: number; unit?: string }
+
+// All MatchStat columns are nullable — coerce to 0 for display.
+function matchStatToRows(
+  stat: MatchStat | null | undefined,
+  possession: number,
+): StatRow[] {
+  if (!stat) return []
+  return [
+    { label: 'Possession',    home: possession,                     away: 100 - possession,                unit: '%' },
+    { label: 'Shots',         home: stat.home_shots             ?? 0, away: stat.away_shots             ?? 0         },
+    { label: 'On Target',     home: stat.home_shots_on_target   ?? 0, away: stat.away_shots_on_target   ?? 0         },
+    { label: 'Corners',       home: stat.home_corners           ?? 0, away: stat.away_corners           ?? 0         },
+    { label: 'Fouls',         home: stat.home_fouls             ?? 0, away: stat.away_fouls             ?? 0         },
+    { label: 'Yellow Cards',  home: stat.home_yellow_cards      ?? 0, away: stat.away_yellow_cards      ?? 0         },
+    { label: 'Pass Accuracy', home: stat.home_pass_accuracy     ?? 0, away: stat.away_pass_accuracy     ?? 0, unit: '%' },
+  ]
+}
+
+// Map lineups rows → PitchPlayer[] for FormationPitch
+function lineupsToXI(lineups: Lineup[], teamId: string): PitchPlayer[] {
+  return lineups
+    .filter(l => l.team_id === teamId && l.is_starter)
+    .map(l => ({
+      number: l.player_number ?? 0,
+      name:   l.player_name,
+      x:      l.position_x ?? 50,
+      y:      l.position_y ?? 50,
+    }))
+}
+
+// Map Supabase match rows → H2HMatch[] for H2HCard.
+function matchesToH2HRows(matches: any[]): H2HMatch[] {
+  return matches.map(m => {
+    const homeScore = m.home_score ?? 0
+    const awayScore = m.away_score ?? 0
+    const result: H2HMatch['result'] =
+      homeScore > awayScore ? 'home'
+      : awayScore > homeScore ? 'away'
+      : 'draw'
+
+    return {
+      date:       m.kickoff_at as string,
+      home:       (m.home_team as { name: string })?.name ?? '?',
+      away:       (m.away_team as { name: string })?.name ?? '?',
+      score:      `${homeScore} – ${awayScore}`,
+      result,
+      tournament: (m.stage as string) ?? 'World Cup',
+    }
+  })
+}
+
+// Derive POTM candidates from goal-scorer events.
+function eventsToPOTMCandidates(
+  events: MatchEvent[],
+  homeTeamId: string,
+): POTMCandidate[] {
+  const goalEvents = events.filter(
+    e => e.event_type === 'goal' && e.player_name,
+  )
+  if (!goalEvents.length) return []
+
+  const map = new Map<string, { votes: number; flag: string }>()
+  for (const ev of goalEvents) {
+    const key  = ev.player_name!
+    const flag = ev.team_id === homeTeamId ? '🏠' : '✈️'
+    const prev = map.get(key)
+    map.set(key, { votes: (prev?.votes ?? 0) + 1, flag: prev?.flag ?? flag })
+  }
+
+  return Array.from(map.entries())
+    .map(([name, { votes, flag }]) => ({ name, flag, votes }))
+    .sort((a, b) => b.votes - a.votes)
+}
+
+// ── Skeleton ──────────────────────────────────────────────────────────────────
+function DetailSkeleton() {
+  return (
+    <PageWrapper>
+      <div className="glass-card h-28 rounded-xl animate-pulse mb-5" />
+      <div className="flex gap-2 mb-5">
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="h-8 w-20 bg-white/5 rounded animate-pulse" />
+        ))}
+      </div>
+      <div className="h-64 glass-card rounded-xl animate-pulse" />
+    </PageWrapper>
+  )
+}
+
+// ── Tab definition ────────────────────────────────────────────────────────────
 type DetailTab = 'overview' | 'stats' | 'lineups' | 'h2h' | 'predictor'
 
 const DETAIL_TABS: { id: DetailTab; label: string; icon: string }[] = [
@@ -43,24 +136,42 @@ const DETAIL_TABS: { id: DetailTab; label: string; icon: string }[] = [
   { id: 'predictor', label: 'Predict',    icon: 'auto_awesome'   },
 ]
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ── Page ──────────────────────────────────────────────────────────────────────
 export function MatchDetailPage() {
-  const { matchId } = useParams<{ matchId: string }>()
-  const { data: match, isLoading } = useMatch(matchId!)
-  const { data: oracle } = useOraclePrediction(match)
+  const { matchId }  = useParams<{ matchId: string }>()
   const [activeTab, setActiveTab] = useState<DetailTab>('overview')
-  const [playerMetric, setPlayerMetric] = useState<'speed' | 'passes' | 'distance' | 'rating'>('speed')
 
-  if (isLoading) return (
-    <PageWrapper>
-      <div className="glass-card h-64 rounded-xl animate-pulse" />
-    </PageWrapper>
+  const { data: match, isLoading } = useMatch(matchId!)
+  const { data: oracle }           = useOraclePrediction(match ?? null)
+  const { data: matchStat }        = useMatchStats(matchId)
+  const { data: lineups = [] }     = useLineups(matchId)
+  const { data: events  = [] }     = useMatchEvents(matchId)
+  const { data: h2hRaw  = [] }     = useH2H(
+    match?.home_team.id,
+    match?.away_team.id,
   )
-  if (!match) return (
-    <PageWrapper>
-      <p className="text-white/40 font-lexend">Match not found.</p>
-    </PageWrapper>
+
+  const statRows     = useMemo(() => matchStatToRows(matchStat, match?.home_possession ?? 50), [matchStat, match])
+  const momentumData = useMemo(
+    () => match ? buildMomentumSeries(events as MatchEvent[], match.home_team.id) : [],
+    [events, match],
   )
+  const homeXI         = useMemo(() => match ? lineupsToXI(lineups as Lineup[], match.home_team.id) : [], [lineups, match])
+  const awayXI         = useMemo(() => match ? lineupsToXI(lineups as Lineup[], match.away_team.id) : [], [lineups, match])
+  const h2hRows        = useMemo(() => matchesToH2HRows(h2hRaw), [h2hRaw])
+  const potmCandidates = useMemo(
+    () => match ? eventsToPOTMCandidates(events as MatchEvent[], match.home_team.id) : [],
+    [events, match],
+  )
+
+  if (isLoading) return <DetailSkeleton />
+  if (!match) {
+    return (
+      <PageWrapper>
+        <p className="text-white/40 font-lexend">Match not found.</p>
+      </PageWrapper>
+    )
+  }
 
   const homeCode = match.home_team.code ?? match.home_team.name
   const awayCode = match.away_team.code ?? match.away_team.name
@@ -74,7 +185,7 @@ export function MatchDetailPage() {
 
       {/* Tab bar */}
       <div className="flex gap-1 border-b border-white/8 my-5 overflow-x-auto scrollbar-none">
-        {DETAIL_TABS.map((tab) => (
+        {DETAIL_TABS.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
@@ -98,33 +209,56 @@ export function MatchDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
           <div className="lg:col-span-8 space-y-5">
             <MomentumChart
-              data={MOCK_MOMENTUM}
+              data={momentumData}
               homeLabel={homeCode}
               awayLabel={awayCode}
             />
-            <LiveFeed />
-            <GlassCard className="overflow-hidden">
-              <div className="px-4 py-2.5 border-b border-white/8">
-                <p className="font-lexend font-black text-[9px] uppercase tracking-widest text-white/20">
-                  Team Statistics
+            <LiveFeed events={events as MatchEvent[]} />
+
+            {statRows.length > 0 ? (
+              <GlassCard className="overflow-hidden">
+                <div className="px-4 py-2.5 border-b border-white/8">
+                  <p className="font-lexend font-black text-[9px] uppercase tracking-widest text-white/20">
+                    Team Statistics
+                  </p>
+                </div>
+                <div className="px-4 py-2">
+                  {statRows.map(s => (
+                    <StatBar key={s.label} label={s.label} home={s.home} away={s.away} unit={s.unit ?? ''} />
+                  ))}
+                </div>
+              </GlassCard>
+            ) : (
+              <GlassCard className="p-6 text-center">
+                <p className="text-[11px] font-lexend text-white/20">
+                  Match statistics not yet available
                 </p>
-              </div>
-              <div className="px-4 py-2">
-                {MOCK_TEAM_STATS.map((s) => <StatBar key={s.label} {...s} />)}
-              </div>
-            </GlassCard>
+              </GlassCard>
+            )}
           </div>
+
           <div className="lg:col-span-4 space-y-5">
             {match.status === 'live' && (
-              <VibeMeter value={94} atmosphere={98} crowdNoise={93} energyIndex={88} match={match} />
+              <VibeMeter
+                value={94}
+                atmosphere={98}
+                crowdNoise={93}
+                energyIndex={88}
+                match={match}
+              />
             )}
             <OraclePrediction
               match={match}
-              homeWin={55} draw={18} awayWin={27}
-              predictedHome={2} predictedAway={1}
-              confidence={68}
+              homeWin={oracle?.homeWin}
+              draw={oracle?.draw}
+              awayWin={oracle?.awayWin}
+              predictedHome={oracle?.predictedHome}
+              predictedAway={oracle?.predictedAway}
+              confidence={oracle?.confidence}
             />
-            <POTMPoll />
+            {potmCandidates.length > 0 && (
+              <POTMPoll candidates={potmCandidates} />
+            )}
           </div>
         </div>
       )}
@@ -133,57 +267,72 @@ export function MatchDetailPage() {
       {activeTab === 'stats' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
           <div className="lg:col-span-8 space-y-5">
-            <MomentumChart data={MOCK_MOMENTUM} homeLabel={homeCode} awayLabel={awayCode} />
-            <GlassCard className="overflow-hidden">
-              <div className="px-4 py-2.5 border-b border-white/8 flex items-center justify-between">
-                <p className="font-lexend font-black text-[9px] uppercase tracking-widest text-white/20">
-                  Match Statistics
-                </p>
-                <div className="flex items-center gap-3 text-[9px] font-lexend font-bold uppercase tracking-widest">
-                  <span className="text-primary-container flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary-container" />
-                    {homeFlag} {homeCode}
-                  </span>
-                  <span className="text-white/20 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-white/20" />
-                    {awayFlag} {awayCode}
-                  </span>
+            <MomentumChart
+              data={momentumData}
+              homeLabel={homeCode}
+              awayLabel={awayCode}
+            />
+
+            {statRows.length > 0 ? (
+              <GlassCard className="overflow-hidden">
+                <div className="px-4 py-2.5 border-b border-white/8 flex items-center justify-between">
+                  <p className="font-lexend font-black text-[9px] uppercase tracking-widest text-white/20">
+                    Match Statistics
+                  </p>
+                  <div className="flex items-center gap-3 text-[9px] font-lexend font-bold uppercase tracking-widest">
+                    <span className="text-primary-container flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary-container" />
+                      {homeCode}
+                    </span>
+                    <span className="text-white/20 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-white/20" />
+                      {awayCode}
+                    </span>
+                  </div>
                 </div>
-              </div>
-              <div className="px-4 py-2">
-                {MOCK_TEAM_STATS.map((s) => <StatBar key={s.label} {...s} />)}
-              </div>
-            </GlassCard>
+                <div className="px-4 py-2">
+                  {statRows.map(s => (
+                    <StatBar key={s.label} label={s.label} home={s.home} away={s.away} unit={s.unit ?? ''} />
+                  ))}
+                </div>
+              </GlassCard>
+            ) : (
+              <GlassCard className="p-6 text-center">
+                <p className="text-[11px] font-lexend text-white/20">
+                  Match statistics not yet available
+                </p>
+              </GlassCard>
+            )}
           </div>
-          <div className="lg:col-span-4 space-y-5">
+
+          <div className="lg:col-span-4">
             <GlassCard className="overflow-hidden">
               <div className="px-4 py-2.5 border-b border-white/8">
-                <p className="font-lexend font-black text-[9px] uppercase tracking-widest text-white/20 mb-2.5">
-                  Player Rankings
+                <p className="font-lexend font-black text-[9px] uppercase tracking-widest text-white/20">
+                  Starting XI
                 </p>
-                <div className="flex gap-1.5 flex-wrap">
-                  {(['speed', 'passes', 'distance', 'rating'] as const).map((m) => (
-                    <button
-                      key={m}
-                      onClick={() => setPlayerMetric(m)}
-                      className={`px-2.5 py-1 rounded-full text-[9px] font-lexend font-black uppercase tracking-widest transition-colors ${
-                        playerMetric === m
-                          ? 'bg-primary-container/20 text-primary-container border border-primary-container/30'
-                          : 'bg-white/5 text-white/20 border border-transparent hover:text-white/40'
-                      }`}
-                    >
-                      {m === 'speed' ? 'Speed' : m === 'passes' ? 'Pass%' : m === 'distance' ? 'Dist' : 'Rating'}
-                    </button>
+              </div>
+              {lineups.filter((l: Lineup) => l.is_starter).length > 0 ? (
+                <div className="divide-y divide-white/5">
+                  {(lineups as Lineup[]).filter(l => l.is_starter).map(p => (
+                    <div key={p.id} className="flex items-center gap-3 px-4 py-2">
+                      <span className="font-lexend font-black text-[10px] text-white/20 w-5">
+                        {p.player_number ?? '–'}
+                      </span>
+                      <span className="font-lexend font-semibold text-xs text-white/70 flex-1">
+                        {p.player_name}
+                      </span>
+                      <span className="text-[9px] font-lexend font-bold text-white/20 bg-white/5 px-1.5 py-0.5 rounded">
+                        {p.position ?? '–'}
+                      </span>
+                    </div>
                   ))}
                 </div>
-              </div>
-              <div className="px-4 py-1">
-                {[...MOCK_PLAYER_STATS]
-                  .sort((a, b) => (b[playerMetric] as number) - (a[playerMetric] as number))
-                  .map((p) => (
-                    <PlayerStatRow key={p.name} player={p} metric={playerMetric} />
-                  ))}
-              </div>
+              ) : (
+                <p className="p-4 text-center text-[11px] font-lexend text-white/20">
+                  Lineups not yet confirmed
+                </p>
+              )}
             </GlassCard>
           </div>
         </div>
@@ -193,31 +342,52 @@ export function MatchDetailPage() {
       {activeTab === 'lineups' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
           <div className="lg:col-span-8">
-            <FormationPitch
-              homeXI={MOCK_HOME_XI}
-              awayXI={MOCK_AWAY_XI}
-              homeLabel={`${homeFlag} ${homeCode} 4-3-3`}
-              awayLabel={`${awayFlag} ${awayCode} 4-2-3-1`}
-            />
+            {homeXI.length > 0 || awayXI.length > 0 ? (
+              <FormationPitch
+                homeXI={homeXI}
+                awayXI={awayXI}
+                homeLabel={`${homeFlag} ${homeCode}`}
+                awayLabel={`${awayFlag} ${awayCode}`}
+              />
+            ) : (
+              <GlassCard className="p-12 text-center">
+                <span className="material-symbols-outlined text-4xl text-white/10 block mb-3">people</span>
+                <p className="font-lexend font-black text-sm text-white/20">
+                  Lineups not yet announced
+                </p>
+              </GlassCard>
+            )}
           </div>
+
           <div className="lg:col-span-4 space-y-5">
             {[
-              { label: `${homeFlag} ${homeCode} · 4-3-3`,    xi: MOCK_HOME_XI, color: 'text-primary-container' },
-              { label: `${awayFlag} ${awayCode} · 4-2-3-1`,  xi: MOCK_AWAY_XI, color: 'text-white/60'         },
+              { label: homeCode, xi: homeXI, color: 'text-primary-container' },
+              { label: awayCode, xi: awayXI, color: 'text-white/60'          },
             ].map(({ label, xi, color }) => (
               <GlassCard key={label} className="overflow-hidden">
                 <div className="px-4 py-2.5 border-b border-white/8">
-                  <p className={`font-lexend font-black text-[10px] uppercase tracking-widest ${color}`}>{label}</p>
+                  <p className={`font-lexend font-black text-[10px] uppercase tracking-widest ${color}`}>
+                    {label}
+                  </p>
                 </div>
-                <div className="divide-y divide-white/5">
-                  {xi.map((p) => (
-                    <div key={p.number} className="flex items-center gap-3 px-4 py-2">
-                      <span className="font-lexend font-black text-[10px] text-white/20 w-5">{p.number}</span>
-                      <span className="font-lexend font-semibold text-xs text-white/70 flex-1">{p.name}</span>
-                      <span className="text-[9px] font-lexend font-bold text-white/20 bg-white/5 px-1.5 py-0.5 rounded">{p.pos}</span>
-                    </div>
-                  ))}
-                </div>
+                {xi.length > 0 ? (
+                  <div className="divide-y divide-white/5">
+                    {xi.map(p => (
+                      <div key={p.number} className="flex items-center gap-3 px-4 py-2">
+                        <span className="font-lexend font-black text-[10px] text-white/20 w-5">
+                          {p.number}
+                        </span>
+                        <span className="font-lexend font-semibold text-xs text-white/70 flex-1">
+                          {p.name}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="p-4 text-center text-[11px] font-lexend text-white/20">
+                    Not yet announced
+                  </p>
+                )}
               </GlassCard>
             ))}
           </div>
@@ -228,7 +398,18 @@ export function MatchDetailPage() {
       {activeTab === 'h2h' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
           <div className="lg:col-span-7">
-            <H2HCard matches={MOCK_H2H} homeFlag={homeFlag} awayFlag={awayFlag} />
+            {h2hRows.length > 0 ? (
+              <H2HCard matches={h2hRows} homeFlag={homeFlag} awayFlag={awayFlag} />
+            ) : (
+              <GlassCard className="p-12 text-center">
+                <span className="material-symbols-outlined text-4xl text-white/10 block mb-3">
+                  compare_arrows
+                </span>
+                <p className="font-lexend font-black text-sm text-white/20">
+                  No previous meetings found
+                </p>
+              </GlassCard>
+            )}
           </div>
           <div className="lg:col-span-5 space-y-5">
             <OraclePrediction
@@ -249,7 +430,9 @@ export function MatchDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
           <div className="lg:col-span-5 space-y-5">
             <ScorePredictor match={match} />
-            <POTMPoll />
+            {potmCandidates.length > 0 && (
+              <POTMPoll candidates={potmCandidates} />
+            )}
           </div>
           <div className="lg:col-span-7 space-y-5">
             <OraclePrediction
@@ -261,7 +444,11 @@ export function MatchDetailPage() {
               predictedAway={oracle?.predictedAway}
               confidence={oracle?.confidence}
             />
-            <MomentumChart data={MOCK_MOMENTUM} homeLabel={homeCode} awayLabel={awayCode} />
+            <MomentumChart
+              data={momentumData}
+              homeLabel={homeCode}
+              awayLabel={awayCode}
+            />
           </div>
         </div>
       )}
@@ -270,7 +457,9 @@ export function MatchDetailPage() {
       <div className="mt-5">
         <div className="flex items-center gap-2 mb-3">
           <span className="w-1 h-5 bg-primary-container rounded-full" />
-          <h2 className="font-lexend font-bold uppercase tracking-tighter text-sm">Match Chat</h2>
+          <h2 className="font-lexend font-bold uppercase tracking-tighter text-sm">
+            Match Chat
+          </h2>
           {match.status === 'live' && (
             <div className="flex items-center gap-1.5 bg-surface-container-high px-2.5 py-0.5 rounded-full border border-white/5">
               <div className="w-1.5 h-1.5 rounded-full bg-primary-container animate-pulse" />
