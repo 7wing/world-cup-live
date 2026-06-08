@@ -1,7 +1,71 @@
+import type { User as AuthUser } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import type { User, Friendship, FanPhoto, PassportBadge, Prediction } from '@/types'
 
 // ── User ──────────────────────────────────────────────────────────────────────
+
+function isNotFoundError(error: { code?: string }): boolean {
+  return error.code === 'PGRST116'
+}
+
+async function isUsernameTaken(username: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('users')
+    .select('id')
+    .eq('username', username)
+    .maybeSingle()
+  if (error) return false
+  return !!data
+}
+
+async function pickAvailableUsername(base: string): Promise<string> {
+  const clean = base.replace(/\s+/g, '_').toLowerCase().slice(0, 24) || 'fan'
+  if (!(await isUsernameTaken(clean))) return clean
+  for (let i = 1; i <= 99; i++) {
+    const candidate = `${clean}_${i}`
+    if (!(await isUsernameTaken(candidate))) return candidate
+  }
+  return `${clean}_${Date.now().toString(36)}`
+}
+
+function defaultUsername(authUser: AuthUser): string {
+  const fromMeta = authUser.user_metadata?.username
+  if (typeof fromMeta === 'string' && fromMeta.trim()) return fromMeta.trim()
+  const fromEmail = authUser.email?.split('@')[0]?.replace(/\W/g, '_')
+  if (fromEmail) return fromEmail
+  return `fan_${authUser.id.slice(0, 8)}`
+}
+
+/** Load profile row, creating it on first sign-in if missing. */
+export async function ensureUserProfile(authUser: AuthUser): Promise<User> {
+  try {
+    return await fetchUserById(authUser.id)
+  } catch (error) {
+    if (!isNotFoundError(error as { code?: string })) throw error
+  }
+
+  const username = await pickAvailableUsername(defaultUsername(authUser))
+  const { data, error } = await supabase
+    .from('users')
+    .insert({
+      id: authUser.id,
+      username,
+      avatar_url: null,
+      tier: 'fan',
+      xp: 0,
+      global_rank: null,
+      tribe_id: null,
+    })
+    .select()
+    .single()
+
+  if (error) {
+    // Race: another tab created the row between our fetch and insert
+    if (error.code === '23505') return fetchUserById(authUser.id)
+    throw error
+  }
+  return data as User
+}
 
 export async function fetchUserById(userId: string): Promise<User> {
   const { data, error } = await supabase

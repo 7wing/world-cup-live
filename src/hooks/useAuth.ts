@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/authStore'
-import { fetchUserById } from '@/api/profile'
+import { ensureUserProfile } from '@/api/profile'
 
 export function useAuth() {
   const { setUser, setSession, setLoading } = useAuthStore()
@@ -16,9 +16,10 @@ export function useAuth() {
 
       if (session?.user) {
         try {
-          const profile = await fetchUserById(session.user.id)
+          const profile = await ensureUserProfile(session.user)
           if (!cancelled) setUser(profile)
-        } catch {
+        } catch (err) {
+          console.error('[useAuth] profile setup failed:', err)
           if (!cancelled) setUser(null)
         }
       } else {
