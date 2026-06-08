@@ -110,8 +110,19 @@ export function TopBar() {
           })}
         </nav>
 
-        {/* Desktop profile */}
+        {/* Desktop right side — settings + profile */}
         <div className="hidden md:flex items-center gap-2 shrink-0">
+          {/* Settings */}
+          <button
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+            className="flex items-center justify-center w-8 h-8 rounded-xl text-white/40 hover:text-white/80 hover:bg-white/5 transition-colors"
+            aria-label="Settings"
+          >
+            <span className="material-symbols-outlined text-[18px]">settings</span>
+          </button>
+
+          {/* Profile */}
           <Link
             to={profileTo}
             className="flex items-center justify-center w-8 h-8 rounded-xl overflow-hidden transition-all duration-300 hover:scale-105"

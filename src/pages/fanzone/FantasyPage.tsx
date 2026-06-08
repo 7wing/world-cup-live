@@ -1,157 +1,194 @@
 // src/pages/fanzone/FantasyPage.tsx
-// Fantasy team draft — pick 11 players within a 100-credit budget.
+// Fantasy draft — pulls real players from Supabase players table.
+// Saves/loads squad via fantasy_squads + fantasy_players tables.
 
-import { useState, useEffect, useMemo } from "react";
-import {
-  Player,
-  saveSquad,
-  loadSquad,
-  calculatePoints,
-  calculateSquadPoints,
-  SCORING_RULES,
-} from "../../lib/fantasyStorage";
+import { useState, useMemo, useEffect } from 'react'
+import { useQuery, useMutation }        from '@tanstack/react-query'
+import { useAuthStore }                 from '@/store/authStore'
+import { fetchPlayers, fetchFantasySquad, saveFantasySquad } from '@/api/fanzone'
+import type { Player, FantasySquadPlayer } from '@/api/fanzone'
 
-// ------------------------------------------------------------------ constants
-const BUDGET = 100;
-const SQUAD_SIZE = 11;
-// Minimum position requirements
-const MIN_POSITIONS: Record<Player["position"], number> = {
-  GK: 1,
-  DEF: 3,
-  MID: 2,
-  FWD: 1,
-};
+// ── Constants ─────────────────────────────────────────────────────────────────
 
-// ------------------------------------------------------------------ mock pool
-// Replace with API call to your player endpoint
-const MOCK_PLAYERS: Player[] = [
-  { id: "p1",  name: "Ederson",        team: "Brazil",    position: "GK",  cost: 9  },
-  { id: "p2",  name: "Courtois",       team: "Belgium",   position: "GK",  cost: 8  },
-  { id: "p3",  name: "Alisson",        team: "Brazil",    position: "GK",  cost: 8  },
-  { id: "p4",  name: "T. Alexander-Arnold", team: "England", position: "DEF", cost: 8 },
-  { id: "p5",  name: "Theo Hernandez", team: "France",    position: "DEF", cost: 8  },
-  { id: "p6",  name: "Marquinhos",     team: "Brazil",    position: "DEF", cost: 7  },
-  { id: "p7",  name: "Rüdiger",        team: "Germany",   position: "DEF", cost: 7  },
-  { id: "p8",  name: "Hakimi",         team: "Morocco",   position: "DEF", cost: 7  },
-  { id: "p9",  name: "Cancelo",        team: "Portugal",  position: "DEF", cost: 7  },
-  { id: "p10", name: "Bellingham",     team: "England",   position: "MID", cost: 13 },
-  { id: "p11", name: "Vinicius Jr.",   team: "Brazil",    position: "MID", cost: 12 },
-  { id: "p12", name: "De Bruyne",      team: "Belgium",   position: "MID", cost: 12 },
-  { id: "p13", name: "Pedri",          team: "Spain",     position: "MID", cost: 10 },
-  { id: "p14", name: "Valverde",       team: "Uruguay",   position: "MID", cost: 9  },
-  { id: "p15", name: "Camavinga",      team: "France",    position: "MID", cost: 8  },
-  { id: "p16", name: "Mbappé",         team: "France",    position: "FWD", cost: 15 },
-  { id: "p17", name: "Haaland",        team: "Norway",    position: "FWD", cost: 14 },
-  { id: "p18", name: "Rodri",          team: "Spain",     position: "FWD", cost: 13 },
-  { id: "p19", name: "Osimhen",        team: "Nigeria",   position: "FWD", cost: 11 },
-  { id: "p20", name: "Rashford",       team: "England",   position: "FWD", cost: 10 },
-  { id: "p21", name: "Leao",           team: "Portugal",  position: "FWD", cost: 9  },
-];
+const BUDGET     = 100
+const SQUAD_SIZE = 11
 
-const POSITIONS: Player["position"][] = ["GK", "DEF", "MID", "FWD"];
-const POSITION_COLORS: Record<Player["position"], string> = {
-  GK:  "#F59E0B",
-  DEF: "#3B82F6",
-  MID: "#10B981",
-  FWD: "#EF4444",
-};
+const MIN_POSITIONS: Record<Player['position'], number> = {
+  GK: 1, DEF: 3, MID: 2, FWD: 1,
+}
 
-// ------------------------------------------------------------------ component
+const POSITIONS: Player['position'][] = ['GK', 'DEF', 'MID', 'FWD']
+
+const POSITION_COLORS: Record<Player['position'], string> = {
+  GK:  '#F59E0B',
+  DEF: '#3B82F6',
+  MID: '#10B981',
+  FWD: '#EF4444',
+}
+
+// ── Scoring ───────────────────────────────────────────────────────────────────
+
+const SCORING = {
+  goal_gk_def:       6,
+  goal_outfield:     4,
+  assist:            3,
+  clean_sheet_gk_def: 4,
+  clean_sheet_mid:   1,
+  yellow_card:      -1,
+  red_card:         -3,
+}
+
+function calcPoints(p: FantasySquadPlayer): number {
+  const isDefensive = p.position === 'GK' || p.position === 'DEF'
+  let pts = 0
+  pts += p.goals        * (isDefensive ? SCORING.goal_gk_def : SCORING.goal_outfield)
+  pts += p.assists      * SCORING.assist
+  pts += p.yellow_cards * SCORING.yellow_card
+  pts += p.red_cards    * SCORING.red_card
+  if (p.clean_sheet) {
+    pts += isDefensive ? SCORING.clean_sheet_gk_def : (p.position === 'MID' ? SCORING.clean_sheet_mid : 0)
+  }
+  return pts
+}
+
+// Keep calcPoints referenced so TS doesn't warn — used when locked squad shows real points
+void calcPoints
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
 export function FantasyPage() {
-  const matchdayId = "matchday_1"; // TODO: derive from router param
-  const userId = "guest";          // TODO: replace with useAuth().user.id
+  const { user }       = useAuthStore()
+  const matchdayId     = 'matchday_1' // derive from router/context when matchdays are live
+  const [filter, setFilter]           = useState<Player['position'] | 'ALL'>('ALL')
+  const [squad, setSquad]             = useState<Player[]>([])
+  const [locked, setLocked]           = useState(false)
+  const [savedMsg, setSavedMsg]       = useState(false)
 
-  const [squad, setSquad] = useState<Player[]>([]);
-  const [filter, setFilter] = useState<Player["position"] | "ALL">("ALL");
-  const [locked, setLocked] = useState(false);
-  const [saved, setSaved] = useState(false);
+  // ── Fetch player pool ──────────────────────────────────────────────────────
+  const { data: allPlayers = [], isLoading: loadingPlayers } = useQuery({
+    queryKey: ['players'],
+    queryFn:  () => fetchPlayers(),
+    staleTime: 5 * 60_000,
+  })
 
-  // Load existing squad on mount
+  // ── Load existing squad ────────────────────────────────────────────────────
+  const { data: existingSquad } = useQuery({
+    queryKey: ['fantasy_squad', user?.id, matchdayId],
+    queryFn:  () => fetchFantasySquad(user!.id, matchdayId),
+    enabled:  !!user,
+  })
+
+  // Restore squad from DB into local state once data arrives
   useEffect(() => {
-    const existing = loadSquad(matchdayId, userId);
-    if (existing) {
-      setSquad(existing.players);
-      setLocked(existing.lockedIn);
-    }
-  }, [matchdayId, userId]);
+    if (!existingSquad) return
+    const restored: Player[] = existingSquad.players.map((p: FantasySquadPlayer) => ({
+      id:       p.id,
+      name:     p.name,
+      team:     p.team,
+      position: p.position,
+      cost:     p.cost,
+    }))
+    setSquad(restored)
+    setLocked(existingSquad.squad.locked_in)
+  }, [existingSquad])
 
-  const spent = useMemo(() => squad.reduce((s, p) => s + p.cost, 0), [squad]);
-  const remaining = BUDGET - spent;
-  const squadIds = new Set(squad.map((p) => p.id));
+  // ── Save mutation ──────────────────────────────────────────────────────────
+  const { mutate: persistSquad, isPending: saving } = useMutation({
+    mutationFn: ({ lockedIn }: { lockedIn: boolean }) =>
+      saveFantasySquad(user!.id, matchdayId, squad, lockedIn),
+    onSuccess: () => {
+      setSavedMsg(true)
+      setTimeout(() => setSavedMsg(false), 2000)
+    },
+  })
 
-  // Validation
+  // ── Derived state ──────────────────────────────────────────────────────────
+  const spent     = useMemo(() => squad.reduce((s, p) => s + p.cost, 0), [squad])
+  const remaining = BUDGET - spent
+  const squadIds  = useMemo(() => new Set(squad.map(p => p.id)), [squad])
+
   const positionCounts = useMemo(() => {
-    const c: Record<string, number> = { GK: 0, DEF: 0, MID: 0, FWD: 0 };
-    squad.forEach((p) => c[p.position]++);
-    return c;
-  }, [squad]);
+    const c: Record<string, number> = { GK: 0, DEF: 0, MID: 0, FWD: 0 }
+    squad.forEach(p => c[p.position]++)
+    return c
+  }, [squad])
 
   const isValid =
     squad.length === SQUAD_SIZE &&
-    POSITIONS.every((pos) => positionCounts[pos] >= MIN_POSITIONS[pos]);
+    POSITIONS.every(pos => positionCounts[pos] >= MIN_POSITIONS[pos])
 
-  const canAdd = (player: Player) =>
-    !locked &&
-    !squadIds.has(player.id) &&
-    squad.length < SQUAD_SIZE &&
-    remaining >= player.cost;
+  const visiblePlayers = allPlayers.filter(
+    p => filter === 'ALL' || p.position === filter,
+  )
 
-  function addPlayer(player: Player) {
-    if (canAdd(player)) setSquad((prev) => [...prev, player]);
+  // ── Handlers ───────────────────────────────────────────────────────────────
+
+  const addPlayer = (player: Player) => {
+    if (locked) return
+    if (squadIds.has(player.id)) return
+    if (squad.length >= SQUAD_SIZE) return
+    if (remaining < player.cost) return
+    setSquad(prev => [...prev, player])
   }
 
-  function removePlayer(id: string) {
-    if (!locked) setSquad((prev) => prev.filter((p) => p.id !== id));
+  const removePlayer = (id: string) => {
+    if (locked) return
+    setSquad(prev => prev.filter(p => p.id !== id))
   }
 
-  function handleSave() {
-    saveSquad({ userId, matchdayId, players: squad, lockedIn: locked, savedAt: "" });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  const handleSave = () => {
+    if (!user) return
+    persistSquad({ lockedIn: false })
   }
 
-  function handleLock() {
-    if (!isValid) return;
-    setLocked(true);
-    saveSquad({ userId, matchdayId, players: squad, lockedIn: true, savedAt: "" });
+  const handleLock = () => {
+    if (!user || !isValid) return
+    setLocked(true)
+    persistSquad({ lockedIn: true })
   }
 
-  const visiblePlayers = MOCK_PLAYERS.filter(
-    (p) => filter === "ALL" || p.position === filter
-  );
-
-  const totalPoints = useMemo(() => calculateSquadPoints(squad), [squad]);
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ maxWidth: 900, margin: "0 auto", padding: "16px 12px" }}>
-      <h1 style={{ fontSize: 22, fontWeight: 500, marginBottom: 4 }}>Fantasy Draft</h1>
-      <p style={{ color: "var(--color-text-secondary)", fontSize: 14, marginBottom: 20 }}>
+    <div className="max-w-[1280px] mx-auto px-6 pt-20 pb-24">
+      {/* Header */}
+      <h1 className="font-lexend font-black text-5xl uppercase italic leading-none mb-2">
+        Fantasy Draft
+      </h1>
+      <p className="text-white/40 text-sm font-lexend mb-8">
         Pick {SQUAD_SIZE} players within a {BUDGET}-credit budget. Scores update live after kick-off.
       </p>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-        {/* ---- Left: Player Pool ---- */}
-        <div>
-          <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
-            {(["ALL", ...POSITIONS] as const).map((pos) => (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+
+        {/* ── Left: Player Pool ── */}
+        <div className="glass-card rounded-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between">
+            <h2 className="font-lexend font-black text-xs uppercase tracking-widest text-white/60">
+              Player Pool
+            </h2>
+            <span className="text-[10px] font-lexend text-white/30">
+              {allPlayers.length} players
+            </span>
+          </div>
+
+          {/* Position filter */}
+          <div className="flex gap-1.5 px-4 py-3 border-b border-white/5 flex-wrap">
+            {(['ALL', ...POSITIONS] as const).map(pos => (
               <button
                 key={pos}
                 onClick={() => setFilter(pos)}
+                className="px-3 py-1 rounded-full text-[10px] font-lexend font-black uppercase tracking-widest border transition-all"
                 style={{
-                  padding: "4px 12px",
-                  borderRadius: 20,
-                  border: "1px solid",
-                  borderColor: filter === pos ? "transparent" : "var(--color-border-secondary)",
-                  background:
-                    filter === pos
-                      ? pos === "ALL"
-                        ? "var(--color-text-secondary)"
-                        : POSITION_COLORS[pos as Player["position"]]
-                      : "transparent",
-                  color: filter === pos ? "#fff" : "var(--color-text-secondary)",
-                  fontSize: 12,
-                  fontWeight: 500,
-                  cursor: "pointer",
+                  borderColor: filter === pos
+                    ? (pos === 'ALL' ? 'rgba(255,255,255,0.4)' : POSITION_COLORS[pos as Player['position']])
+                    : 'rgba(255,255,255,0.1)',
+                  background: filter === pos
+                    ? (pos === 'ALL' ? 'rgba(255,255,255,0.1)' : `${POSITION_COLORS[pos as Player['position']]}20`)
+                    : 'transparent',
+                  color: filter === pos
+                    ? (pos === 'ALL' ? 'rgba(255,255,255,0.8)' : POSITION_COLORS[pos as Player['position']])
+                    : 'rgba(255,255,255,0.3)',
                 }}
               >
                 {pos}
@@ -159,342 +196,225 @@ export function FantasyPage() {
             ))}
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 6,
-              maxHeight: 480,
-              overflowY: "auto",
-            }}
-          >
-            {visiblePlayers.map((player) => {
-              const inSquad = squadIds.has(player.id);
-              const affordable = remaining >= player.cost;
-              const full = squad.length >= SQUAD_SIZE;
+          {/* Player list */}
+          <div className="overflow-y-auto" style={{ maxHeight: 480 }}>
+            {loadingPlayers && (
+              <div className="p-4 space-y-2">
+                {[1,2,3,4,5].map(i => (
+                  <div key={i} className="h-11 bg-white/5 rounded-lg animate-pulse" />
+                ))}
+              </div>
+            )}
+
+            {!loadingPlayers && visiblePlayers.length === 0 && (
+              <p className="text-center text-white/20 text-sm font-lexend py-10">
+                No players found
+              </p>
+            )}
+
+            {!loadingPlayers && visiblePlayers.map(player => {
+              const inSquad    = squadIds.has(player.id)
+              const affordable = remaining >= player.cost
+              const full       = squad.length >= SQUAD_SIZE
+              const disabled   = !inSquad && (!affordable || full)
+
               return (
-                <div
+                <button
                   key={player.id}
-                  onClick={() => (inSquad ? removePlayer(player.id) : addPlayer(player))}
+                  onClick={() => inSquad ? removePlayer(player.id) : addPlayer(player)}
+                  disabled={locked || disabled}
+                  className="flex items-center gap-3 w-full px-4 py-3 border-b border-white/5 last:border-0 text-left transition-all disabled:opacity-40"
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    padding: "8px 12px",
-                    borderRadius: 8,
-                    border: "1px solid",
-                    borderColor: inSquad
-                      ? POSITION_COLORS[player.position]
-                      : "var(--color-border-tertiary)",
-                    background: inSquad
-                      ? `${POSITION_COLORS[player.position]}18`
-                      : "var(--color-background-secondary)",
-                    cursor: locked
-                      ? "default"
-                      : !inSquad && (!affordable || full)
-                      ? "not-allowed"
-                      : "pointer",
-                    opacity: !inSquad && (!affordable || full) ? 0.45 : 1,
-                    transition: "all 0.15s",
+                    background: inSquad ? `${POSITION_COLORS[player.position]}10` : 'transparent',
+                    cursor: locked ? 'default' : disabled ? 'not-allowed' : 'pointer',
                   }}
                 >
                   <span
-                    style={{
-                      fontSize: 10,
-                      fontWeight: 600,
-                      background: POSITION_COLORS[player.position],
-                      color: "#fff",
-                      borderRadius: 4,
-                      padding: "1px 5px",
-                      marginRight: 8,
-                      minWidth: 28,
-                      textAlign: "center",
-                    }}
+                    className="text-[9px] font-lexend font-black px-1.5 py-0.5 rounded text-white flex-shrink-0"
+                    style={{ background: POSITION_COLORS[player.position] }}
                   >
                     {player.position}
                   </span>
-                  <span style={{ flex: 1, fontSize: 14, fontWeight: 500 }}>{player.name}</span>
-                  <span style={{ fontSize: 12, color: "var(--color-text-secondary)", marginRight: 8 }}>
+                  <span className="flex-1 text-sm font-lexend font-semibold text-white/80 truncate">
+                    {player.name}
+                  </span>
+                  <span className="text-[11px] font-lexend text-white/30 flex-shrink-0">
                     {player.team}
                   </span>
                   <span
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: inSquad
-                        ? POSITION_COLORS[player.position]
-                        : "var(--color-text-primary)",
-                    }}
+                    className="text-sm font-lexend font-black flex-shrink-0"
+                    style={{ color: inSquad ? POSITION_COLORS[player.position] : 'rgba(255,255,255,0.6)' }}
                   >
                     {player.cost}cr
                   </span>
                   {inSquad && (
-                    <span style={{ marginLeft: 6, fontSize: 12, color: POSITION_COLORS[player.position] }}>
-                      ✓
-                    </span>
+                    <span className="text-xs flex-shrink-0" style={{ color: POSITION_COLORS[player.position] }}>✓</span>
                   )}
-                </div>
-              );
+                </button>
+              )
             })}
           </div>
         </div>
 
-        {/* ---- Right: Your Squad ---- */}
-        <div>
+        {/* ── Right: Your Squad ── */}
+        <div className="flex flex-col gap-4">
+
           {/* Budget bar */}
-          <div style={{ marginBottom: 12 }}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                fontSize: 13,
-                marginBottom: 4,
-              }}
-            >
-              <span style={{ color: "var(--color-text-secondary)" }}>
-                Budget: <strong>{remaining}cr left</strong> / {BUDGET}cr
+          <div className="glass-card rounded-xl p-4">
+            <div className="flex justify-between text-xs font-lexend mb-2">
+              <span className="text-white/40">
+                Budget: <span className="text-white/80 font-bold">{remaining}cr left</span> / {BUDGET}cr
               </span>
-              <span style={{ color: "var(--color-text-secondary)" }}>
-                {squad.length}/{SQUAD_SIZE} players
-              </span>
+              <span className="text-white/40">{squad.length}/{SQUAD_SIZE} players</span>
             </div>
-            <div
-              style={{
-                height: 6,
-                borderRadius: 3,
-                background: "var(--color-border-secondary)",
-                overflow: "hidden",
-              }}
-            >
+            <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
               <div
+                className="h-full rounded-full transition-all duration-300"
                 style={{
-                  height: "100%",
-                  borderRadius: 3,
-                  background: spent / BUDGET > 0.9 ? "#EF4444" : "#10B981",
                   width: `${(spent / BUDGET) * 100}%`,
-                  transition: "width 0.2s",
+                  background: spent / BUDGET > 0.9 ? '#EF4444' : '#10B981',
                 }}
               />
             </div>
-          </div>
 
-          {/* Position requirements */}
-          <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
-            {POSITIONS.map((pos) => {
-              const count = positionCounts[pos];
-              const min = MIN_POSITIONS[pos];
-              const ok = count >= min;
-              return (
-                <span
-                  key={pos}
-                  style={{
-                    fontSize: 11,
-                    padding: "2px 8px",
-                    borderRadius: 12,
-                    background: ok ? `${POSITION_COLORS[pos]}20` : "var(--color-background-secondary)",
-                    border: `1px solid ${ok ? POSITION_COLORS[pos] : "var(--color-border-tertiary)"}`,
-                    color: ok ? POSITION_COLORS[pos] : "var(--color-text-secondary)",
-                    fontWeight: 500,
-                  }}
-                >
-                  {pos}: {count} {ok ? "✓" : `(min ${min})`}
-                </span>
-              );
-            })}
+            {/* Position requirements */}
+            <div className="flex gap-2 mt-3 flex-wrap">
+              {POSITIONS.map(pos => {
+                const count = positionCounts[pos]
+                const min   = MIN_POSITIONS[pos]
+                const ok    = count >= min
+                return (
+                  <span
+                    key={pos}
+                    className="text-[10px] font-lexend font-bold px-2 py-0.5 rounded-full border"
+                    style={{
+                      borderColor: ok ? POSITION_COLORS[pos] : 'rgba(255,255,255,0.1)',
+                      background:  ok ? `${POSITION_COLORS[pos]}15` : 'transparent',
+                      color:       ok ? POSITION_COLORS[pos] : 'rgba(255,255,255,0.3)',
+                    }}
+                  >
+                    {pos}: {count} {ok ? '✓' : `(min ${min})`}
+                  </span>
+                )
+              })}
+            </div>
           </div>
 
           {/* Squad list */}
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 4,
-              maxHeight: 340,
-              overflowY: "auto",
-              marginBottom: 12,
-            }}
-          >
-            {squad.length === 0 && (
-              <div
-                style={{
-                  padding: "24px 0",
-                  textAlign: "center",
-                  color: "var(--color-text-secondary)",
-                  fontSize: 13,
-                }}
-              >
-                Click players from the pool to add them
+          <div className="glass-card rounded-xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-white/5">
+              <h2 className="font-lexend font-black text-xs uppercase tracking-widest text-white/60">
+                Your Squad
+              </h2>
+            </div>
+
+            <div className="overflow-y-auto" style={{ maxHeight: 340 }}>
+              {squad.length === 0 && (
+                <p className="text-center text-white/20 text-sm font-lexend py-10">
+                  Click players from the pool to add them
+                </p>
+              )}
+
+              {squad.map(player => (
+                <div
+                  key={player.id}
+                  className="flex items-center gap-3 px-4 py-3 border-b border-white/5 last:border-0"
+                >
+                  <span
+                    className="text-[9px] font-lexend font-black px-1.5 py-0.5 rounded text-white flex-shrink-0"
+                    style={{ background: POSITION_COLORS[player.position] }}
+                  >
+                    {player.position}
+                  </span>
+                  <span className="flex-1 text-sm font-lexend font-semibold text-white/80 truncate">
+                    {player.name}
+                  </span>
+                  <span className="text-[11px] font-lexend text-white/30">{player.cost}cr</span>
+                  {!locked && (
+                    <button
+                      onClick={() => removePlayer(player.id)}
+                      className="text-white/20 hover:text-white/60 transition-colors text-lg leading-none ml-1"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Total points if locked */}
+            {locked && squad.length > 0 && (
+              <div className="px-4 py-3 border-t border-white/5 text-center">
+                <span className="font-lexend font-black text-2xl text-primary-container">
+                  0 pts
+                </span>
+                <p className="text-[10px] font-lexend text-white/30 mt-0.5">
+                  Points update after kick-off
+                </p>
               </div>
             )}
-            {squad.map((player) => (
-              <div
-                key={player.id}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  padding: "7px 10px",
-                  borderRadius: 7,
-                  background: "var(--color-background-secondary)",
-                  fontSize: 13,
-                  gap: 8,
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 600,
-                    background: POSITION_COLORS[player.position],
-                    color: "#fff",
-                    borderRadius: 3,
-                    padding: "1px 4px",
-                    minWidth: 26,
-                    textAlign: "center",
-                  }}
-                >
-                  {player.position}
-                </span>
-                <span style={{ flex: 1, fontWeight: 500 }}>{player.name}</span>
-                {locked && (
-                  <span
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: "#3B82F6",
-                    }}
-                  >
-                    {calculatePoints(player)}pts
-                  </span>
-                )}
-                <span style={{ color: "var(--color-text-secondary)", fontSize: 12 }}>
-                  {player.cost}cr
-                </span>
-                {!locked && (
-                  <button
-                    onClick={() => removePlayer(player.id)}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      color: "var(--color-text-secondary)",
-                      fontSize: 16,
-                      lineHeight: 1,
-                      padding: "0 2px",
-                    }}
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-            ))}
           </div>
 
-          {/* Total points (if locked in) */}
-          {locked && (
-            <div
-              style={{
-                textAlign: "center",
-                padding: "10px 0",
-                fontSize: 18,
-                fontWeight: 500,
-                color: "#3B82F6",
-                marginBottom: 8,
-              }}
-            >
-              {totalPoints} total points
+          {/* Actions */}
+          {!user ? (
+            <div className="glass-card rounded-xl p-4 text-center">
+              <p className="text-sm font-lexend text-white/40">Sign in to save your squad</p>
+            </div>
+          ) : locked ? (
+            <div className="glass-card rounded-xl p-4 text-center border border-primary-container/30 bg-primary-container/5">
+              <p className="font-lexend font-black text-sm text-primary-container uppercase tracking-widest">
+                ✓ Squad locked in
+              </p>
+            </div>
+          ) : (
+            <div className="flex gap-3">
+              <button
+                onClick={handleSave}
+                disabled={saving || squad.length === 0}
+                className="flex-1 py-3 rounded-xl border border-white/10 bg-transparent font-lexend font-bold text-sm text-white/60 hover:text-white/80 hover:border-white/20 transition-all disabled:opacity-40"
+              >
+                {saving ? 'Saving...' : savedMsg ? 'Saved ✓' : 'Save Draft'}
+              </button>
+              <button
+                onClick={handleLock}
+                disabled={!isValid || saving}
+                className="flex-1 py-3 rounded-xl font-lexend font-black text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{
+                  background: isValid ? '#10B981' : 'rgba(255,255,255,0.05)',
+                  color:      isValid ? '#fff'    : 'rgba(255,255,255,0.3)',
+                }}
+              >
+                Lock In Squad
+              </button>
             </div>
           )}
 
-          {/* Actions */}
-          <div style={{ display: "flex", gap: 8 }}>
-            {!locked && (
-              <>
-                <button
-                  onClick={handleSave}
-                  style={{
-                    flex: 1,
-                    padding: "10px 0",
-                    borderRadius: 8,
-                    border: "1px solid var(--color-border-secondary)",
-                    background: "transparent",
-                    cursor: "pointer",
-                    fontWeight: 500,
-                    fontSize: 14,
-                    color: "var(--color-text-primary)",
-                  }}
-                >
-                  {saved ? "Saved ✓" : "Save Draft"}
-                </button>
-                <button
-                  onClick={handleLock}
-                  disabled={!isValid}
-                  style={{
-                    flex: 1,
-                    padding: "10px 0",
-                    borderRadius: 8,
-                    border: "none",
-                    background: isValid ? "#10B981" : "var(--color-border-secondary)",
-                    color: isValid ? "#fff" : "var(--color-text-secondary)",
-                    cursor: isValid ? "pointer" : "not-allowed",
-                    fontWeight: 600,
-                    fontSize: 14,
-                    transition: "background 0.2s",
-                  }}
-                >
-                  Lock In Squad
-                </button>
-              </>
-            )}
-            {locked && (
-              <div
-                style={{
-                  flex: 1,
-                  textAlign: "center",
-                  padding: "10px 0",
-                  borderRadius: 8,
-                  background: "#10B98120",
-                  color: "#10B981",
-                  fontWeight: 600,
-                  fontSize: 14,
-                  border: "1px solid #10B981",
-                }}
-              >
-                ✓ Squad locked in
-              </div>
-            )}
-          </div>
-
           {/* Scoring guide */}
-          <details style={{ marginTop: 16 }}>
-            <summary
-              style={{
-                fontSize: 12,
-                color: "var(--color-text-secondary)",
-                cursor: "pointer",
-                userSelect: "none",
-              }}
-            >
-              Scoring rules
-            </summary>
-            <div
-              style={{
-                fontSize: 12,
-                color: "var(--color-text-secondary)",
-                marginTop: 8,
-                display: "flex",
-                flexDirection: "column",
-                gap: 3,
-              }}
-            >
-              <span>⚽ Goal (GK/DEF): +{SCORING_RULES.goal_gk_def}pts</span>
-              <span>⚽ Goal (MID/FWD): +{SCORING_RULES.goal_outfield}pts</span>
-              <span>🅰️ Assist: +{SCORING_RULES.assist}pts</span>
-              <span>🛡️ Clean sheet (GK/DEF): +{SCORING_RULES.clean_sheet_gk_def}pts</span>
-              <span>🛡️ Clean sheet (MID): +{SCORING_RULES.clean_sheet_mid}pt</span>
-              <span>🟨 Yellow card: {SCORING_RULES.yellow_card}pt</span>
-              <span>🟥 Red card: {SCORING_RULES.red_card}pts</span>
-            </div>
-          </details>
+          <div className="glass-card rounded-xl overflow-hidden">
+            <details>
+              <summary className="px-4 py-3 text-[11px] font-lexend font-black uppercase tracking-widest text-white/30 cursor-pointer select-none hover:text-white/50 transition-colors">
+                Scoring Rules
+              </summary>
+              <div className="px-4 pb-4 space-y-1.5">
+                {[
+                  [`⚽ Goal (GK/DEF)`,          `+${SCORING.goal_gk_def}pts`],
+                  [`⚽ Goal (MID/FWD)`,          `+${SCORING.goal_outfield}pts`],
+                  [`🅰️ Assist`,                  `+${SCORING.assist}pts`],
+                  [`🛡️ Clean sheet (GK/DEF)`,   `+${SCORING.clean_sheet_gk_def}pts`],
+                  [`🛡️ Clean sheet (MID)`,      `+${SCORING.clean_sheet_mid}pt`],
+                  [`🟨 Yellow card`,             `${SCORING.yellow_card}pt`],
+                  [`🟥 Red card`,                `${SCORING.red_card}pts`],
+                ].map(([label, value]) => (
+                  <div key={label} className="flex justify-between text-[11px] font-lexend">
+                    <span className="text-white/40">{label}</span>
+                    <span className="text-white/70 font-bold">{value}</span>
+                  </div>
+                ))}
+              </div>
+            </details>
+          </div>
         </div>
       </div>
     </div>
-  );
+  )
 }

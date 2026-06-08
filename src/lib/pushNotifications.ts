@@ -11,20 +11,23 @@ const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string
 // --------------------------------------------------------------------------
 
 /**
- * Convert a base64 VAPID public key string to a Uint8Array backed by a plain
- * ArrayBuffer (not SharedArrayBuffer) so it satisfies the PushManager API's
- * BufferSource constraint.
+ * Convert a base64 VAPID public key string to an ArrayBuffer so it satisfies
+ * the PushManager API's BufferSource constraint.
+ *
+ * Returning an ArrayBuffer avoids the TypeScript issue where a Uint8Array's
+ * underlying buffer may be inferred as ArrayBufferLike (which can include
+ * SharedArrayBuffer) and therefore not accepted as a BufferSource.
  */
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
+function urlBase64ToArrayBuffer(base64String: string): ArrayBuffer {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
-  const base64  = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
   const rawData = window.atob(base64)
-  const buffer  = new ArrayBuffer(rawData.length)
-  const output  = new Uint8Array(buffer)
+
+  const output = new Uint8Array(rawData.length)
   for (let i = 0; i < rawData.length; i++) {
     output[i] = rawData.charCodeAt(i)
   }
-  return output
+  return output.buffer
 }
 
 /** Check if the browser supports everything we need. */
@@ -59,6 +62,11 @@ export async function subscribeToAlerts(userId: string): Promise<boolean> {
     return false
   }
 
+  if (!VAPID_PUBLIC_KEY) {
+    console.error('[pushNotifications] VAPID public key is not configured.')
+    return false
+  }
+
   const permission = await Notification.requestPermission()
   if (permission !== 'granted') {
     console.warn('[pushNotifications] Notification permission denied.')
@@ -67,22 +75,24 @@ export async function subscribeToAlerts(userId: string): Promise<boolean> {
 
   const reg = await navigator.serviceWorker.ready
 
+  const applicationServerKey = urlBase64ToArrayBuffer(VAPID_PUBLIC_KEY)
+
   const subscription = await reg.pushManager.subscribe({
-    userVisibleOnly:      true,
-    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+    userVisibleOnly: true,
+    applicationServerKey, // ArrayBuffer (valid BufferSource)
   })
 
-  const json   = subscription.toJSON()
-  const keys   = json.keys as { p256dh: string; auth: string }
+  const json = subscription.toJSON()
+  const keys = json.keys as { p256dh: string; auth: string }
 
   const { error } = await supabase
     .from('push_subscriptions')
     .upsert(
       {
-        user_id:  userId,
+        user_id: userId,
         endpoint: subscription.endpoint,
-        p256dh:   keys.p256dh,
-        auth:     keys.auth,
+        p256dh: keys.p256dh,
+        auth: keys.auth,
       },
       { onConflict: 'user_id,endpoint' },
     )

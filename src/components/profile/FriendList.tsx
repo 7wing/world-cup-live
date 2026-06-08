@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import { Avatar } from '@/components/ui/Avatar'
 import { GlassCard } from '@/components/ui/GlassCard'
 import type { Friendship } from '@/types'
@@ -7,6 +8,8 @@ interface FriendListProps {
 }
 
 export function FriendList({ friends }: FriendListProps) {
+  const navigate = useNavigate()
+
   return (
     <GlassCard className="p-6">
       <div className="flex items-center justify-between mb-6">
@@ -24,11 +27,12 @@ export function FriendList({ friends }: FriendListProps) {
           <p className="text-white/40 text-sm text-center py-4">No friends yet. Invite some fans!</p>
         ) : (
           friends.map((f) => (
-            <div
+            <button
               key={f.id}
-              className="flex items-center gap-4 p-3 rounded-lg hover:bg-white/5 transition-all cursor-pointer"
+              type="button"
+              onClick={() => f.friend?.id && navigate(`/profile/${f.friend.id}`)}
+              className="w-full flex items-center gap-4 p-3 rounded-lg hover:bg-white/5 transition-all cursor-pointer text-left"
             >
-              {/* online state is not stored in DB — omit the online dot */}
               <Avatar src={f.friend?.avatar_url ?? null} username={f.friend?.username ?? '?'} />
               <div className="flex-1 min-w-0">
                 <p className="font-lexend font-semibold text-xs uppercase text-white truncate">
@@ -36,7 +40,10 @@ export function FriendList({ friends }: FriendListProps) {
                 </p>
                 <p className="text-[10px] text-white/40 uppercase">{f.friend?.tier ?? '—'}</p>
               </div>
-            </div>
+              <span className="material-symbols-outlined text-white/20 text-base shrink-0">
+                arrow_forward
+              </span>
+            </button>
           ))
         )}
       </div>

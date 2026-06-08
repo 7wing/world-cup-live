@@ -8,15 +8,24 @@ import { cn } from '@/utils/cn'
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
+const SUFFIXES = [
+  'goat', 'ultra', 'mvp', 'fc', 'x', 'pro',
+  'real', 'futbol', '10', '9', '7', '1',
+  'hd', 'vip', 'og', 'ace', 'top', 'one',
+]
+
+/** Picks 4 distinct suffixes at random and builds username suggestions. */
 function generateSuggestions(base: string): string[] {
   const clean = base.replace(/\s+/g, '_').toLowerCase()
-  const year  = new Date().getFullYear()
-  return [
-    `${clean}_${Math.floor(Math.random() * 900) + 100}`,
-    `${clean}${year}`,
-    `the_${clean}`,
-    `${clean}_fan`,
-  ]
+
+  // Fisher-Yates shuffle on a copy so the pool is never mutated
+  const pool = [...SUFFIXES]
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[pool[i], pool[j]] = [pool[j], pool[i]]
+  }
+
+  return pool.slice(0, 4).map((suffix) => `${clean}_${suffix}`)
 }
 
 type UsernameStatus = 'idle' | 'checking' | 'available' | 'taken'
@@ -82,10 +91,15 @@ export function SignupPage() {
 
     if (error) {
       push(error.message, 'error')
-    } else {
-      push('Account created! Check your email.', 'success')
-      navigate('/matches')
+      setLoading(false)
+      return
     }
+
+    // If Supabase email confirmation is enabled the user lands here unconfirmed.
+    // Send them to a holding page so they know to check their inbox rather than
+    // dropping them into /matches in a half-authenticated state.
+    push('Account created! Check your email to confirm.', 'success')
+    navigate('/check-email', { replace: true, state: { email } })
 
     setLoading(false)
   }
@@ -93,9 +107,9 @@ export function SignupPage() {
   // ── username field status indicator ───────────────────────────────────────
   const statusMeta: Record<UsernameStatus, { text: string; cls: string } | null> = {
     idle:      null,
-    checking:  { text: 'Checking availability…',  cls: 'text-white/40'          },
-    available: { text: '✓ Fan ID is available',   cls: 'text-green-400'         },
-    taken:     { text: '✗ Fan ID is already taken', cls: 'text-red-400'         },
+    checking:  { text: 'Checking availability…',    cls: 'text-white/40' },
+    available: { text: '✓ Fan ID is available',     cls: 'text-green-400' },
+    taken:     { text: '✗ Fan ID is already taken', cls: 'text-red-400'  },
   }
   const statusHint = statusMeta[usernameStatus]
 
@@ -136,7 +150,7 @@ export function SignupPage() {
                 onBlur={() => checkUsername(username)}
                 className={cn(
                   'auth-input w-full',
-                  usernameStatus === 'taken' && '!border-red-400 focus:!border-red-400',
+                  usernameStatus === 'taken'     && '!border-red-400 focus:!border-red-400',
                   usernameStatus === 'available' && '!border-green-400 focus:!border-green-400'
                 )}
                 placeholder="CR7_GOAT_2026"
@@ -165,7 +179,6 @@ export function SignupPage() {
                           setUsername(s)
                           setUsernameStatus('idle')
                           setUsernameSuggestions([])
-                          // immediately check the suggestion
                           checkUsername(s)
                         }}
                         className="

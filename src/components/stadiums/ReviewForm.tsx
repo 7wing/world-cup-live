@@ -1,3 +1,5 @@
+// src/components/stadiums/ReviewForm.tsx
+
 import { useState } from 'react'
 import { GlassCard } from '@/components/ui/GlassCard'
 import { NeonButton } from '@/components/ui/NeonButton'
@@ -5,27 +7,37 @@ import { useAuthStore } from '@/store/authStore'
 import { useSubmitReview } from '@/hooks/useStadium'
 
 interface ReviewFormProps {
-  stadiumId: string
+  stadiumId: string   // UUID — written into the review row
+  stadiumSlug: string // slug — used to invalidate the correct useStadium cache
   onClose: () => void
 }
 
 const CATEGORIES = [
-  { key: 'atmosphere_score', label: 'Atmosphere', icon: 'campaign' },
-  { key: 'food_score', label: 'Food & Beverage', icon: 'restaurant' },
-  { key: 'hotel_score', label: 'Hotels Nearby', icon: 'apartment' },
-  { key: 'safety_score', label: 'Safety', icon: 'security' },
+  { key: 'atmosphere_score', label: 'Atmosphere',    icon: 'campaign'    },
+  { key: 'food_score',       label: 'Food & Beverage', icon: 'restaurant' },
+  { key: 'hotel_score',      label: 'Hotels Nearby', icon: 'apartment'   },
+  { key: 'safety_score',     label: 'Safety',        icon: 'security'    },
 ] as const
 
-export function ReviewForm({ stadiumId, onClose }: ReviewFormProps) {
+export function ReviewForm({ stadiumId, stadiumSlug, onClose }: ReviewFormProps) {
   const { user } = useAuthStore()
-  const { mutate, isPending } = useSubmitReview(stadiumId)
-  const [scores, setScores] = useState({ atmosphere_score: 4, food_score: 4, hotel_score: 4, safety_score: 4 })
+  // Pass both id and slug so the hook can invalidate all relevant cache keys
+  const { mutate, isPending } = useSubmitReview(stadiumId, stadiumSlug)
+
+  const [scores, setScores] = useState({
+    atmosphere_score: 4,
+    food_score: 4,
+    hotel_score: 4,
+    safety_score: 4,
+  })
   const [body, setBody] = useState('')
 
   const handleSubmit = () => {
     if (!user) return
-    mutate({ user_id: user.id, stadium_id: stadiumId, ...scores, body })
-    onClose()
+    mutate(
+      { user_id: user.id, stadium_id: stadiumId, ...scores, body },
+      { onSuccess: onClose }, // close the form only after the mutation succeeds
+    )
   }
 
   return (
@@ -65,7 +77,7 @@ export function ReviewForm({ stadiumId, onClose }: ReviewFormProps) {
       </div>
 
       <NeonButton className="w-full justify-center" onClick={handleSubmit} disabled={isPending}>
-        Submit Review
+        {isPending ? 'Submitting…' : 'Submit Review'}
       </NeonButton>
     </GlassCard>
   )

@@ -11,12 +11,9 @@
 //   SUPABASE_URL              – injected automatically
 //   SUPABASE_SERVICE_ROLE_KEY – injected automatically
 
-import { serve }        from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import {
-  ApplicationServerKeys,
-  generatePushHTTPRequest,
-} from 'https://deno.land/x/web_push@0.0.2/mod.ts'
+import { serve }        from 'std/http/server'
+import { createClient } from '@supabase/supabase-js'
+import webpush          from 'web-push'
 
 // --------------------------------------------------------------------------
 // Types — aligned to match_events schema exactly
@@ -25,7 +22,7 @@ import {
 interface MatchEvent {
   id:          string
   match_id:    string
-  team_id:     string | null   // nullable — neutral events have no team
+  team_id:     string | null
   event_type:
     | 'goal'
     | 'yellow_card'
@@ -38,7 +35,7 @@ interface MatchEvent {
     | 'half_time'
     | 'full_time'
   player_name: string | null
-  player_in:   string | null   // substitution only
+  player_in:   string | null
   minute:      number | null
   extra_time:  boolean
   description: string | null
@@ -75,13 +72,12 @@ interface WebhookPayload {
 
 const EVENT_TO_ALERT_COL: Partial<Record<MatchEvent['event_type'], keyof MatchAlertRecord>> = {
   goal:      'goals',
-  penalty:   'goals',     // penalty that results in a goal — use goals flag
+  penalty:   'goals',
   red_card:  'red_cards',
   kick_off:  'kickoff',
-  full_time: 'kickoff',   // reuse kickoff toggle for match start/end
+  full_time: 'kickoff',
 }
 
-// Only fire push for these event types — filter out shots/corners/substitutions
 const NOTIFY_TYPES: MatchEvent['event_type'][] = [
   'goal',
   'red_card',
@@ -127,32 +123,38 @@ function buildNotification(
 }
 
 // --------------------------------------------------------------------------
-// Send a single Web Push notification using a real VAPID JWT
+// VAPID init — called once per invocation
+// --------------------------------------------------------------------------
+
+function initVapid() {
+  webpush.setVapidDetails(
+    Deno.env.get('VAPID_SUBJECT')     ?? 'mailto:admin@example.com',
+    Deno.env.get('VAPID_PUBLIC_KEY')  ?? '',
+    Deno.env.get('VAPID_PRIVATE_KEY') ?? '',
+  )
+}
+
+// --------------------------------------------------------------------------
+// Send a single Web Push notification
 // --------------------------------------------------------------------------
 
 async function sendPush(
   subscription: PushSubscriptionRecord,
   payload: object,
-  appServerKeys: ApplicationServerKeys,
 ): Promise<void> {
-  const { request } = await generatePushHTTPRequest({
-    applicationServerKeys: appServerKeys,
-    payload:               JSON.stringify(payload),
-    target: {
-      endpoint: subscription.endpoint,
-      keys: {
-        p256dh: subscription.p256dh,
-        auth:   subscription.auth,
+  try {
+    await webpush.sendNotification(
+      {
+        endpoint: subscription.endpoint,
+        keys: {
+          p256dh: subscription.p256dh,
+          auth:   subscription.auth,
+        },
       },
-    },
-    adminContact: Deno.env.get('VAPID_SUBJECT') ?? 'mailto:admin@example.com',
-    ttl:          86400,
-  })
-
-  const res = await fetch(request)
-
-  if (!res.ok && res.status !== 201) {
-    console.error(`[notify] Push failed for ${subscription.user_id}: ${res.status}`)
+      JSON.stringify(payload),
+    )
+  } catch (err) {
+    console.error(`[notify] Push failed for ${subscription.user_id}:`, err)
   }
 }
 
@@ -177,7 +179,6 @@ serve(async (req: Request) => {
       )
     }
 
-    // Determine which boolean column gates this notification type
     const alertCol = EVENT_TO_ALERT_COL[event.event_type]
 
     const supabase = createClient(
@@ -195,14 +196,13 @@ serve(async (req: Request) => {
       .eq('id', event.match_id)
       .single()
 
-    const homeTeamName = (match?.home_team as { name: string } | null)?.name
-    const awayTeamName = (match?.away_team as { name: string } | null)?.name
+    const homeTeamName = (match?.home_team as { name: string }[] | null)?.[0]?.name
+    const awayTeamName = (match?.away_team as { name: string }[] | null)?.[0]?.name
     const matchTitle   = homeTeamName && awayTeamName
       ? `${homeTeamName} vs ${awayTeamName}`
       : 'Match update'
 
-    // Find users subscribed to alerts for this match or team,
-    // AND who have enabled the specific alert type boolean column.
+    // Find users subscribed to alerts for this match or team
     const alertQuery = supabase
       .from('match_alerts')
       .select('user_id, goals, red_cards, kickoff, lineups')
@@ -217,7 +217,6 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ sent: 0 }), { status: 200 })
     }
 
-    // Filter by the per-event-type boolean column
     const eligibleUserIds = (alertRows as MatchAlertRecord[])
       .filter(row => alertCol === undefined || row[alertCol] === true)
       .map(row => row.user_id)
@@ -238,17 +237,13 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ sent: 0 }), { status: 200 })
     }
 
-    // Build VAPID keys once, reuse for all sends
-    const appServerKeys = await ApplicationServerKeys.fromJSON({
-      publicKey:  Deno.env.get('VAPID_PUBLIC_KEY')  ?? '',
-      privateKey: Deno.env.get('VAPID_PRIVATE_KEY') ?? '',
-    })
+    initVapid()
 
     const notification = buildNotification(event, matchTitle)
 
     await Promise.allSettled(
       (subscriptions as PushSubscriptionRecord[]).map(sub =>
-        sendPush(sub, notification, appServerKeys),
+        sendPush(sub, notification),
       ),
     )
 

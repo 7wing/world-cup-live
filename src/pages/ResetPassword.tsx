@@ -59,7 +59,8 @@ export function ResetPasswordPage() {
       listener.subscription.unsubscribe()
       clearTimeout(timeout)
     }
-  }, [navigate, searchParams])
+  // navigate is stable from react-router and not used inside this effect
+  }, [searchParams])
 
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault()

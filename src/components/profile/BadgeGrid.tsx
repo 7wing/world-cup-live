@@ -7,13 +7,39 @@ interface BadgeGridProps {
 }
 
 const ICON_MAP: Record<string, string> = {
-  match_opener: 'sports_soccer',
-  trophy_hunter: 'military_tech',
-  lusail_icon: 'stadium',
-  top_predictor: 'trophy',
-  derby_winner: 'emoji_events',
-  away_days: 'flight_takeoff',
-  world_finals: 'public',
+  // Match & competition
+  match_opener:      'sports_soccer',
+  trophy_hunter:     'military_tech',
+  lusail_icon:       'stadium',
+  top_predictor:     'trophy',
+  derby_winner:      'emoji_events',
+  away_days:         'flight_takeoff',
+  world_finals:      'public',
+  // Attendance & travel
+  stadium_hopper:    'map',
+  frequent_flyer:    'airplanemode_active',
+  home_crowd:        'home',
+  away_support:      'directions_run',
+  // Prediction milestones
+  first_prediction:  'track_changes',
+  perfect_week:      'verified',
+  oracle:            'auto_awesome',
+  streak_5:          'local_fire_department',
+  streak_10:         'whatshot',
+  // Social
+  tribe_founder:     'shield',
+  tribe_member:      'groups',
+  fan_photo:         'photo_camera',
+  social_butterfly:  'diversity_3',
+  // Ranking
+  elite_rank:        'star',
+  pro_rank:          'workspace_premium',
+  mvp_rank:          'crown',
+  // Misc
+  early_adopter:     'rocket_launch',
+  collector:         'inventory_2',
+  duel_champion:     'swords',
+  trivia_master:     'quiz',
 }
 
 export function BadgeGrid({ badges, compact = false }: BadgeGridProps) {
@@ -60,7 +86,12 @@ export function BadgeGrid({ badges, compact = false }: BadgeGridProps) {
 
           {!compact && (
             <div>
-              <p className={cn('font-lexend font-semibold text-xs uppercase', badge.is_unlocked ? 'text-primary-container' : 'text-white/40')}>
+              <p
+                className={cn(
+                  'font-lexend font-semibold text-xs uppercase',
+                  badge.is_unlocked ? 'text-primary-container' : 'text-white/40'
+                )}
+              >
                 {badge.label}
               </p>
               <p className="text-[10px] text-white/40 uppercase mt-0.5">
@@ -70,7 +101,12 @@ export function BadgeGrid({ badges, compact = false }: BadgeGridProps) {
           )}
 
           {compact && (
-            <p className={cn('font-lexend font-semibold text-[9px] uppercase leading-tight', badge.is_unlocked ? 'text-primary-container' : 'text-white/40')}>
+            <p
+              className={cn(
+                'font-lexend font-semibold text-[9px] uppercase leading-tight',
+                badge.is_unlocked ? 'text-primary-container' : 'text-white/40'
+              )}
+            >
               {badge.label}
             </p>
           )}

@@ -2,13 +2,12 @@
 
 import { memo, useState } from 'react'
 import { ProgressBar } from '@/components/ui/ProgressBar'
-import { getStorageObjectUrl } from '@/hooks/useStadium'
+import { getOptimizedImageUrl } from '@/hooks/useStadium'
 import type { Stadium } from '@/types'
 
 interface StadiumCardProps {
   stadium: Stadium
   onSelect: (slug: string) => void
-  /** First row in the grid — browser may prioritize these */
   priority?: boolean
 }
 
@@ -25,8 +24,24 @@ export const StadiumCard = memo(function StadiumCard({
   onSelect,
   priority = false,
 }: StadiumCardProps) {
-  const [src, setSrc] = useState(stadium.hero_image_url)
-  const fallback = getStorageObjectUrl(stadium.hero_image_url, 512, 60)
+  // `stadium.hero_image_url` is the locally-bundled asset (already optimised by Vite).
+  // We keep a fallback attempt via getOptimizedImageUrl in case the local import
+  // somehow fails — for Supabase URLs it appends resize params; for local/other
+  // URLs it passes through unchanged.
+  const primarySrc  = stadium.hero_image_url ?? null
+  const fallbackSrc = getOptimizedImageUrl(stadium.hero_image_url, 512, 60)
+
+  const [src,     setSrc]     = useState<string | null>(primarySrc)
+  const [errored, setErrored] = useState(false)
+
+  function handleError() {
+    if (!errored && fallbackSrc && src !== fallbackSrc) {
+      setSrc(fallbackSrc)
+      setErrored(true)   // only one retry
+    } else {
+      setSrc(null)       // give up — show placeholder
+    }
+  }
 
   return (
     <article
@@ -43,9 +58,7 @@ export const StadiumCard = memo(function StadiumCard({
             loading="eager"
             decoding="async"
             fetchPriority={priority ? 'high' : 'auto'}
-            onError={() => {
-              if (fallback && src !== fallback) setSrc(fallback)
-            }}
+            onError={handleError}
             className="w-full h-full object-cover"
           />
         ) : (
@@ -74,15 +87,15 @@ export const StadiumCard = memo(function StadiumCard({
 
       <div className="p-4 space-y-3">
         <div className="space-y-2.5">
-          <ProgressBar value={stadium.avg_atmosphere * 20} label="Atmosphere" showLabel />
-          <ProgressBar value={stadium.avg_food * 20} label="Food & Bev" showLabel />
-          <ProgressBar value={stadium.avg_safety * 20} label="Safety" showLabel />
+          <ProgressBar value={(stadium.avg_atmosphere ?? 0) * 20} label="Atmosphere" showLabel />
+          <ProgressBar value={(stadium.avg_food ?? 0) * 20} label="Food & Bev" showLabel />
+          <ProgressBar value={(stadium.avg_safety ?? 0) * 20} label="Safety" showLabel />
         </div>
 
         <div className="flex justify-between items-end pt-1 border-t border-white/5">
           <div>
             <span className="font-lexend font-black text-2xl text-primary-container">
-              {stadium.avg_rating.toFixed(1)}
+              {(stadium.avg_rating ?? 0).toFixed(1)}
             </span>
             <span className="text-[10px] text-white/25 font-lexend font-bold uppercase tracking-wide ml-1">
               / 5
@@ -90,7 +103,7 @@ export const StadiumCard = memo(function StadiumCard({
           </div>
           <div className="text-right">
             <p className="text-xs font-lexend font-semibold text-white/40">
-              {stadium.total_reviews.toLocaleString()} reviews
+              {(stadium.total_reviews ?? 0).toLocaleString()} reviews
             </p>
             {stadium.note && (
               <p className="text-[10px] text-white/25 mt-0.5 italic">{stadium.note}</p>

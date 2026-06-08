@@ -4,6 +4,7 @@ import App from '@/App'
 import { LoginPage } from '@/pages/Login'
 import { SignupPage } from '@/pages/Signup'
 import { ForgotPasswordPage } from '@/pages/ForgotPassword'
+import { CheckEmailPage } from '@/pages/CheckEmail'
 import { ResetPasswordPage } from '@/pages/ResetPassword'
 import { MatchesPage } from '@/pages/matches/MatchesPage'
 import { MatchDetailPage } from '@/pages/matches/MatchDetailPage'
@@ -28,6 +29,7 @@ export const router = createBrowserRouter([
       { path: 'signup', element: <SignupPage /> },
       { path: 'forgot-password', element: <ForgotPasswordPage /> },
       { path: 'reset-password', element: <ResetPasswordPage /> },
+      { path: 'check-email', element: <CheckEmailPage  /> },
       { path: 'matches', element: <MatchesPage /> },
       { path: 'matches/brackets', element: <BracketTab /> },
       { path: 'matches/:matchId', element: <MatchDetailPage /> },

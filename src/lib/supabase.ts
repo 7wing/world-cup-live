@@ -211,6 +211,24 @@ export type Database = {
         Insert: Omit<Database['public']['Tables']['tribe_members']['Row'], 'joined_at'>
         Update: Partial<Database['public']['Tables']['tribe_members']['Insert']>
       }
+      watch_parties: {
+        Row: {
+          id:           string
+          name:         string
+          flag:         string
+          match_id:     string | null
+          created_by:   string | null
+          viewer_count: number
+          last_message: string | null
+          last_msg_at:  string | null
+          created_at:   string
+        }
+        Insert: Omit<
+          Database['public']['Tables']['watch_parties']['Row'],
+          'id' | 'created_at' | 'viewer_count' | 'last_message' | 'last_msg_at'
+        >
+        Update: Partial<Database['public']['Tables']['watch_parties']['Insert']>
+      }
       predictions: {
         Row: {
           id: string
@@ -237,7 +255,7 @@ export type Database = {
           food_score: number
           hotel_score: number
           safety_score: number
-          overall_rating: number  // GENERATED ALWAYS AS … STORED
+          overall_rating: number
           body: string | null
           created_at: string
         }
@@ -291,8 +309,8 @@ export type Database = {
         Row: {
           id: string
           question: string
-          options: string[]       // jsonb array of 4 strings
-          answer: number          // 0-3 index
+          options: string[]
+          answer: number
           points: number
           tag: string | null
           difficulty: 'easy' | 'medium' | 'hard'
@@ -362,6 +380,73 @@ export type Database = {
           'id' | 'created_at' | 'challenger_score' | 'opponent_score'
         >
         Update: Partial<Database['public']['Tables']['duel_sessions']['Insert']>
+      }
+      fantasy_squads: {
+        Row: {
+          id:           string
+          user_id:      string
+          matchday_id:  string
+          locked_in:    boolean
+          total_points: number
+          saved_at:     string
+          created_at:   string
+        }
+        Insert: Omit<Database['public']['Tables']['fantasy_squads']['Row'], 'id' | 'created_at'>
+        Update: Partial<Database['public']['Tables']['fantasy_squads']['Insert']>
+      }
+      fantasy_players: {
+        Row: {
+          id:           string
+          squad_id:     string
+          user_id:      string
+          name:         string
+          team:         string
+          position:     'GK' | 'DEF' | 'MID' | 'FWD'
+          cost:         number
+          goals:        number
+          assists:      number
+          clean_sheet:  boolean
+          yellow_cards: number
+          red_cards:    number
+          points:       number
+          created_at:   string
+        }
+        Insert: Omit<Database['public']['Tables']['fantasy_players']['Row'], 'id' | 'created_at'>
+        Update: Partial<Database['public']['Tables']['fantasy_players']['Insert']>
+      }
+      players: {
+        Row: {
+          id:         string
+          name:       string
+          team:       string
+          position:   'GK' | 'DEF' | 'MID' | 'FWD'
+          cost:       number
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['players']['Row'], 'id' | 'created_at'>
+        Update: Partial<Database['public']['Tables']['players']['Insert']>
+      }
+      post_comments: {
+        Row: {
+          id:         string
+          post_id:    string | null
+          user_id:    string | null
+          content:    string
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['post_comments']['Row'], 'id' | 'created_at'>
+        Update: Partial<Database['public']['Tables']['post_comments']['Insert']>
+      }
+      party_messages: {
+        Row: {
+          id:         string
+          party_id:   string | null
+          user_id:    string | null
+          content:    string
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['party_messages']['Row'], 'id' | 'created_at'>
+        Update: Partial<Database['public']['Tables']['party_messages']['Insert']>
       }
     }
   }

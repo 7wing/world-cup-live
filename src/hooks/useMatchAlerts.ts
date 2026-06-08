@@ -46,7 +46,8 @@ export function useMatchAlertSubscription(matchId: string) {
   const { mutate: subscribe, isPending: subscribing } = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error('Not signed in')
-      const alerts = loadMatchAlerts()
+      // Explicitly type alerts as a record keyed by AlertKey
+      const alerts: Record<AlertKey, boolean> = loadMatchAlerts()
       await syncMatchAlertToSupabase(user.id, matchId, alerts)
     },
     onSuccess: () => {

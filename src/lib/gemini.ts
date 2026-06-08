@@ -1,5 +1,4 @@
-import type { Match } from '@/types'
-import type { OracleData } from '@/lib/mockAdapters'
+import type { Match, OracleData } from '@/types'
 
 function geminiKey(): string | undefined {
   return (

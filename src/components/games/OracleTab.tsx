@@ -1,128 +1,96 @@
-// src/components/games/OracleTab.tsx
-// ─────────────────────────────────────────────────────────────────────────────
-// Fan Oracle — 3-column poll cards. Vote to reveal live percentage bars.
-// ─────────────────────────────────────────────────────────────────────────────
-
-import { useState } from 'react'
-import { glassStyle, capStyle } from '../ui/ui'
-import { ORACLE_QUESTIONS } from '../../lib/fanzoneData'
+import React from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { fetchOracleVoteCounts, castOracleVote } from '@/api/oracleVotes'
+import { useAuthStore } from '@/store/authStore'
 
 export function OracleTab() {
-  // votes: { [questionId]: selectedOptionIndex }
-  const [votes, setVotes] = useState<Record<string, number>>({})
+  const { user }    = useAuthStore()
+  const queryClient = useQueryClient()
 
-  const vote = (qid: string, idx: number) => {
-    if (votes[qid] !== undefined) return
-    setVotes((prev) => ({ ...prev, [qid]: idx }))
+  const { data: questions = [], isLoading } = useQuery({
+    queryKey: ['oracle_votes'],
+    queryFn:  fetchOracleVoteCounts,
+    staleTime: 30_000,
+  })
+
+  const { mutate: vote, variables: voting } = useMutation({
+    mutationFn: ({ questionId, optionIdx }: { questionId: string; optionIdx: number }) =>
+      castOracleVote(questionId, optionIdx, user!.id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['oracle_votes'] }),
+  })
+
+  const [localVotes, setLocalVotes] = React.useState<Record<string, number>>({})
+
+  function handleVote(questionId: string, idx: number) {
+    if (localVotes[questionId] !== undefined || !user) return
+    setLocalVotes((prev) => ({ ...prev, [questionId]: idx }))
+    vote({ questionId, optionIdx: idx })
+  }
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="h-64 glass-card rounded-xl animate-pulse" />
+        ))}
+      </div>
+    )
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
-      {ORACLE_QUESTIONS.map((q) => {
-        const picked = votes[q.id]
-        // Optimistically add 1 to the voted option's count
-        const displayVotes =
-          picked !== undefined
-            ? q.votes.map((v, i) => (i === picked ? v + 1 : v))
-            : q.votes
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {questions.map((q) => {
+        const picked = localVotes[q.id]
+        const displayVotes = picked !== undefined
+          ? q.votes.map((v, i) => (i === picked ? v + 1 : v))
+          : q.votes
         const total = picked !== undefined ? q.total + 1 : q.total
 
         return (
-          <div
-            key={q.id}
-            className="fade-up"
-            style={{ ...glassStyle, overflow: 'hidden' }}
-          >
-            {/* Card header */}
-            <div
-              style={{
-                padding: '10px 16px',
-                borderBottom: '1px solid var(--border-soft)',
-                display: 'flex',
-                justifyContent: 'space-between',
-              }}
-            >
-              <span style={{ ...capStyle, color: 'var(--t3)' }}>Fan Oracle</span>
-              <span style={{ fontSize: 10, color: 'var(--t4)' }}>
+          <div key={q.id} className="glass-card rounded-xl overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/5">
+              <span className="text-[9px] font-lexend font-black uppercase tracking-widest text-white/30">
+                Fan Oracle
+              </span>
+              <span className="text-[10px] font-lexend text-white/25">
                 {total.toLocaleString()} votes
               </span>
             </div>
 
-            {/* Body */}
-            <div style={{ padding: 16 }}>
-              <p
-                style={{
-                  fontSize: 13,
-                  fontWeight: 700,
-                  lineHeight: 1.55,
-                  marginBottom: 14,
-                }}
-              >
-                {q.question}
-              </p>
+            <div className="p-4">
+              <p className="text-sm font-lexend font-bold leading-snug mb-4">{q.question}</p>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <div className="flex flex-col gap-2">
                 {q.options.map((opt, i) => {
-                  const pct = Math.round((displayVotes[i] / total) * 100)
-                  const selected = picked === i
+                  const pct        = total > 0 ? Math.round((displayVotes[i] / total) * 100) : 0
+                  const selected   = picked === i
+                  const isSubmitting = voting?.questionId === q.id && voting?.optionIdx === i
 
                   return (
                     <button
                       key={i}
-                      onClick={() => vote(q.id, i)}
-                      disabled={picked !== undefined}
-                      style={{
-                        position: 'relative',
-                        textAlign: 'left',
-                        padding: '9px 12px',
-                        borderRadius: 9,
-                        border: `1px solid ${selected ? 'var(--primary-border)' : 'var(--border-soft)'}`,
-                        background: 'transparent',
-                        overflow: 'hidden',
-                        cursor: picked !== undefined ? 'default' : 'pointer',
-                      }}
+                      onClick={() => handleVote(q.id, i)}
+                      disabled={picked !== undefined || !user || isSubmitting}
+                      className={`relative text-left px-3 py-2.5 rounded-lg border transition-colors overflow-hidden ${
+                        selected ? 'border-primary-container/50' : 'border-white/10 hover:border-white/20'
+                      } ${picked !== undefined ? 'cursor-default' : 'cursor-pointer'} bg-transparent`}
                     >
-                      {/* Percentage fill */}
                       {picked !== undefined && (
                         <div
-                          style={{
-                            position: 'absolute',
-                            inset: 0,
-                            width: `${pct}%`,
-                            background: selected
-                              ? 'rgba(0,255,65,0.12)'
-                              : 'rgba(255,255,255,0.03)',
-                            transition: 'width 0.5s ease',
-                            borderRadius: 9,
-                          }}
+                          className={`absolute inset-y-0 left-0 rounded-lg transition-all duration-500 ${
+                            selected ? 'bg-primary-container/10' : 'bg-white/[0.03]'
+                          }`}
+                          style={{ width: `${pct}%` }}
                         />
                       )}
-
-                      {/* Label + pct */}
-                      <div
-                        style={{
-                          position: 'relative',
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontSize: 12,
-                            fontWeight: 600,
-                            color: selected ? 'var(--primary)' : 'var(--t2)',
-                          }}
-                        >
+                      <div className="relative flex justify-between items-center">
+                        <span className={`text-xs font-lexend font-semibold ${selected ? 'text-primary-container' : 'text-white/60'}`}>
                           {opt}
                         </span>
-                        {picked !== undefined && (
-                          <span
-                            style={{
-                              fontSize: 11,
-                              fontWeight: 800,
-                              color: selected ? 'var(--primary)' : 'var(--t4)',
-                            }}
-                          >
+                        {isSubmitting ? (
+                          <span className="w-3 h-3 rounded-full border-2 border-primary-container/50 border-t-transparent animate-spin" />
+                        ) : picked !== undefined && (
+                          <span className={`text-[11px] font-lexend font-black ${selected ? 'text-primary-container' : 'text-white/30'}`}>
                             {pct}%
                           </span>
                         )}
@@ -133,15 +101,8 @@ export function OracleTab() {
               </div>
 
               {picked === undefined && (
-                <p
-                  style={{
-                    fontSize: 10,
-                    color: 'var(--t4)',
-                    textAlign: 'center',
-                    marginTop: 10,
-                  }}
-                >
-                  Vote to see results
+                <p className="text-[10px] font-lexend text-white/25 text-center mt-3">
+                  {user ? 'Vote to see results' : 'Sign in to vote'}
                 </p>
               )}
             </div>

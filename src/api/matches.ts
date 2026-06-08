@@ -1,9 +1,13 @@
 // src/api/matches.ts
+// Single source of truth for all match-related Supabase queries.
+// hooks/useMatches.ts imports from here — do NOT duplicate logic there.
 
 import { supabase } from '@/lib/supabase'
-import type { Match, MatchStat, Lineup, MatchEvent, Prediction } from '@/types'
+import type { Match, Lineup, MatchEvent, Prediction } from '@/types'
 
-const MATCH_SELECT = `
+// ── Shared select fragment ────────────────────────────────────────────────────
+// Used everywhere we need a fully-hydrated Match object.
+export const MATCH_SELECT = `
   *,
   home_team:teams!matches_home_team_id_fkey(*),
   away_team:teams!matches_away_team_id_fkey(*),
@@ -43,6 +47,8 @@ export async function fetchMatchById(id: string): Promise<Match> {
   return data as Match
 }
 
+// ── Standings (teams ordered by group) ───────────────────────────────────────
+
 export async function fetchStandings() {
   const { data, error } = await supabase
     .from('teams')
@@ -54,6 +60,7 @@ export async function fetchStandings() {
 }
 
 // ── match_stats ───────────────────────────────────────────────────────────────
+// match_stats has one row per match. Returns null pre-kickoff (no row yet).
 
 export async function fetchMatchStats(matchId: string): Promise<MatchStat | null> {
   const { data, error } = await supabase
@@ -73,10 +80,11 @@ export async function fetchLineups(matchId: string): Promise<Lineup[]> {
     .from('lineups')
     .select('*')
     .eq('match_id', matchId)
+    .order('is_starter', { ascending: false })
     .order('position_y', { ascending: true })
 
   if (error) throw error
-  return data as Lineup[]
+  return (data ?? []) as Lineup[]
 }
 
 // ── match_events ──────────────────────────────────────────────────────────────
@@ -86,22 +94,22 @@ export async function fetchMatchEvents(matchId: string): Promise<MatchEvent[]> {
     .from('match_events')
     .select('*')
     .eq('match_id', matchId)
-    .order('minute', { ascending: true })
+    .order('minute',     { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: true })
 
   if (error) throw error
-  return data as MatchEvent[]
+  return (data ?? []) as MatchEvent[]
 }
 
-// ── h2h ───────────────────────────────────────────────────────────────────────
+// ── Head-to-head ──────────────────────────────────────────────────────────────
+// Supabase doesn't support OR across two AND conditions in a single .or(),
+// so we run two queries and merge + sort client-side.
 
 export async function fetchH2HMatches(
   homeTeamId: string,
   awayTeamId: string,
   limit = 10,
 ): Promise<Match[]> {
-  // Supabase doesn't support OR across two AND conditions in a single .or(),
-  // so we run two queries and merge client-side.
   const [a, b] = await Promise.all([
     supabase
       .from('matches')
@@ -130,7 +138,7 @@ export async function fetchH2HMatches(
     .slice(0, limit)
 }
 
-// ── predictions ───────────────────────────────────────────────────────────────
+// ── Predictions ───────────────────────────────────────────────────────────────
 
 export async function fetchMyPrediction(
   userId: string,
@@ -174,4 +182,29 @@ export async function fetchUserPredictionsForMatches(
 
   if (error) throw error
   return data as Prediction[]
+}
+
+// ── Re-export MatchStat type (defined here, used by hooks & page) ─────────────
+// Mirrors match_stats schema exactly. Every stat column is nullable
+// (no data pre-kickoff). home_possession lives on `matches`, NOT here.
+
+export interface MatchStat {
+  match_id:             string
+  home_shots:           number | null
+  away_shots:           number | null
+  home_shots_on_target: number | null
+  away_shots_on_target: number | null
+  home_corners:         number | null
+  away_corners:         number | null
+  home_fouls:           number | null
+  away_fouls:           number | null
+  home_yellow_cards:    number | null
+  away_yellow_cards:    number | null
+  home_red_cards:       number | null
+  away_red_cards:       number | null
+  home_passes:          number | null
+  away_passes:          number | null
+  home_pass_accuracy:   number | null   // 0–100
+  away_pass_accuracy:   number | null   // 0–100
+  updated_at:           string
 }

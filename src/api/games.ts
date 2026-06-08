@@ -86,7 +86,9 @@ export async function fetchRecentDuels(userId: string, limit = 5): Promise<Recen
     const myScore    = iAmChallenger ? d.challenger_score : d.opponent_score
     const theirScore = iAmChallenger ? d.opponent_score   : d.challenger_score
     const opponentRaw = iAmChallenger ? d.opponent : d.challenger
-    const opponentName = (opponentRaw as { username: string } | null)?.username ?? 'Unknown'
+    const opponentName = Array.isArray(opponentRaw) ? opponentRaw[0]?.username ?? 'Unknown'
+    : (opponentRaw as { username?: string } | null)?.username ?? 'Unknown'
+
     const result: 'W' | 'L' | 'D' =
       myScore > theirScore ? 'W' : myScore < theirScore ? 'L' : 'D'
 

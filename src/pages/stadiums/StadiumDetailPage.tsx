@@ -39,7 +39,6 @@ async function fetchMatchesByStadium(stadiumId: string): Promise<Match[]> {
     .select(MATCH_SELECT)
     .eq('stadium_id', stadiumId)
     .order('kickoff_at', { ascending: true })
-
   if (error) throw error
   return data as Match[]
 }
@@ -97,7 +96,7 @@ function StarRating({ value }: { value: number }) {
 
 function PhotoTile({ src, caption }: { src: string; caption: string | null }) {
   const [loaded, setLoaded] = useState(false)
-  const [error, setError] = useState(false)
+  const [error, setError]   = useState(false)
   const optimized = getOptimizedImageUrl(src, 400, 70)
 
   return (
@@ -125,14 +124,23 @@ function PhotoTile({ src, caption }: { src: string; caption: string | null }) {
   )
 }
 
+// ── Letter grade derived from avg_rating ─────────────────────────────────────
+function venueGrade(avgRating: number | null): string {
+  if (avgRating == null) return '—'
+  if (avgRating >= 4.5)  return 'A+'
+  if (avgRating >= 4.0)  return 'A'
+  return 'B+'
+}
+
 export function StadiumDetailPage() {
   const { stadiumId } = useParams<{ stadiumId: string }>()
   const navigate = useNavigate()
   const { user } = useAuthStore()
 
-  const { data: stadium, isLoading }  = useStadium(stadiumId!)
-  const { data: reviews = [] }        = useStadiumReviews(stadium?.id ?? '')
-  const { data: photos = [] }         = useStadiumPhotos(stadium?.id ?? '')
+  // stadiumId in the URL is actually the slug (see your router config)
+  const { data: stadium, isLoading } = useStadium(stadiumId!)
+  const { data: reviews = [] }       = useStadiumReviews(stadium?.id ?? '')
+  const { data: photos  = [] }       = useStadiumPhotos(stadium?.id ?? '')
   const { data: matches = [], isLoading: matchesLoading } = useStadiumMatches(stadium?.id ?? '')
   const { mutate: uploadPhoto, isPending: uploading } = useUploadFanPhoto(stadium?.id ?? '')
 
@@ -149,7 +157,6 @@ export function StadiumDetailPage() {
     const file = e.target.files?.[0]
     if (!file || !user) return
     uploadPhoto({ userId: user.id, file, caption: '' })
-    // Reset so the same file can be re-selected if needed
     e.target.value = ''
   }
 
@@ -188,13 +195,16 @@ export function StadiumDetailPage() {
         All Venues
       </button>
 
-      <VenueHero stadium={stadium} onReview={() => { setShowReviewForm(true); setActiveTab('reviews') }} />
+      <VenueHero
+        stadium={stadium}
+        onReview={() => { setShowReviewForm(true); setActiveTab('reviews') }}
+      />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 my-5">
         <StatBadge
           value={stadium.total_reviews > 999
             ? `${Math.round(stadium.total_reviews / 1000)}K`
-            : String(stadium.total_reviews)}
+            : String(stadium.total_reviews ?? 0)}
           label="Total Reviews"
         />
         <StatBadge
@@ -202,11 +212,9 @@ export function StadiumDetailPage() {
           label="Security Score"
           highlighted
         />
-        <StatBadge
-          value={stadium.transport_status ?? '—'}
-          label="Transport"
-        />
-        <StatBadge value={`${stadium.avg_rating.toFixed(1)}/5`} label="Avg Rating" highlighted />
+        <StatBadge value={stadium.transport_status ?? '—'} label="Transport" />
+        {/* FIX: was stadium.avg_rating.toFixed(1) — crashes when null */}
+        <StatBadge value={`${(stadium.avg_rating ?? 0).toFixed(1)}/5`} label="Avg Rating" highlighted />
       </div>
 
       <div className="flex gap-1 border-b border-white/8 mb-6 overflow-x-auto scrollbar-none">
@@ -228,7 +236,7 @@ export function StadiumDetailPage() {
         ))}
       </div>
 
-      {/* OVERVIEW */}
+      {/* ── OVERVIEW ───────────────────────────────────────────────────────── */}
       {activeTab === 'overview' && (
         <div className="space-y-5">
           <GlassCard className="p-6">
@@ -237,18 +245,20 @@ export function StadiumDetailPage() {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-4">
+                {/* FIX: all four values now use ?? 0 so nulls produce 0 not NaN */}
                 {[
-                  { label: 'Atmosphere',    value: stadium.avg_atmosphere * 20 },
-                  { label: 'Food & Bev',    value: stadium.avg_food * 20 },
-                  { label: 'Hotels Nearby', value: stadium.avg_hotel * 20 },
-                  { label: 'Safety',        value: stadium.avg_safety * 20 },
+                  { label: 'Atmosphere',    value: (stadium.avg_atmosphere ?? 0) * 20 },
+                  { label: 'Food & Bev',    value: (stadium.avg_food       ?? 0) * 20 },
+                  { label: 'Hotels Nearby', value: (stadium.avg_hotel      ?? 0) * 20 },
+                  { label: 'Safety',        value: (stadium.avg_safety     ?? 0) * 20 },
                 ].map(({ label, value }) => (
                   <ProgressBar key={label} value={value} label={label} showLabel />
                 ))}
               </div>
               <div className="flex flex-col items-center justify-center bg-primary-container/5 border border-primary-container/20 rounded-xl p-6 text-center gap-2">
+                {/* FIX: extracted venueGrade() helper — safely handles null avg_rating */}
                 <span className="font-lexend text-6xl font-black text-primary-container leading-none">
-                  {stadium.avg_rating >= 4.5 ? 'A+' : stadium.avg_rating >= 4.0 ? 'A' : 'B+'}
+                  {venueGrade(stadium.avg_rating)}
                 </span>
                 <p className="font-lexend font-bold text-xs uppercase tracking-widest text-white/70">Venue Rating</p>
                 {stadium.note && (
@@ -290,7 +300,7 @@ export function StadiumDetailPage() {
         </div>
       )}
 
-      {/* MATCHES */}
+      {/* ── MATCHES ────────────────────────────────────────────────────────── */}
       {activeTab === 'matches' && (
         <GlassCard className="p-6">
           <h2 className="font-lexend font-bold uppercase text-[11px] tracking-widest text-white/40 mb-5">
@@ -355,13 +365,12 @@ export function StadiumDetailPage() {
         </GlassCard>
       )}
 
-      {/* PHOTOS */}
+      {/* ── PHOTOS ─────────────────────────────────────────────────────────── */}
       {activeTab === 'photos' && (
         <GlassCard className="p-6">
           <div className="flex items-center justify-between mb-5">
             <h2 className="font-lexend font-bold uppercase text-[11px] tracking-widest text-white/40">Fan Photos</h2>
 
-            {/* Hidden file input */}
             <input
               ref={fileInputRef}
               type="file"
@@ -407,11 +416,15 @@ export function StadiumDetailPage() {
         </GlassCard>
       )}
 
-      {/* REVIEWS */}
+      {/* ── REVIEWS ────────────────────────────────────────────────────────── */}
       {activeTab === 'reviews' && (
         <div className="space-y-5">
           {showReviewForm ? (
-            <ReviewForm stadiumId={stadium.id} onClose={() => setShowReviewForm(false)} />
+            <ReviewForm
+              stadiumId={stadium.id}
+              stadiumSlug={stadium.slug}
+              onClose={() => setShowReviewForm(false)}
+            />
           ) : (
             <button
               onClick={() => setShowReviewForm(true)}
@@ -473,7 +486,7 @@ export function StadiumDetailPage() {
         </div>
       )}
 
-      {/* TRANSPORT & INFO */}
+      {/* ── TRANSPORT & INFO ───────────────────────────────────────────────── */}
       {activeTab === 'info' && (
         <div className="space-y-5">
           <GlassCard className="p-6">
@@ -483,9 +496,9 @@ export function StadiumDetailPage() {
             </h2>
             <div className="space-y-3">
               {[
-                { icon: 'directions_bus',    title: 'Official Shuttle', status: 'Active',   detail: 'Runs from designated fan zones. Last shuttle 90 min after final whistle.' },
-                { icon: 'directions_subway', title: 'Public Transit',   status: 'Active',   detail: 'Extended service hours on match days. Check local transit authority for routes.' },
-                { icon: 'local_parking',     title: 'Official Parking', status: 'Limited',  detail: 'Pre-booking required. Lots open 3 hrs before kickoff via official app.' },
+                { icon: 'directions_bus',    title: 'Official Shuttle', status: 'Active',  detail: 'Runs from designated fan zones. Last shuttle 90 min after final whistle.' },
+                { icon: 'directions_subway', title: 'Public Transit',   status: 'Active',  detail: 'Extended service hours on match days. Check local transit authority for routes.' },
+                { icon: 'local_parking',     title: 'Official Parking', status: 'Limited', detail: 'Pre-booking required. Lots open 3 hrs before kickoff via official app.' },
               ].map(({ icon, title, status, detail }) => (
                 <div key={title} className="flex gap-4 p-4 bg-white/4 rounded-xl border-l-2 border-primary-container/60">
                   <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary-container/10 flex items-center justify-center">
@@ -533,6 +546,7 @@ export function StadiumDetailPage() {
             </div>
             {stadium.security_score != null && (
               <div className="mt-4 pt-4 border-t border-white/6">
+                {/* security_score already guarded by != null check above */}
                 <ProgressBar value={stadium.security_score * 20} label="Security Score" showLabel />
               </div>
             )}
@@ -545,11 +559,11 @@ export function StadiumDetailPage() {
             </h2>
             <div className="space-y-3">
               {[
-                { icon: 'stadium',        label: 'Capacity', value: stadium.capacity?.toLocaleString() ?? '—'    },
-                { icon: 'calendar_month', label: 'Opened',   value: stadium.year_opened?.toString() ?? '—'       },
-                { icon: 'location_on',    label: 'City',     value: `${stadium.city}, ${stadium.country}`        },
-                { icon: 'grass',          label: 'Surface',  value: stadium.surface ?? '—'                       },
-                { icon: 'wb_sunny',       label: 'Roof',     value: stadium.roof_type ?? '—'                     },
+                { icon: 'stadium',        label: 'Capacity', value: stadium.capacity?.toLocaleString() ?? '—'  },
+                { icon: 'calendar_month', label: 'Opened',   value: stadium.year_opened?.toString() ?? '—'     },
+                { icon: 'location_on',    label: 'City',     value: `${stadium.city}, ${stadium.country}`      },
+                { icon: 'grass',          label: 'Surface',  value: stadium.surface ?? '—'                     },
+                { icon: 'wb_sunny',       label: 'Roof',     value: stadium.roof_type ?? '—'                   },
               ].map(({ icon, label, value }) => (
                 <div key={label} className="flex items-center justify-between py-2.5 border-b border-white/5 last:border-0">
                   <div className="flex items-center gap-2.5">

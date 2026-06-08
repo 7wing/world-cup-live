@@ -1,3 +1,5 @@
+// src/pages/stadiums/StadiumsPage.tsx
+
 import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PageWrapper } from '@/components/layout/PageWrapper'
@@ -10,7 +12,7 @@ type Country = 'all' | 'USA' | 'Canada' | 'Mexico'
 
 const FILTERS: { label: string; value: Country }[] = [
   { label: 'All (16)', value: 'all' },
-  { label: '🇺🇸 USA', value: 'USA' },
+  { label: '🇺🇸 USA',   value: 'USA' },
   { label: '🇨🇦 Canada', value: 'Canada' },
   { label: '🇲🇽 Mexico', value: 'Mexico' },
 ]
@@ -28,7 +30,13 @@ function SkeletonCard() {
   )
 }
 
-function applyImageOptimizations(stadiums: Stadium[]): Stadium[] {
+/**
+ * Applies Supabase image optimisation params ONLY to DB/storage URLs.
+ * Local bundled assets (injected by useStadiums via withLocalHero) are
+ * already fingerprinted by Vite and served from the same origin — no
+ * transform needed, and getOptimizedImageUrl passes them through unchanged.
+ */
+function applyCardImageOptimizations(stadiums: Stadium[]): Stadium[] {
   return stadiums.map((s) => ({
     ...s,
     hero_image_url: getOptimizedImageUrl(s.hero_image_url, 512, 72),
@@ -44,6 +52,7 @@ function useWarmStadiumImages(urls: (string | null)[]) {
       img.decoding = 'async'
       img.src = url
     })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urls.join('|')])
 }
 
@@ -51,28 +60,27 @@ export function StadiumsPage() {
   const navigate = useNavigate()
   const { data, isFetching, isError, error, refetch, status } = useStadiums()
 
+  // useStadiums already injects local hero URLs — optimisation pass is a no-op
+  // for local assets but correctly applies Supabase params for any DB fallbacks.
   const optimisedStadiums = useMemo(
-    () => applyImageOptimizations(data ?? []),
+    () => applyCardImageOptimizations(data ?? []),
     [data],
   )
 
   const isLoading = optimisedStadiums.length === 0 && (isFetching || status === 'pending')
 
-  const [search, setSearch] = useState('')
+  const [search, setSearch]   = useState('')
   const [country, setCountry] = useState<Country>('all')
 
   useWarmStadiumImages(
-    useMemo(
-      () => optimisedStadiums.map((s) => s.hero_image_url),
-      [optimisedStadiums],
-    ),
+    useMemo(() => optimisedStadiums.map((s) => s.hero_image_url), [optimisedStadiums]),
   )
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
     return optimisedStadiums.filter((s) => {
       const matchCountry = country === 'all' || s.country === country
-      const matchSearch =
+      const matchSearch  =
         !q ||
         s.name.toLowerCase().includes(q) ||
         s.city.toLowerCase().includes(q)

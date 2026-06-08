@@ -151,16 +151,20 @@ function FindFriends({ viewerUserId }: { viewerUserId: string }) {
 
 // ── Stat Summary Banner ───────────────────────────────────────────────────────
 function FriendStats({ friends }: { friends: Friendship[] }) {
-  const count   = friends.length
-  // League = friends with xp data available (all accepted friends qualify)
+  const count    = friends.length
   const inLeague = Math.min(friends.length, 3)
+  // Total XP earned across all accepted friends — useful at-a-glance metric
+  const totalXp  = friends.reduce((sum, f) => sum + (f.friend?.xp ?? 0), 0)
+
+  const stats = [
+    { label: 'Friends',   value: count,                          icon: 'group'         },
+    { label: 'In League', value: inLeague,                       icon: 'shield'        },
+    { label: 'Group XP',  value: totalXp.toLocaleString(),       icon: 'bolt'          },
+  ]
 
   return (
     <div className="grid grid-cols-3 gap-4 mb-8">
-      {[
-        { label: 'Friends',  value: count,    icon: 'group'  },
-        { label: 'In League', value: inLeague, icon: 'shield' },
-      ].map(({ label, value, icon }) => (
+      {stats.map(({ label, value, icon }) => (
         <div
           key={label}
           className="glass-card rounded-xl p-4 flex flex-col items-center gap-1 border border-white/5"
@@ -178,9 +182,9 @@ function FriendStats({ friends }: { friends: Friendship[] }) {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export function FriendsPage() {
-  const { userId }    = useParams<{ userId: string }>()
-  const { user: currentUser } = useAuthStore()
-  const navigate      = useNavigate()
+  const { userId }              = useParams<{ userId: string }>()
+  const { user: currentUser }   = useAuthStore()
+  const navigate                = useNavigate()
   const { data: friends = [], isLoading } = useFriends(userId!)
   const isOwn = currentUser?.id === userId
 
