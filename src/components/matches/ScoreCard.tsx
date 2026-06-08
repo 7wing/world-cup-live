@@ -1,5 +1,7 @@
 import { GlassCard } from '@/components/ui/GlassCard'
+import { TeamFlag } from '@/components/ui/TeamFlag'
 import { formatKickoff } from '@/utils/formatDate'
+import { getKnockoutWinner, getPenaltyScores } from '@/utils/tournament'
 import type { Match } from '@/types'
 import { cn } from '@/utils/cn'
 
@@ -11,6 +13,8 @@ interface ScoreCardProps {
 export function ScoreCard({ match, onClick }: ScoreCardProps) {
   const isLive = match.status === 'live'
   const isFinished = match.status === 'finished'
+  const pens = getPenaltyScores(match)
+  const winner = getKnockoutWinner(match)
 
   return (
     <GlassCard
@@ -31,25 +35,36 @@ export function ScoreCard({ match, onClick }: ScoreCardProps) {
 
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          {match.home_team.flag_url && !match.home_team.flag_url.startsWith('http') && (
-            <span className="text-lg leading-none">{match.home_team.flag_url}</span>
-          )}
-          <span className="font-lexend font-bold uppercase text-sm truncate">{match.home_team.name}</span>
+          <TeamFlag code={match.home_team.code} flagUrl={match.home_team.flag_url} size="md" />
+          <span className={cn(
+            'font-lexend font-bold uppercase text-sm truncate',
+            winner === 'home' && isFinished && 'text-white',
+            winner === 'away' && isFinished && 'text-white/40',
+          )}>{match.home_team.name}</span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col items-center gap-0.5">
           {(isLive || isFinished) ? (
-            <span className={cn('font-lexend font-black text-xl', isLive && 'text-primary-container')}>
-              {match.home_score} - {match.away_score}
-            </span>
+            <>
+              <span className={cn('font-lexend font-black text-xl', isLive && 'text-primary-container')}>
+                {match.home_score} - {match.away_score}
+              </span>
+              {pens.decidedByPens && isFinished && (
+                <span className="text-[9px] font-lexend text-white/30">
+                  pens {pens.home}–{pens.away}
+                </span>
+              )}
+            </>
           ) : (
             <span className="font-lexend text-white/20 text-sm uppercase tracking-widest">vs</span>
           )}
         </div>
         <div className="flex items-center gap-2 flex-1 justify-end min-w-0">
-          <span className="font-lexend font-bold uppercase text-sm truncate text-right">{match.away_team.name}</span>
-          {match.away_team.flag_url && !match.away_team.flag_url.startsWith('http') && (
-            <span className="text-lg leading-none">{match.away_team.flag_url}</span>
-          )}
+          <span className={cn(
+            'font-lexend font-bold uppercase text-sm truncate text-right',
+            winner === 'away' && isFinished && 'text-white',
+            winner === 'home' && isFinished && 'text-white/40',
+          )}>{match.away_team.name}</span>
+          <TeamFlag code={match.away_team.code} flagUrl={match.away_team.flag_url} size="md" />
         </div>
       </div>
 

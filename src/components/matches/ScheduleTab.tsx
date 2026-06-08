@@ -2,19 +2,11 @@
 
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import * as Flags from 'country-flag-icons/react/3x2'
 import { GlassCard } from '@/components/ui/GlassCard'
+import { TeamFlag } from '@/components/ui/TeamFlag'
 import { useMatches } from '@/hooks/useMatches'
+import { formatMatchStageLabel, getKnockoutWinner, getPenaltyScores } from '@/utils/tournament'
 import type { Match } from '@/types'
-
-// ── Flag ──────────────────────────────────────────────────────────────────────
-function TeamFlag({ code }: { code: string }) {
-  if (!code) return <span className="inline-flex w-6 h-[16px] rounded-[2px] bg-white/10 flex-shrink-0" />
-  const FlagComponent = (Flags as Record<string, React.ComponentType<React.SVGProps<SVGSVGElement>>>)[code]
-  if (!FlagComponent)
-    return <span className="inline-flex w-6 h-[16px] rounded-[2px] bg-white/10 flex-shrink-0" />
-  return <FlagComponent className="w-6 h-[16px] rounded-[2px] flex-shrink-0 shadow-sm" style={{ display: 'inline-block' }} />
-}
 
 // ── Timezone helpers ──────────────────────────────────────────────────────────
 function localTime(isoUtc: string): string {
@@ -53,6 +45,8 @@ function FixtureRow({ match }: { match: Match }) {
   const navigate = useNavigate()
   const isFinished = match.status === 'finished'
   const isLive = match.status === 'live'
+  const winner = getKnockoutWinner(match)
+  const pens = getPenaltyScores(match)
 
   return (
     <div
@@ -72,13 +66,13 @@ function FixtureRow({ match }: { match: Match }) {
       {/* Home team */}
       <div className="flex items-center gap-2 flex-1 justify-end min-w-0">
         <span className={`font-lexend font-semibold text-xs truncate text-right ${
-          isFinished && (match.home_score ?? 0) > (match.away_score ?? 0) ? 'text-white'
+          isFinished && winner === 'home' ? 'text-white'
           : isFinished ? 'text-white/35'
           : 'text-white/70'
         }`}>
           {match.home_team.name}
         </span>
-        <TeamFlag code={match.home_team.code ?? ''} />
+        <TeamFlag code={match.home_team.code} flagUrl={match.home_team.flag_url} />
       </div>
 
       {/* Score / VS */}
@@ -86,16 +80,19 @@ function FixtureRow({ match }: { match: Match }) {
         {(isLive || isFinished) ? (
           <>
             <span className={`font-lexend font-black text-sm w-4 text-center ${
-              (match.home_score ?? 0) > (match.away_score ?? 0) ? 'text-white' : 'text-white/30'
+              winner === 'home' ? 'text-white' : 'text-white/30'
             }`}>
               {match.home_score ?? 0}
             </span>
             <span className="text-white/15 font-lexend font-black text-xs">–</span>
             <span className={`font-lexend font-black text-sm w-4 text-center ${
-              (match.away_score ?? 0) > (match.home_score ?? 0) ? 'text-white' : 'text-white/30'
+              winner === 'away' ? 'text-white' : 'text-white/30'
             }`}>
               {match.away_score ?? 0}
             </span>
+            {pens.decidedByPens && (
+              <span className="text-[8px] font-lexend text-white/25 ml-0.5">({pens.home}-{pens.away}p)</span>
+            )}
           </>
         ) : (
           <span className="text-[10px] font-lexend font-bold text-white/15 tracking-widest">vs</span>
@@ -104,9 +101,9 @@ function FixtureRow({ match }: { match: Match }) {
 
       {/* Away team */}
       <div className="flex items-center gap-2 flex-1 min-w-0">
-        <TeamFlag code={match.away_team.code ?? ''} />
+        <TeamFlag code={match.away_team.code} flagUrl={match.away_team.flag_url} />
         <span className={`font-lexend font-semibold text-xs truncate ${
-          isFinished && (match.away_score ?? 0) > (match.home_score ?? 0) ? 'text-white'
+          isFinished && winner === 'away' ? 'text-white'
           : isFinished ? 'text-white/35'
           : 'text-white/70'
         }`}>
@@ -117,7 +114,7 @@ function FixtureRow({ match }: { match: Match }) {
       {/* Stage + venue */}
       <div className="hidden sm:flex flex-col items-end flex-shrink-0 w-40 gap-0.5">
         <span className="text-[9px] font-lexend font-black uppercase tracking-widest text-primary-container/50">
-          {match.group_letter ? `Group ${match.group_letter}` : match.stage}
+          {formatMatchStageLabel(match)}
         </span>
         {match.stadium && (
           <span className="text-[9px] font-lexend text-white/15 w-full text-right truncate">

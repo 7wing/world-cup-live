@@ -117,10 +117,10 @@ function teamId2022(code: string): string {
 function adaptStage2022(roundName: string): string {
   const n = roundName.toLowerCase()
   if (n.includes('matchday') || n.includes('group')) return 'group'
-  if (n.includes('round of 16'))    return 'round_of_16'
-  if (n.includes('quarter'))        return 'quarter_final'
-  if (n.includes('semi'))           return 'semi_final'
-  if (n.includes('third') || n.includes('third place') || n.includes('match for third')) return 'third_place'
+  if (n.includes('round of 16'))    return 'round-of-16'
+  if (n.includes('quarter'))        return 'quarter-final'
+  if (n.includes('semi'))           return 'semi-final'
+  if (n.includes('third') || n.includes('third place') || n.includes('match for third')) return 'third-place'
   if (n.includes('final'))          return 'final'
   return 'group'
 }
