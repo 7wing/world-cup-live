@@ -42,13 +42,16 @@ function withLocalHeroAll(stadiums: Stadium[]): Stadium[] {
 
 // ── Stadiums list ─────────────────────────────────────────────────────────────
 
+/** Shared stadiums queryFn — used by useStadiums hook AND bootstrap prefetch */
+export async function fetchStadiumsWithHero(): Promise<Stadium[]> {
+  const stadiums = await fetchStadiums()
+  return withLocalHeroAll(stadiums)
+}
+
 export function useStadiums() {
   return useQuery({
     queryKey: ['stadiums'],
-    queryFn: async () => {
-      const stadiums = await fetchStadiums()
-      return withLocalHeroAll(stadiums)
-    },
+    queryFn: fetchStadiumsWithHero,
     staleTime: 1000 * 60 * 10,
   })
 }

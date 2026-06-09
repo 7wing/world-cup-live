@@ -1,7 +1,10 @@
 import { Link, useLocation } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/store/authStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import { Avatar } from '@/components/ui/Avatar'
+import { fetchStadiums } from '@/api/stadiums'
+import { fetchTribes } from '@/api/fanzone'
 import { cn } from '@/utils/cn'
 import { useState, useEffect } from 'react'
 
@@ -14,6 +17,7 @@ const navLinks = [
 
 export function TopBar() {
   const { pathname } = useLocation()
+  const qc = useQueryClient()
   const { user } = useAuthStore()
   const setSettingsOpen = useSettingsStore((s) => s.setOpen)
   const [scrolled, setScrolled] = useState(false)
@@ -34,6 +38,15 @@ export function TopBar() {
     : '👤'
 
   const profileTo = user ? `/profile/${user.id}` : '/login'
+
+  const handlePrefetch = (to: string) => {
+    if (to === '/games' || to.startsWith('/games')) {
+      qc.prefetchQuery({ queryKey: ['tribes'], queryFn: fetchTribes, staleTime: 60_000 })
+    }
+    if (to === '/stadiums' || to.startsWith('/stadiums')) {
+      qc.prefetchQuery({ queryKey: ['stadiums'], queryFn: fetchStadiums, staleTime: 60_000 })
+    }
+  }
 
   const isActive = (to: string, exact: boolean) =>
     exact ? pathname === to : pathname.startsWith(to)
@@ -83,6 +96,8 @@ export function TopBar() {
               <Link
                 key={to}
                 to={to}
+                onMouseEnter={() => handlePrefetch(to)}
+                onFocus={() => handlePrefetch(to)}
                 className={cn(
                   'relative px-4 py-1.5 rounded-xl',
                   'font-lexend uppercase tracking-tight text-xs font-semibold',
@@ -191,6 +206,8 @@ export function TopBar() {
                 key={to}
                 to={to}
                 onClick={() => setMobileOpen(false)}
+                onMouseEnter={() => handlePrefetch(to)}
+                onFocus={() => handlePrefetch(to)}
                 className={cn(
                   'flex items-center gap-3 px-4 py-3 rounded-xl',
                   'font-lexend uppercase tracking-tight text-sm font-semibold transition-colors',

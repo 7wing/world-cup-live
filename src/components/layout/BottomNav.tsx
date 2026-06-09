@@ -1,4 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
+import { fetchStadiums } from '@/api/stadiums'
+import { fetchTribes } from '@/api/fanzone'
 import { cn } from '@/utils/cn'
 
 const tabs = [
@@ -10,6 +13,16 @@ const tabs = [
 
 export function BottomNav() {
   const { pathname } = useLocation()
+  const qc = useQueryClient()
+
+  const handlePrefetch = (to: string) => {
+    if (to === '/games' || to.startsWith('/games')) {
+      qc.prefetchQuery({ queryKey: ['tribes'], queryFn: fetchTribes, staleTime: 60_000 })
+    }
+    if (to === '/stadiums' || to.startsWith('/stadiums')) {
+      qc.prefetchQuery({ queryKey: ['stadiums'], queryFn: fetchStadiums, staleTime: 60_000 })
+    }
+  }
 
   const isActive = (to: string, exact: boolean) =>
     exact ? pathname === to : pathname.startsWith(to)
@@ -39,6 +52,8 @@ export function BottomNav() {
             aria-label={label}
             aria-current={active ? 'page' : undefined}
             title={label}
+            onMouseEnter={() => handlePrefetch(to)}
+            onFocus={() => handlePrefetch(to)}
             className="relative flex items-center justify-center w-12 h-12 rounded-full transition-colors duration-200 active:scale-95"
             style={
               active

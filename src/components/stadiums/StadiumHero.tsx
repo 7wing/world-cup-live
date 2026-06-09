@@ -54,16 +54,19 @@ export function StadiumHero({ stadiums, isLoading }: StadiumHeroProps) {
 
   const current = slides[index]?.hero_image_url ?? null
 
+  // Warm all slide images into browser cache so carousel switching is instant
+  useEffect(() => {
+    slides.forEach((s) => {
+      if (!s.hero_image_url) return
+      const img = new Image()
+      img.decoding = 'async'
+      img.src = s.hero_image_url
+    })
+  }, [slides])
+
   return (
     <div className="relative overflow-hidden rounded-2xl mb-8 h-64 isolate bg-surface-container-low">
       <div className="absolute inset-0 bg-gradient-to-br from-primary-container/15 via-surface-container to-black" />
-
-      {/* Preload all slide images so switching is instant */}
-      {slides.map((s) =>
-        s.hero_image_url ? (
-          <link key={s.slug} rel="preload" as="image" href={s.hero_image_url} />
-        ) : null
-      )}
 
       {current && (
         <img

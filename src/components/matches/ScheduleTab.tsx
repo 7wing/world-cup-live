@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { GlassCard } from '@/components/ui/GlassCard'
 import { TeamFlag } from '@/components/ui/TeamFlag'
 import { useMatches } from '@/hooks/useMatches'
+import { usePrefetchMatch } from '@/hooks/usePrefetchMatch'
 import { formatMatchStageLabel, getKnockoutWinner, getPenaltyScores } from '@/utils/tournament'
 import type { Match } from '@/types'
 
@@ -43,6 +44,7 @@ function groupByLocalDate(matches: Match[]): [string, Match[]][] {
 // ── Fixture Row ───────────────────────────────────────────────────────────────
 function FixtureRow({ match }: { match: Match }) {
   const navigate = useNavigate()
+  const prefetch = usePrefetchMatch()
   const isFinished = match.status === 'finished'
   const isLive = match.status === 'live'
   const winner = getKnockoutWinner(match)
@@ -51,7 +53,10 @@ function FixtureRow({ match }: { match: Match }) {
   return (
     <div
       onClick={() => navigate(`/matches/${match.id}`)}
-      className="flex items-center gap-3 px-4 py-3 border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors cursor-pointer group"
+      onMouseEnter={() => prefetch(match)}
+      onFocus={() => prefetch(match)}
+      tabIndex={0}
+      className="flex items-center gap-3 px-4 py-3 border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors cursor-pointer group outline-none"
     >
       {/* Local time / FT / Live */}
       <div className="w-10 flex-shrink-0 text-center">

@@ -21,11 +21,13 @@ import type { MatchEvent } from '@/api/matchEvents'
 
 // ── Matches ───────────────────────────────────────────────────────────────────
 
+const MINUTE = 60_000
+
 export function useMatches() {
   return useQuery({
     queryKey:       ['matches'],
     queryFn:        fetchMatches,
-    staleTime:      30_000,
+    staleTime:      5 * MINUTE,   // match list changes slowly (kickoff times, scores)
     refetchInterval: 30_000,
   })
 }
