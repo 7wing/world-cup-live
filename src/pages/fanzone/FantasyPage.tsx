@@ -2,7 +2,7 @@
 // Fantasy draft — pulls real players from Supabase players table.
 // Saves/loads squad via fantasy_squads + fantasy_players tables.
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useQuery, useMutation }        from '@tanstack/react-query'
 import { useAuthStore }                 from '@/store/authStore'
 import { fetchPlayers, fetchFantasySquad, saveFantasySquad } from '@/api/fanzone'
@@ -63,6 +63,7 @@ export function FantasyPage() {
   const [squad, setSquad]             = useState<Player[]>([])
   const [locked, setLocked]           = useState(false)
   const [savedMsg, setSavedMsg]       = useState(false)
+  const squadRestoredRef             = useRef(false)
 
   // ── Fetch player pool ──────────────────────────────────────────────────────
   const { data: allPlayers = [], isLoading: loadingPlayers } = useQuery({
@@ -78,17 +79,19 @@ export function FantasyPage() {
     enabled:  !!user,
   })
 
-  // Restore squad from DB into local state once data arrives
+  // Restore squad from DB into local state once data arrives.
+  // squadRestoredRef ensures setSquad is only called on the first arrival of
+  // existingSquad, preventing cascading renders after user modifications.
   useEffect(() => {
-    if (!existingSquad) return
-    const restored: Player[] = existingSquad.players.map((p: FantasySquadPlayer) => ({
+    if (!existingSquad || squadRestoredRef.current) return
+    squadRestoredRef.current = true
+    setSquad(existingSquad.players.map((p: FantasySquadPlayer) => ({
       id:       p.id,
       name:     p.name,
       team:     p.team,
       position: p.position,
       cost:     p.cost,
-    }))
-    setSquad(restored)
+    })))
     setLocked(existingSquad.squad.locked_in)
   }, [existingSquad])
 

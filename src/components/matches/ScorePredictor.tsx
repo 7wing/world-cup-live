@@ -1,6 +1,6 @@
 // src/components/matches/ScorePredictor.tsx
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { GlassCard } from '@/components/ui/GlassCard'
 import { useAuthStore } from '@/store/authStore'
 import { useOraclePrediction } from '@/hooks/useOracle'
@@ -14,16 +14,8 @@ export function ScorePredictor({ match }: { match: Match }) {
   const { data: existing, isLoading: loadingPred } = useMyPrediction(user?.id, match.id)
   const { mutate: submitPrediction, isPending } = useSubmitMatchPrediction()
 
-  const [homeGoals, setHomeGoals] = useState(0)
-  const [awayGoals, setAwayGoals] = useState(0)
-
-  // Seed input values from saved prediction when it loads
-  useEffect(() => {
-    if (existing) {
-      setHomeGoals(existing.predicted_home)
-      setAwayGoals(existing.predicted_away)
-    }
-  }, [existing?.id])
+  const [homeGoals, setHomeGoals] = useState(existing?.predicted_home ?? 0)
+  const [awayGoals, setAwayGoals] = useState(existing?.predicted_away ?? 0)
 
   const isUpcoming  = match.status === 'upcoming'
   const isFinished  = match.status === 'finished'

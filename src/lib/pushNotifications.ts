@@ -50,6 +50,17 @@ export async function getCurrentSubscription(): Promise<PushSubscription | null>
   }
 }
 
+/** Register the service worker, returning the registration or null. */
+export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
+  if (!('serviceWorker' in navigator)) return null
+  try {
+    return await navigator.serviceWorker.register('/sw.js')
+  } catch (err) {
+    console.error('[pushNotifications] SW registration failed:', err)
+    return null
+  }
+}
+
 // --------------------------------------------------------------------------
 // Subscribe
 // Requests permission, creates a PushSubscription, then writes it directly
@@ -73,7 +84,9 @@ export async function subscribeToAlerts(userId: string): Promise<boolean> {
     return false
   }
 
-  const reg = await navigator.serviceWorker.ready
+  const registration = await registerServiceWorker()
+  if (!registration) return false
+  const reg = registration
 
   const applicationServerKey = urlBase64ToArrayBuffer(VAPID_PUBLIC_KEY)
 

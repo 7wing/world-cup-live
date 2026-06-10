@@ -1,3 +1,4 @@
+import React, { useCallback } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { fetchStadiums } from '@/api/stadiums'
@@ -11,18 +12,18 @@ const tabs = [
   { to: '/stadiums', icon: 'stadium',         label: 'Stadiums', exact: false },
 ] as const
 
-export function BottomNav() {
+export const BottomNav = React.memo(function BottomNav() {
   const { pathname } = useLocation()
   const qc = useQueryClient()
 
-  const handlePrefetch = (to: string) => {
+  const handlePrefetch = useCallback((to: string) => {
     if (to === '/games' || to.startsWith('/games')) {
       qc.prefetchQuery({ queryKey: ['tribes'], queryFn: fetchTribes, staleTime: 60_000 })
     }
     if (to === '/stadiums' || to.startsWith('/stadiums')) {
       qc.prefetchQuery({ queryKey: ['stadiums'], queryFn: fetchStadiums, staleTime: 60_000 })
     }
-  }
+  }, [qc])
 
   const isActive = (to: string, exact: boolean) =>
     exact ? pathname === to : pathname.startsWith(to)
@@ -96,4 +97,4 @@ export function BottomNav() {
       })}
     </nav>
   )
-}
+})

@@ -1,11 +1,12 @@
 // src/pages/fanzone/WatchPartyPage.tsx
 // Watch party chat room — uses party_messages table, not chat_messages.
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate, useParams }      from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore }                from '@/store/authStore'
 import { fetchWatchParties, fetchPartyMessages, sendPartyMessage } from '@/api/fanzone'
+import { supabase }                   from '@/lib/supabase'
 import { Avatar }                      from '@/components/ui/Avatar'
 import { formatRelative }              from '@/utils/formatDate'
 import type { PartyMessage, WatchParty } from '@/api/fanzone'
@@ -47,8 +48,33 @@ export function WatchPartyPage() {
     queryKey: ['party_messages', partyId],
     queryFn:  () => fetchPartyMessages(partyId!),
     enabled:  !!partyId,
-    refetchInterval: 5_000, // poll every 5s (replace with realtime subscription if desired)
   })
+
+  // ── Realtime subscription to party_messages ───────────────────────────────
+  useEffect(() => {
+    if (!partyId) return
+
+    const channel = supabase.channel(`watch-party:${partyId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'party_messages',
+        filter: `party_id=eq.${partyId}`,
+      }, (payload) => {
+        const newMsg = payload.new as PartyMessage & { user?: { username: string; avatar_url: string | null } }
+        setOptimistic(prev => {
+          // Deduplicate: don't add if already in messages or optimistic
+          if (prev.find(m => m.id === newMsg.id) || messages.find(m => m.id === newMsg.id)) return prev
+          return [...prev, newMsg]
+        })
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [partyId])
 
   // Merge DB messages with optimistic ones, deduplicate by id
   const allMessages = [
@@ -69,13 +95,13 @@ export function WatchPartyPage() {
     },
   })
 
-  const doSend = (content: string) => {
+  const doSend = useCallback((content: string) => {
     const txt = content.trim()
     if (!txt || !user || !partyId) return
 
-    // Optimistic insert
+    // Optimistic insert — id uses crypto.randomUUID() to avoid impure Date.now() in render
     const opt: PartyMessage = {
-      id:         `opt-${Date.now()}`,
+      id:         `${partyId}-${crypto.randomUUID()}`,
       party_id:   partyId,
       user_id:    user.id,
       content:    txt,
@@ -85,7 +111,7 @@ export function WatchPartyPage() {
     setOptimistic(prev => [...prev, opt])
     setInput('')
     send(txt)
-  }
+  }, [user, partyId, send])
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) doSend(input)

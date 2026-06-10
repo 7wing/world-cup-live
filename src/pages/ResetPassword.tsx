@@ -23,11 +23,11 @@ export function ResetPasswordPage() {
     const hashError = hash.get('error')
     if (hashError) {
       const desc = hash.get('error_description')?.replace(/\+/g, ' ') ?? 'This reset link is invalid or has expired.'
-      setLinkError(desc)
+      queueMicrotask(() => setLinkError(desc))
       return
     }
 
-    // ── token_hash in query params (current Supabase email format) ──────────
+    // ── token_hash in query params (Supabase email format) ────────────────
     const tokenHash = searchParams.get('token_hash')
     const type      = searchParams.get('type')
 
@@ -38,26 +38,6 @@ export function ResetPasswordPage() {
           if (error) setLinkError(error.message)
           else setReady(true)
         })
-      return
-    }
-
-    // ── Fallback: wait for PASSWORD_RECOVERY auth state event ───────────────
-    const { data: listener } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') setReady(true)
-    })
-
-    const timeout = setTimeout(() => {
-      setReady((r) => {
-        if (!r) {
-          setLinkError('Reset link could not be verified. Request a new link — your password is unchanged until you complete reset.')
-        }
-        return r
-      })
-    }, 6000)
-
-    return () => {
-      listener.subscription.unsubscribe()
-      clearTimeout(timeout)
     }
   // navigate is stable from react-router and not used inside this effect
   }, [searchParams])

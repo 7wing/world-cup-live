@@ -7,7 +7,11 @@ import { queryClient } from '@/lib/queryClient'
 import { router } from '@/router'
 import { fetchMatches } from '@/api/matches'
 import { fetchStadiumsWithHero } from '@/hooks/useStadium'
+import { registerServiceWorker } from '@/lib/pushNotifications'
 import '@/styles/globals.css'
+
+// Register service worker for push notifications (best-effort, non-blocking)
+registerServiceWorker().catch(() => {})
 
 // Prefetch critical data immediately without blocking render
 queryClient.prefetchQuery({

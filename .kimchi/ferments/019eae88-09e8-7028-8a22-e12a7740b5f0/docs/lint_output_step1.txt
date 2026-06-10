@@ -1,0 +1,180 @@
+
+> world-cup-live@0.0.0 lint
+> eslint .
+
+
+/home/blueclouds/workspace/github/7wing/world-cup-live/src/api/trivia.ts
+  34:7  error  The value assigned to 'rows' is not used in subsequent statements  no-useless-assignment
+
+/home/blueclouds/workspace/github/7wing/world-cup-live/src/components/fanzone/LiveChatPanel.tsx
+  22:6  warning  React Hook useEffect has a missing dependency: 'setMessages'. Either include it or remove the dependency array                            react-hooks/exhaustive-deps
+  26:7  warning  React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked  react-hooks/exhaustive-deps
+
+/home/blueclouds/workspace/github/7wing/world-cup-live/src/components/fanzone/WatchPartiesSidebar.tsx
+  66:26  error  Error: Cannot call impure function during render
+
+`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+/home/blueclouds/workspace/github/7wing/world-cup-live/src/components/fanzone/WatchPartiesSidebar.tsx:66:26
+  64 |     if (!txt || !user) return
+  65 |     const opt: PartyMessage = {
+> 66 |       id:         `opt-${Date.now()}`,
+     |                          ^^^^^^^^^^ Cannot call impure function
+  67 |       party_id:   party.id,
+  68 |       user_id:    user.id,
+  69 |       content:    txt,  react-hooks/purity
+
+/home/blueclouds/workspace/github/7wing/world-cup-live/src/components/layout/TopBar.tsx
+  33:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/home/blueclouds/workspace/github/7wing/world-cup-live/src/components/layout/TopBar.tsx:33:5
+  31 |
+  32 |   useEffect(() => {
+> 33 |     setMobileOpen(false)
+     |     ^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  34 |   }, [pathname])
+  35 |
+  36 |   const avatarFallback = user?.username  react-hooks/set-state-in-effect
+
+/home/blueclouds/workspace/github/7wing/world-cup-live/src/components/matches/ScorePredictor.tsx
+  23:7  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/home/blueclouds/workspace/github/7wing/world-cup-live/src/components/matches/ScorePredictor.tsx:23:7
+  21 |   useEffect(() => {
+  22 |     if (existing) {
+> 23 |       setHomeGoals(existing.predicted_home)
+     |       ^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  24 |       setAwayGoals(existing.predicted_away)
+  25 |     }
+  26 |   }, [existing?.id])  react-hooks/set-state-in-effect
+  26:6  warning  React Hook useEffect has a missing dependency: 'existing'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react-hooks/exhaustive-deps
+
+/home/blueclouds/workspace/github/7wing/world-cup-live/src/components/profile/SettingsModal.tsx
+  20:15  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/home/blueclouds/workspace/github/7wing/world-cup-live/src/components/profile/SettingsModal.tsx:20:15
+  18 |
+  19 |   useEffect(() => {
+> 20 |     if (open) setAlerts(loadMatchAlerts())
+     |               ^^^^^^^^^ Avoid calling setState() directly within an effect
+  21 |   }, [open])
+  22 |
+  23 |   function toggle(key: AlertKey) {  react-hooks/set-state-in-effect
+
+/home/blueclouds/workspace/github/7wing/world-cup-live/src/hooks/useAuth.ts
+  37:6  warning  React Hook useEffect has missing dependencies: 'setLoading', 'setSession', and 'setUser'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+/home/blueclouds/workspace/github/7wing/world-cup-live/src/hooks/useRealtime.ts
+  17:58  error    Unexpected any. Specify a different type                                                                                           @typescript-eslint/no-explicit-any
+  27:6   warning  React Hook useEffect has missing dependencies: 'addMessage' and 'updateMatch'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+/home/blueclouds/workspace/github/7wing/world-cup-live/src/lib/server/seedPlayers.ts
+  126:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/blueclouds/workspace/github/7wing/world-cup-live/src/pages/ResetPassword.tsx
+  26:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/home/blueclouds/workspace/github/7wing/world-cup-live/src/pages/ResetPassword.tsx:26:7
+  24 |     if (hashError) {
+  25 |       const desc = hash.get('error_description')?.replace(/\+/g, ' ') ?? 'This reset link is invalid or has expired.'
+> 26 |       setLinkError(desc)
+     |       ^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  27 |       return
+  28 |     }
+  29 |  react-hooks/set-state-in-effect
+
+/home/blueclouds/workspace/github/7wing/world-cup-live/src/pages/fanzone/FantasyPage.tsx
+  91:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/home/blueclouds/workspace/github/7wing/world-cup-live/src/pages/fanzone/FantasyPage.tsx:91:5
+  89 |       cost:     p.cost,
+  90 |     }))
+> 91 |     setSquad(restored)
+     |     ^^^^^^^^ Avoid calling setState() directly within an effect
+  92 |     setLocked(existingSquad.squad.locked_in)
+  93 |   }, [existingSquad])
+  94 |  react-hooks/set-state-in-effect
+
+/home/blueclouds/workspace/github/7wing/world-cup-live/src/pages/fanzone/WatchPartyPage.tsx
+  78:26  error  Error: Cannot call impure function during render
+
+`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+/home/blueclouds/workspace/github/7wing/world-cup-live/src/pages/fanzone/WatchPartyPage.tsx:78:26
+  76 |     // Optimistic insert
+  77 |     const opt: PartyMessage = {
+> 78 |       id:         `opt-${Date.now()}`,
+     |                          ^^^^^^^^^^ Cannot call impure function
+  79 |       party_id:   partyId,
+  80 |       user_id:    user.id,
+  81 |       content:    txt,  react-hooks/purity
+
+/home/blueclouds/workspace/github/7wing/world-cup-live/src/pages/games/GamesPage.tsx
+   66:6  warning  React Hook useEffect has a missing dependency: 'liveMatch'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            react-hooks/exhaustive-deps
+  138:5  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/home/blueclouds/workspace/github/7wing/world-cup-live/src/pages/games/GamesPage.tsx:138:5
+  136 |     const init: Record<string, [number, number]> = {}
+  137 |     for (const p of saved) init[p.match_id] = [p.predicted_home, p.predicted_away]
+> 138 |     setScores((prev) => ({ ...init, ...prev }))
+      |     ^^^^^^^^^ Avoid calling setState() directly within an effect
+  139 |   }, [saved.map((p) => p.id).join(',')])
+  140 |
+  141 |   const savedMap = new Map(saved.map((p) => [p.match_id, p]))  react-hooks/set-state-in-effect
+  139:6  warning  React Hook useEffect has a missing dependency: 'saved'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                react-hooks/exhaustive-deps
+  139:7  warning  React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                react-hooks/exhaustive-deps
+
+/home/blueclouds/workspace/github/7wing/world-cup-live/src/pages/matches/MatchDetailPage.tsx
+  88:60  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/blueclouds/workspace/github/7wing/world-cup-live/src/router/index.tsx
+   2:17  error  'Suspense' is defined but never used                                                                                                                                 @typescript-eslint/no-unused-vars
+  17:7   error  Fast refresh only works when a file only exports components. Move your component(s) to a separate file. If all exports are HOCs, add them to the `extraHOCs` option  react-refresh/only-export-components
+  18:7   error  Fast refresh only works when a file only exports components. Move your component(s) to a separate file. If all exports are HOCs, add them to the `extraHOCs` option  react-refresh/only-export-components
+  19:7   error  Fast refresh only works when a file only exports components. Move your component(s) to a separate file. If all exports are HOCs, add them to the `extraHOCs` option  react-refresh/only-export-components
+  20:7   error  Fast refresh only works when a file only exports components. Move your component(s) to a separate file. If all exports are HOCs, add them to the `extraHOCs` option  react-refresh/only-export-components
+  21:7   error  Fast refresh only works when a file only exports components. Move your component(s) to a separate file. If all exports are HOCs, add them to the `extraHOCs` option  react-refresh/only-export-components
+  22:7   error  Fast refresh only works when a file only exports components. Move your component(s) to a separate file. If all exports are HOCs, add them to the `extraHOCs` option  react-refresh/only-export-components
+  23:7   error  Fast refresh only works when a file only exports components. Move your component(s) to a separate file. If all exports are HOCs, add them to the `extraHOCs` option  react-refresh/only-export-components
+  24:7   error  Fast refresh only works when a file only exports components. Move your component(s) to a separate file. If all exports are HOCs, add them to the `extraHOCs` option  react-refresh/only-export-components
+  25:7   error  Fast refresh only works when a file only exports components. Move your component(s) to a separate file. If all exports are HOCs, add them to the `extraHOCs` option  react-refresh/only-export-components
+  26:7   error  Fast refresh only works when a file only exports components. Move your component(s) to a separate file. If all exports are HOCs, add them to the `extraHOCs` option  react-refresh/only-export-components
+
+✖ 31 problems (23 errors, 8 warnings)
+

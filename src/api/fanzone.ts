@@ -3,28 +3,63 @@
 // tribes, tribe_members, watch_parties, party_messages, players, fantasy_squads.
 
 import { supabase }              from '@/lib/supabase'
-import type { Post, ChatMessage, Tribe } from '@/types'
+import type { Post, ChatMessage, Tribe, TribeMemberUser } from '@/types'
+
+// --------------------------------------------------------------------------
+// Posts
+// --------------------------------------------------------------------------
+// Friendships (used for Following feed filter)
+// --------------------------------------------------------------------------
+
+export async function fetchFriendIds(userId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('friendships')
+    .select('friend_id')
+    .eq('user_id', userId)
+    .eq('status', 'accepted')
+
+  if (error) throw error
+  return (data ?? []).map((r: { friend_id: string }) => r.friend_id)
+}
 
 // --------------------------------------------------------------------------
 // Posts
 // --------------------------------------------------------------------------
 
-export async function fetchPosts(
-  matchId?: string,
-  userId?: string,
-): Promise<Post[]> {
+export async function fetchPosts(params: {
+  matchId?: string
+  userId?: string
+  friendIds?: string[]
+  cursor?: string | null
+  limit?: number
+} = {}): Promise<{ posts: Post[]; nextCursor: string | null }> {
+  const { matchId, userId, friendIds, cursor, limit = 10 } = params
+
   let query = supabase
     .from('posts')
-    .select('*, user:users(username, avatar_url)')
+    .select('*, user:users(id, username, avatar_url)')
     .order('created_at', { ascending: false })
-    .limit(30)
+    .limit(limit + 1)
 
   if (matchId) query = query.eq('match_id', matchId)
+
+  // Following filter: posts from friends + own posts
+  if (friendIds && friendIds.length > 0) {
+    query = query.in('user_id', friendIds)
+  }
+
+  if (cursor) {
+    query = query.lt('created_at', cursor)
+  }
 
   const { data, error } = await query
   if (error) throw error
 
-  const posts = (data ?? []) as Post[]
+  const raw = (data ?? []) as Post[]
+  // Detect if there's a next page
+  const hasNext = raw.length > limit
+  const posts = hasNext ? raw.slice(0, limit) : raw
+  const nextCursor = hasNext && posts.length > 0 ? posts[posts.length - 1].created_at : null
 
   if (userId && posts.length > 0) {
     const postIds = posts.map(p => p.id)
@@ -35,10 +70,13 @@ export async function fetchPosts(
       .in('post_id', postIds)
 
     const likedSet = new Set((likes ?? []).map((l: { post_id: string }) => l.post_id))
-    return posts.map(p => ({ ...p, liked: likedSet.has(p.id) }))
+    return {
+      posts: posts.map(p => ({ ...p, liked: likedSet.has(p.id) })),
+      nextCursor,
+    }
   }
 
-  return posts
+  return { posts, nextCursor }
 }
 
 export async function createPost(
@@ -52,34 +90,22 @@ export async function togglePostLike(
   postId: string,
   userId: string,
   liked: boolean,
-): Promise<void> {
+): Promise<boolean> {
   if (liked) {
-    const { error: insertError } = await supabase
-      .from('post_likes')
-      .insert({ post_id: postId, user_id: userId })
-    if (insertError) throw insertError
-
-    const { data, error: selectError } = await supabase
-      .from('posts').select('likes').eq('id', postId).single()
-    if (selectError) throw selectError
-
-    const { error: updateError } = await supabase
-      .from('posts').update({ likes: data.likes + 1 }).eq('id', postId)
-    if (updateError) throw updateError
-  } else {
-    const { error: deleteError } = await supabase
+    // Already liked — unlike: delete the post_likes row, DB trigger decrements posts.likes
+    const { error } = await supabase
       .from('post_likes')
       .delete()
       .match({ post_id: postId, user_id: userId })
-    if (deleteError) throw deleteError
-
-    const { data, error: selectError } = await supabase
-      .from('posts').select('likes').eq('id', postId).single()
-    if (selectError) throw selectError
-
-    const { error: updateError } = await supabase
-      .from('posts').update({ likes: Math.max(0, data.likes - 1) }).eq('id', postId)
-    if (updateError) throw updateError
+    if (error) throw error
+    return false
+  } else {
+    // Not liked yet — like: insert post_likes row, DB trigger increments posts.likes
+    const { error } = await supabase
+      .from('post_likes')
+      .insert({ post_id: postId, user_id: userId })
+    if (error) throw error
+    return true
   }
 }
 
@@ -112,19 +138,16 @@ export async function createPostComment(
   postId: string,
   userId: string,
   content: string,
-): Promise<void> {
-  const { error: insertError } = await supabase
+): Promise<PostComment> {
+  // Insert comment; DB trigger will increment posts.comment_count
+  const { data, error } = await supabase
     .from('post_comments')
     .insert({ post_id: postId, user_id: userId, content })
-  if (insertError) throw insertError
+    .select('*, user:users(username, avatar_url)')
+    .single()
 
-  const { data, error: selectError } = await supabase
-    .from('posts').select('comment_count').eq('id', postId).single()
-  if (selectError) throw selectError
-
-  const { error: updateError } = await supabase
-    .from('posts').update({ comment_count: data.comment_count + 1 }).eq('id', postId)
-  if (updateError) throw updateError
+  if (error) throw error
+  return data as PostComment
 }
 
 // --------------------------------------------------------------------------
@@ -184,16 +207,12 @@ export async function sendPartyMessage(
   userId: string,
   content: string,
 ): Promise<void> {
+  // DB trigger `party_message_insert` handles last_message / last_msg_at update.
+  // DB trigger `update_watch_party_last_message` updates watch_parties on INSERT.
   const { error } = await supabase
     .from('party_messages')
     .insert({ party_id: partyId, user_id: userId, content })
   if (error) throw error
-
-  // Update last_message + last_msg_at on the watch_parties row
-  await supabase
-    .from('watch_parties')
-    .update({ last_message: content, last_msg_at: new Date().toISOString() })
-    .eq('id', partyId)
 }
 
 // --------------------------------------------------------------------------
@@ -208,6 +227,31 @@ export async function fetchTribes(): Promise<Tribe[]> {
 
   if (error) throw error
   return data as Tribe[]
+}
+
+export async function fetchTribeById(tribeId: string): Promise<Tribe> {
+  const { data, error } = await supabase
+    .from('tribes')
+    .select('*')
+    .eq('id', tribeId)
+    .single()
+
+  if (error) throw error
+  return data as Tribe
+}
+
+export async function fetchTribeMembers(tribeId: string): Promise<TribeMemberUser[]> {
+  const { data, error } = await supabase
+    .from('tribe_members')
+    .select(`
+      *,
+      user:users(id, username, avatar_url, tier, xp, global_rank)
+    `)
+    .eq('tribe_id', tribeId)
+    .order('joined_at', { ascending: true })
+
+  if (error) throw error
+  return data as TribeMemberUser[]
 }
 
 export async function joinTribe(userId: string, tribeId: string): Promise<void> {
@@ -247,14 +291,22 @@ export async function fetchWatchParties(): Promise<WatchParty[]> {
 export async function createWatchParty(
   party: Pick<WatchParty, 'name' | 'flag' | 'match_id' | 'created_by'>,
 ): Promise<WatchParty> {
-  const { data, error } = await supabase
-    .from('watch_parties')
-    .insert(party)
-    .select()
-    .single()
+  try {
+    const { data, error } = await supabase
+      .from('watch_parties')
+      .insert(party)
+      .select()
+      .single()
 
-  if (error) throw error
-  return data as WatchParty
+    if (error) throw error
+    return data as WatchParty
+  } catch (err: unknown) {
+    // PostgreSQL unique_violation code 23505 — unique_watch_party_name constraint
+    if (typeof err === 'object' && err !== null && 'code' in err && (err as { code: string }).code === '23505') {
+      throw new Error('A party with this name already exists.', { cause: err })
+    }
+    throw err
+  }
 }
 
 // --------------------------------------------------------------------------

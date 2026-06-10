@@ -1,6 +1,6 @@
 // src/components/stadiums/StadiumHero.tsx
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import type { Stadium } from '@/types'
 
 interface StadiumHeroProps {
@@ -55,7 +55,10 @@ export function StadiumHero({ stadiums, isLoading }: StadiumHeroProps) {
   const current = slides[index]?.hero_image_url ?? null
 
   // Warm all slide images into browser cache so carousel switching is instant
+  const hasWarmed = useRef(false)
   useEffect(() => {
+    if (hasWarmed.current) return
+    hasWarmed.current = true
     slides.forEach((s) => {
       if (!s.hero_image_url) return
       const img = new Image()

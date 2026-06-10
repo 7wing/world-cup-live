@@ -1,6 +1,6 @@
 // src/components/fanzone/WatchPartiesSidebar.tsx
 
-import { useState, useRef, useEffect }  from 'react'
+import { useState, useRef, useEffect, useCallback }  from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { LiveDot }           from '@/components/ui/LiveDot'
 import { NeonButton }        from '@/components/ui/NeonButton'
@@ -8,6 +8,7 @@ import { Avatar }            from '@/components/ui/Avatar'
 import { fetchWatchParties, createWatchParty, fetchPartyMessages, sendPartyMessage } from '@/api/fanzone'
 import { useAuthStore }      from '@/store/authStore'
 import { formatRelative }    from '@/utils/formatDate'
+import { supabase }          from '@/lib/supabase'
 import type { WatchParty, PartyMessage } from '@/api/fanzone'
 
 const FLAG_OPTIONS = ['🌍', '🏟️', '⚽', '🔥', '🇧🇷', '🇦🇷', '🇫🇷', '🇩🇪', '🇪🇸', '🏴󠁧󠁢󠁥󠁮󠁧󠁿']
@@ -39,8 +40,28 @@ function PartyChatModal({ party, onClose }: PartyChatModalProps) {
   const { data: messages = [] } = useQuery({
     queryKey: ['party_messages', party.id],
     queryFn:  () => fetchPartyMessages(party.id),
-    refetchInterval: 5_000,
   })
+
+  // ── Realtime subscription ─────────────────────────────────────────────────
+  useEffect(() => {
+    const channel = supabase.channel(`watch-party-modal:${party.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'party_messages',
+        filter: `party_id=eq.${party.id}`,
+      }, (payload) => {
+        const newMsg = payload.new as PartyMessage
+        setOptimistic(prev => {
+          if (prev.find(m => m.id === newMsg.id) || messages.find(m => m.id === newMsg.id)) return prev
+          return [...prev, newMsg]
+        })
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [party.id])
 
   const allMessages = [
     ...messages,
@@ -59,11 +80,11 @@ function PartyChatModal({ party, onClose }: PartyChatModalProps) {
     },
   })
 
-  const doSend = (content: string) => {
+  const doSend = useCallback((content: string) => {
     const txt = content.trim()
     if (!txt || !user) return
     const opt: PartyMessage = {
-      id:         `opt-${Date.now()}`,
+      id:         `${party.id}-${crypto.randomUUID()}`,
       party_id:   party.id,
       user_id:    user.id,
       content:    txt,
@@ -73,7 +94,7 @@ function PartyChatModal({ party, onClose }: PartyChatModalProps) {
     setOptimistic(prev => [...prev, opt])
     setInput('')
     send(txt)
-  }
+  }, [party, user, send])
 
   return (
     <div
@@ -238,7 +259,12 @@ function CreatePartyModal({ onClose }: CreatePartyModalProps) {
     },
     onError: (err) => {
       console.error('[CreatePartyModal] error:', err)
-      setFormError('Failed to create party. Please try again.')
+      const msg = err instanceof Error ? err.message : ''
+      if (msg.includes('already exists')) {
+        setFormError('A party with this name already exists.')
+      } else {
+        setFormError('Failed to create party. Please try again.')
+      }
     },
   })
 

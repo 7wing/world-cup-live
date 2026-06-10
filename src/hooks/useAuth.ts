@@ -34,7 +34,7 @@ export function useAuth() {
       cancelled = true
       listener.subscription.unsubscribe()
     }
-  }, [])
+  }, [setLoading, setSession, setUser])
 
   const user    = useAuthStore((s) => s.user)
   const session = useAuthStore((s) => s.session)

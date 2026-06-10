@@ -31,7 +31,7 @@ export async function fetchTriviaQuestions(
   matchId: string | undefined,
   limit = 10
 ): Promise<TriviaQuestion[]> {
-  let rows: TriviaQuestion[] = []
+  let rows: TriviaQuestion[]
 
   if (matchId) {
     const { data, error } = await supabase

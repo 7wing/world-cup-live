@@ -6,7 +6,12 @@ import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/authStore'
 
 interface PostComposerProps {
-  onPost: (content: string, mediaUrl?: string, mediaType?: 'image' | 'video') => void
+  onPost: (
+    content: string,
+    mediaUrl?: string,
+    mediaType?: 'image' | 'video',
+    cleanupMedia?: () => void,
+  ) => void
   autoFocus?: boolean
 }
 
@@ -19,6 +24,10 @@ export function PostComposer({ onPost, autoFocus = false }: PostComposerProps) {
   const [uploadError, setUploadError] = useState<string | null>(null)
   const imageRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLInputElement>(null)
+
+  // Track storage paths so we can clean up on post failure
+  const mediaBucket = useRef<'post-images' | 'post-videos' | null>(null)
+  const mediaPath = useRef<string | null>(null)
 
   const handleFileSelect = async (file: File, type: 'image' | 'video') => {
     if (!user) return
@@ -39,6 +48,8 @@ export function PostComposer({ onPost, autoFocus = false }: PostComposerProps) {
       const { data } = supabase.storage.from(bucket).getPublicUrl(path)
       setMediaUrl(data.publicUrl)
       setMediaType(type)
+      mediaBucket.current = bucket
+      mediaPath.current = path
     } catch (err) {
       setUploadError('Upload failed. Please try again.')
       console.error('[PostComposer] upload error:', err)
@@ -57,10 +68,29 @@ export function PostComposer({ onPost, autoFocus = false }: PostComposerProps) {
 
   const handlePost = () => {
     if (!content.trim() && !mediaUrl) return
+
+    // Cleanup function passed to parent so it can delete the file if post creation fails
+    const cleanup = async () => {
+      const bucket = mediaBucket.current
+      const path = mediaPath.current
+      if (!bucket || !path) return
+
+      try {
+        await supabase.storage.from(bucket).remove([path])
+        console.debug('[PostComposer] cleaned up orphaned media:', path)
+      } catch (err) {
+        console.error('[PostComposer] failed to clean up media:', err)
+      } finally {
+        mediaBucket.current = null
+        mediaPath.current = null
+      }
+    }
+
     onPost(
       content.trim(),
       mediaUrl ?? undefined,
       mediaType ?? undefined,
+      cleanup,
     )
     setContent('')
     clearMedia()

@@ -57,7 +57,7 @@ export const StadiumCard = memo(function StadiumCard({
             height={176}
             loading="eager"
             decoding="async"
-            fetchPriority={priority ? 'high' : 'auto'}
+            fetchPriority={priority ? 'high' : 'low'}
             onError={handleError}
             className="w-full h-full object-cover"
           />

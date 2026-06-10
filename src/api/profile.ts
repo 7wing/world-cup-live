@@ -1,6 +1,6 @@
 import type { User as AuthUser } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
-import type { User, Friendship, FanPhoto, PassportBadge, Prediction } from '@/types'
+import type { User, Friendship, FanPhoto, PassportBadge, Prediction, DirectMessage, Conversation } from '@/types'
 
 // ── User ──────────────────────────────────────────────────────────────────────
 
@@ -174,5 +174,111 @@ export async function submitPrediction(
 
 export async function deletePrediction(predictionId: string): Promise<void> {
   const { error } = await supabase.from('predictions').delete().eq('id', predictionId)
+  if (error) throw error
+}
+
+// ── All Users (for Discover) ──────────────────────────────────────────────────
+
+export async function fetchAllUsers(excludeId?: string): Promise<User[]> {
+  let query = supabase.from('users').select('*').order('xp', { ascending: false })
+  if (excludeId) query = query.neq('id', excludeId)
+  const { data, error } = await query
+  if (error) { console.error('[fetchAllUsers]', error.message); throw error }
+  return data as User[]
+}
+
+// ── Direct Messages ───────────────────────────────────────────────────────────
+
+export async function fetchConversations(userId: string): Promise<Conversation[]> {
+  // Get all DMs where user is sender or receiver, grouped by partner
+  const { data, error } = await supabase
+    .from('direct_messages')
+    .select(`
+      *,
+      sender:users!direct_messages_sender_id_fkey(id, username, avatar_url, tier, xp),
+      receiver:users!direct_messages_receiver_id_fkey(id, username, avatar_url, tier, xp)
+    `)
+    .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
+    .order('created_at', { ascending: false })
+
+  if (error) { console.error('[fetchConversations]', error.message); throw error }
+
+  const raw = data as DirectMessage[]
+  // Group by partner — keep only the most recent DM per partner
+  const seen = new Map<string, DirectMessage>()
+  for (const dm of raw) {
+    const partnerId = dm.sender_id === userId ? dm.receiver_id : dm.sender_id
+    if (!seen.has(partnerId)) seen.set(partnerId, dm)
+  }
+
+  const conversations: Conversation[] = []
+  for (const [partnerId, lastMessage] of seen) {
+    const sender = lastMessage.sender as User | undefined
+    const receiver = lastMessage.receiver as User | undefined
+    const partner = lastMessage.sender_id === userId ? receiver : sender
+
+    if (!partner) continue
+
+    // Count unread messages from this partner
+    const { count } = await supabase
+      .from('direct_messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('sender_id', partnerId)
+      .eq('receiver_id', userId)
+      .is('read_at', null)
+
+    conversations.push({
+      partner_id: partnerId,
+      partner,
+      last_message: lastMessage,
+      unread_count: count ?? 0,
+    })
+  }
+
+  // Sort by last message time (most recent first)
+  conversations.sort((a, b) => {
+    const aTime = a.last_message?.created_at ?? ''
+    const bTime = b.last_message?.created_at ?? ''
+    return bTime.localeCompare(aTime)
+  })
+
+  return conversations
+}
+
+export async function fetchDirectMessages(
+  userId: string,
+  partnerId: string,
+): Promise<DirectMessage[]> {
+  const { data, error } = await supabase
+    .from('direct_messages')
+    .select(`
+      *,
+      sender:users!direct_messages_sender_id_fkey(id, username, avatar_url),
+      receiver:users!direct_messages_receiver_id_fkey(id, username, avatar_url)
+    `)
+    .or(`and(sender_id.eq.${userId},receiver_id.eq.${partnerId}),and(sender_id.eq.${partnerId},receiver_id.eq.${userId})`)
+    .order('created_at', { ascending: true })
+    .limit(100)
+
+  if (error) { console.error('[fetchDirectMessages]', error.message); throw error }
+  return data as DirectMessage[]
+}
+
+export async function sendDirectMessage(
+  senderId: string,
+  receiverId: string,
+  content: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('direct_messages')
+    .insert({ sender_id: senderId, receiver_id: receiverId, content })
+  if (error) throw error
+}
+
+export async function markDmRead(messageId: string): Promise<void> {
+  const { error } = await supabase
+    .from('direct_messages')
+    .update({ read_at: new Date().toISOString() })
+    .eq('id', messageId)
   if (error) throw error
 }

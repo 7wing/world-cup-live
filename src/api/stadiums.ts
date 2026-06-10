@@ -35,7 +35,7 @@ export async function fetchStadiums(): Promise<Stadium[]> {
   return Promise.race([fetchPromise, timeout])
 }
 
-export async function fetchStadiumById(slug: string): Promise<Stadium> {
+export async function fetchStadiumBySlug(slug: string): Promise<Stadium> {
   const { data, error } = await supabase
     .from('stadiums')
     .select('*')

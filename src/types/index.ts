@@ -275,3 +275,31 @@ export interface DuelSession {
   played_at: string | null
   created_at: string
 }
+
+// ── direct_messages ───────────────────────────────────────────────────────────
+export interface DirectMessage {
+  id: string
+  sender_id: string
+  receiver_id: string
+  content: string
+  read_at: string | null
+  created_at: string
+  sender?: Pick<User, 'username' | 'avatar_url'>
+  receiver?: Pick<User, 'username' | 'avatar_url'>
+}
+
+// ── conversations ─────────────────────────────────────────────────────────────
+export interface Conversation {
+  partner_id: string
+  partner: User
+  last_message: DirectMessage | null
+  unread_count: number
+}
+
+// ── tribe_members with user ───────────────────────────────────────────────────
+export interface TribeMemberUser {
+  user_id: string
+  user?: User
+  role: string | null
+  joined_at: string
+}

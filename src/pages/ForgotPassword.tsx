@@ -2,50 +2,23 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { NeonButton } from '@/components/ui/NeonButton'
-import { useNotificationStore } from '@/store/notificationStore'
 
 export function ForgotPasswordPage() {
-  const { push } = useNotificationStore()
   const [email,   setEmail]   = useState('')
   const [loading, setLoading] = useState(false)
   const [sent,    setSent]    = useState(false)
-  // 'unknown' keeps us from leaking whether an email is registered to bad actors,
-  // but we still surface a helpful nudge when nothing exists.
-  const [noAccount, setNoAccount] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    setNoAccount(false)
 
-    // ── 1. Check whether this email has an account in public.users ──────────
-    // We join via auth.users id → public.users id.
-    // The safest way without an edge-function is to look up by email in a
-    // profiles/users table that stores email, OR use a Postgres function.
-    // Here we use a lightweight RPC that returns a boolean (see SQL note below).
-    const { data: exists, error: rpcError } = await supabase
-      .rpc('email_has_account', { lookup_email: email.trim().toLowerCase() })
-
-    if (rpcError) {
-      // RPC missing or network issue — fall through and let Supabase handle it
-      console.warn('email_has_account RPC failed, skipping pre-check:', rpcError.message)
-    } else if (!exists) {
-      setNoAccount(true)
-      setLoading(false)
-      return
-    }
-
-    // ── 2. Email exists — send the reset link ────────────────────────────────
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+    // Always call resetPasswordForEmail — we never reveal whether an email is registered
+    await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo: `${window.location.origin}/reset-password`,
     })
 
-    if (error) {
-      push(error.message, 'error')
-    } else {
-      setSent(true)
-    }
-
+    // Show generic success message regardless of whether the email exists
+    setSent(true)
     setLoading(false)
   }
 
@@ -94,7 +67,7 @@ export function ForgotPasswordPage() {
               <p className="text-white/30 text-[11px] leading-relaxed">
                 Didn't receive it? Check your spam folder or{' '}
                 <button
-                  onClick={() => { setSent(false); setNoAccount(false) }}
+                  onClick={() => setSent(false)}
                   className="text-primary-container underline underline-offset-2"
                 >
                   try again
@@ -123,30 +96,11 @@ export function ForgotPasswordPage() {
                     type="email"
                     required
                     value={email}
-                    onChange={(e) => { setEmail(e.target.value); setNoAccount(false) }}
-                    className={`auth-input w-full ${noAccount ? '!border-red-400 focus:!border-red-400' : ''}`}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="auth-input w-full"
                     placeholder="fan@example.com"
                     autoFocus
                   />
-
-                  {/* ── No-account warning ── */}
-                  {noAccount && (
-                    <div className="mt-3 rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-3 space-y-1">
-                      <p className="text-red-400 text-[12px] font-lexend font-semibold">
-                        No account found for this email.
-                      </p>
-                      <p className="text-white/40 text-[11px] leading-relaxed">
-                        Double-check the address, or{' '}
-                        <Link
-                          to="/signup"
-                          className="text-primary-container underline underline-offset-2"
-                        >
-                          create a free account
-                        </Link>
-                        {' '}to join the stadium.
-                      </p>
-                    </div>
-                  )}
                 </div>
 
                 <NeonButton
@@ -154,7 +108,7 @@ export function ForgotPasswordPage() {
                   className="w-full justify-center mt-2"
                   disabled={loading}
                 >
-                  {loading ? 'Checking…' : 'Send Reset Link'}
+                  {loading ? 'Sending…' : 'Send Reset Link'}
                 </NeonButton>
               </form>
             </>

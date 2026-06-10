@@ -68,7 +68,7 @@ export function ScoreCard({ match, onClick }: ScoreCardProps) {
         </div>
       </div>
 
-      {isLive && (
+      {isLive && match.home_possession != null && match.home_possession !== 50 && (
         <div className="mt-3 pt-3 border-t border-white/5">
           <div className="flex items-center gap-3">
             <span className="text-[10px] text-white/40 font-semibold uppercase">Possession</span>

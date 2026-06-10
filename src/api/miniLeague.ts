@@ -20,6 +20,7 @@ export async function fetchMiniLeague(currentUserId?: string): Promise<LeagueEnt
   const { data, error } = await supabase
     .from('predictions')
     .select('user_id, points_earned, is_correct, users!inner(username)')
+    .limit(500)
     .order('points_earned', { ascending: false })
 
   if (error) { console.error('[fetchMiniLeague]', error.message); throw error }

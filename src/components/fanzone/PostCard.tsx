@@ -1,10 +1,11 @@
 // src/components/fanzone/PostCard.tsx
 import { useState, useRef, useEffect } from 'react'
 import { formatDistanceToNow } from 'date-fns'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { Avatar } from '@/components/ui/Avatar'
-import { fetchPostComments, createPostComment } from '@/api/fanzone'
+import { fetchPostComments } from '@/api/fanzone'
 import { useAuthStore } from '@/store/authStore'
+import { useCreateComment } from '@/hooks/usePosts'
 import type { Post } from '@/types'
 import type { PostComment } from '@/api/fanzone'
 import { useTranslate } from '@/hooks/useTranslate'
@@ -54,7 +55,6 @@ interface CommentsModalProps {
 
 function CommentsModal({ post, onClose }: CommentsModalProps) {
   const { user } = useAuthStore()
-  const queryClient = useQueryClient()
   const [input, setInput] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
 
@@ -63,14 +63,7 @@ function CommentsModal({ post, onClose }: CommentsModalProps) {
     queryFn: () => fetchPostComments(post.id),
   })
 
-  const { mutate: submitComment, isPending } = useMutation({
-    mutationFn: () => createPostComment(post.id, user!.id, input.trim()),
-    onSuccess: () => {
-      setInput('')
-      queryClient.invalidateQueries({ queryKey: ['comments', post.id] })
-      queryClient.invalidateQueries({ queryKey: ['posts'] })
-    },
-  })
+  const { mutate: submitComment, isPending } = useCreateComment(post.id)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -151,12 +144,21 @@ function CommentsModal({ post, onClose }: CommentsModalProps) {
                 autoFocus
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && canSubmit && submitComment()}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && canSubmit) {
+                    const content = input.trim()
+                    submitComment(content, { onSuccess: () => setInput('') })
+                  }
+                }}
                 placeholder="Add a comment..."
                 className="flex-1 bg-white/5 border border-white/10 focus:border-primary-container/50 rounded-full px-4 py-2.5 text-sm font-lexend text-white/80 placeholder:text-white/20 outline-none transition-colors"
               />
               <button
-                onClick={() => canSubmit && submitComment()}
+                onClick={() => {
+                  if (!canSubmit) return
+                  const content = input.trim()
+                  submitComment(content, { onSuccess: () => setInput('') })
+                }}
                 disabled={!canSubmit}
                 className="w-9 h-9 bg-primary-container rounded-full flex items-center justify-center disabled:opacity-30 transition-opacity active:scale-95"
               >

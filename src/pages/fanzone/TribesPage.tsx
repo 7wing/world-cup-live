@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { GlassCard } from '@/components/ui/GlassCard'
 import { NeonButton } from '@/components/ui/NeonButton'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { fetchTribes, joinTribe } from '@/api/fanzone'
+import { useQuery } from '@tanstack/react-query'
+import { fetchTribes } from '@/api/fanzone'
 import { useAuthStore } from '@/store/authStore'
-import { useNotificationStore } from '@/store/notificationStore'
+import { useJoinTribe } from '@/hooks/useTribes'
 import { cn } from '@/utils/cn'
 import type { Tribe } from '@/types'
 
@@ -50,26 +50,36 @@ function TribeLeaderboard({ tribes }: { tribes: Tribe[] }) {
 function TribeCard({
   tribe,
   onJoin,
-  isPending,
+  isJoining,
   isLoggedIn,
+  onViewDetail,
 }: {
   tribe: Tribe
   onJoin: (id: string) => void
-  isPending: boolean
+  isJoining: boolean
   isLoggedIn: boolean
+  onViewDetail: (id: string) => void
 }) {
   const [joined, setJoined] = useState(false)
 
   const handleJoin = () => {
+    if (joined) return
     setJoined(true)
     onJoin(tribe.id)
   }
 
   return (
-    <GlassCard className="p-6 flex flex-col gap-4 hover:border-white/20 transition-colors">
+    <GlassCard
+      className="p-6 flex flex-col gap-4 hover:border-white/20 transition-colors cursor-pointer"
+      onClick={() => onViewDetail(tribe.id)}
+    >
       <div className="flex items-center gap-4">
         <div className="w-12 h-12 rounded-full bg-primary-container/20 border border-primary-container/30 flex items-center justify-center shrink-0">
-          <span className="material-symbols-outlined text-primary-container">shield</span>
+          {tribe.badge_url ? (
+            <img src={tribe.badge_url} alt={tribe.name} className="w-7 h-7 object-contain" />
+          ) : (
+            <span className="material-symbols-outlined text-primary-container">shield</span>
+          )}
         </div>
         <div className="flex-1 min-w-0">
           <h3 className="font-lexend font-bold uppercase truncate">{tribe.name}</h3>
@@ -77,6 +87,7 @@ function TribeCard({
             {tribe.member_count.toLocaleString()} members
           </p>
         </div>
+        <span className="material-symbols-outlined text-white/20 text-base shrink-0">arrow_forward</span>
       </div>
 
       <div className="flex justify-between items-center pt-2 border-t border-white/5">
@@ -89,10 +100,10 @@ function TribeCard({
         <NeonButton
           variant={joined ? undefined : 'outline'}
           size="sm"
-          disabled={isPending || !isLoggedIn || joined}
-          onClick={handleJoin}
+          disabled={isJoining || !isLoggedIn || joined}
+          onClick={(e) => { e.stopPropagation(); handleJoin() }}
         >
-          {joined ? 'Joined ✓' : 'Join Tribe'}
+          {joined ? 'Joined ✓' : isJoining ? 'Joining…' : 'Join Tribe'}
         </NeonButton>
       </div>
     </GlassCard>
@@ -104,21 +115,10 @@ export function TribesPage() {
   const navigate = useNavigate()
   const { data: tribes, isLoading } = useQuery({ queryKey: ['tribes'], queryFn: fetchTribes })
   const { user } = useAuthStore()
-  const { push } = useNotificationStore()
-  const qc = useQueryClient()
+  const { joinMutation, isJoining } = useJoinTribe()
   const [search, setSearch] = useState('')
 
-  const { mutate: join, isPending } = useMutation({
-    mutationFn: (tribeId: string) => {
-      if (!user) throw new Error('Not logged in')
-      return joinTribe(user.id, tribeId)
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['tribes'] })
-      push('Joined tribe!', 'success')
-    },
-    onError: () => push('Could not join tribe', 'error'),
-  })
+  const handleJoin = (tribeId: string) => joinMutation.mutate(tribeId)
 
   const filtered = tribes?.filter((t) =>
     t.name.toLowerCase().includes(search.toLowerCase())
@@ -172,9 +172,10 @@ export function TribesPage() {
           <TribeCard
             key={tribe.id}
             tribe={tribe}
-            onJoin={join}
-            isPending={isPending}
+            onJoin={handleJoin}
+            isJoining={isJoining(tribe.id)}
             isLoggedIn={!!user}
+            onViewDetail={(id) => navigate(`/tribes/${id}`)}
           />
         ))}
       </div>

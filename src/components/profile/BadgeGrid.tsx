@@ -6,6 +6,40 @@ interface BadgeGridProps {
   compact?: boolean
 }
 
+// Default badges that every user can earn (locked until unlocked)
+const DEFAULT_BADGES = [
+  { badge_key: 'first_login',      label: 'First Steps',     description: 'Log in for the first time.',     icon: 'footprint'        },
+  { badge_key: 'first_post',       label: 'New Voice',       description: 'Create your first post.',         icon: 'campaign'         },
+  { badge_key: 'first_prediction', label: 'Crystal Ball',    description: 'Make your first match prediction.', icon: 'psychology'       },
+  { badge_key: 'first_review',     label: 'Critic',          description: 'Submit your first stadium review.', icon: 'rate_review'      },
+  { badge_key: 'ten_posts',        label: 'Influencer',      description: 'Create 10 posts.',                 icon: 'trending_up'      },
+  { badge_key: 'correct_prediction', label: 'Nostradamus',   description: 'Get a prediction right.',          icon: 'emoji_events'     },
+  { badge_key: 'tribe_member',     label: 'Tribal',          description: 'Join a tribe.',                    icon: 'groups'           },
+  { badge_key: 'watch_party_host', label: 'Host',            description: 'Create a watch party.',            icon: 'co_present'       },
+]
+
+/**
+ * Merge fetched badges with defaults so locked badges always show as obtainable.
+ */
+function mergeWithDefaults(fetched: PassportBadge[]): PassportBadge[] {
+  const unlocked = new Map(fetched.map((b) => [b.badge_key, b]))
+  return DEFAULT_BADGES.map((def) => {
+    const unlockedBadge = unlocked.get(def.badge_key)
+    if (unlockedBadge) return unlockedBadge
+    // Return a synthesised locked badge row
+    return {
+      id:            `locked_${def.badge_key}`,
+      user_id:       '',
+      badge_key:     def.badge_key,
+      label:         def.label,
+      description:   def.description,
+      icon_url:      null,
+      is_unlocked:   false,
+      earned_at:     null,
+    } as PassportBadge
+  })
+}
+
 const ICON_MAP: Record<string, string> = {
   // Match & competition
   match_opener:      'sports_soccer',
@@ -21,16 +55,22 @@ const ICON_MAP: Record<string, string> = {
   home_crowd:        'home',
   away_support:      'directions_run',
   // Prediction milestones
-  first_prediction:  'track_changes',
+  first_prediction:  'psychology',
+  correct_prediction:'emoji_events',
   perfect_week:      'verified',
   oracle:            'auto_awesome',
   streak_5:          'local_fire_department',
   streak_10:         'whatshot',
-  // Social
+  // Social & onboarding
+  first_login:       'login',
+  first_post:        'campaign',
+  first_review:      'rate_review',
+  ten_posts:         'trending_up',
   tribe_founder:     'shield',
   tribe_member:      'groups',
   fan_photo:         'photo_camera',
   social_butterfly:  'diversity_3',
+  watch_party_host:  'co_present',
   // Ranking
   elite_rank:        'star',
   pro_rank:          'workspace_premium',
@@ -43,6 +83,9 @@ const ICON_MAP: Record<string, string> = {
 }
 
 export function BadgeGrid({ badges, compact = false }: BadgeGridProps) {
+  // Always show all available badges (unlocked + locked defaults)
+  const mergedBadges = mergeWithDefaults(badges)
+
   return (
     <div
       className={cn(
@@ -52,7 +95,7 @@ export function BadgeGrid({ badges, compact = false }: BadgeGridProps) {
           : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6'
       )}
     >
-      {badges.map((badge) => (
+      {mergedBadges.map((badge) => (
         <div
           key={badge.id}
           className={cn(

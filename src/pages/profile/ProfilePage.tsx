@@ -1,8 +1,9 @@
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { FriendList } from '@/components/profile/FriendList'
 import { BadgeGrid } from '@/components/profile/BadgeGrid'
+import { EditProfileModal } from '@/components/profile/EditProfileModal'
 import { GlassCard } from '@/components/ui/GlassCard'
 import { Avatar } from '@/components/ui/Avatar'
 import { NeonButton } from '@/components/ui/NeonButton'
@@ -15,8 +16,6 @@ import {
   useSubmitPrediction,
   useDeletePrediction,
   useSendFriendRequest,
-  useUpdateProfile,
-  useUploadAvatar,
 } from '@/hooks/useProfile'
 import { useAuthStore } from '@/store/authStore'
 import { cn } from '@/utils/cn'
@@ -40,88 +39,6 @@ interface PredictionWithMatch extends Prediction {
     home_team: { name: string; code: string }
     away_team: { name: string; code: string }
   }
-}
-
-// ── Edit Profile Modal ────────────────────────────────────────────────────────
-function EditProfileModal({
-  username,
-  avatarUrl,
-  userId,
-  onClose,
-}: {
-  username: string
-  avatarUrl: string | null
-  userId: string
-  onClose: () => void
-}) {
-  const [name, setName] = useState(username)
-  const fileRef = useRef<HTMLInputElement>(null)
-  const { mutate: updateProfile, isPending: saving }   = useUpdateProfile(userId)
-  const { mutate: uploadAvatar,  isPending: uploading } = useUploadAvatar(userId)
-  const busy = saving || uploading
-
-  function handleSave() {
-    if (name.trim() && name !== username) updateProfile({ username: name.trim() })
-    onClose()
-  }
-
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (file) uploadAvatar(file)
-  }
-
-  return (
-    <div
-      className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/70"
-      onClick={onClose}
-    >
-      <GlassCard className="w-full max-w-sm p-6 space-y-5" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between">
-          <h2 className="font-lexend font-black uppercase text-lg">Edit Profile</h2>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-colors"
-          >
-            <span className="material-symbols-outlined text-lg">close</span>
-          </button>
-        </div>
-
-        <div className="flex flex-col items-center gap-3">
-          <button
-            onClick={() => fileRef.current?.click()}
-            className="relative w-24 h-24 rounded-xl overflow-hidden border-2 border-primary-container/50 hover:border-primary-container transition-colors group"
-          >
-            <Avatar src={avatarUrl} username={username} size="lg" className="w-full h-full" />
-            <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-              <span className="material-symbols-outlined text-white text-2xl">photo_camera</span>
-            </div>
-            {uploading && (
-              <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                <span className="material-symbols-outlined text-primary-container animate-spin text-2xl">progress_activity</span>
-              </div>
-            )}
-          </button>
-          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-          <p className="text-[10px] text-white/30 font-lexend">Tap to change avatar</p>
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-[10px] font-lexend font-semibold uppercase text-white/40 tracking-wider">Username</label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            maxLength={24}
-            className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg font-lexend text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-primary-container/60 transition-colors"
-          />
-        </div>
-
-        <NeonButton className="w-full justify-center" disabled={busy} onClick={handleSave}>
-          {saving ? 'Saving…' : 'Save Changes'}
-        </NeonButton>
-      </GlassCard>
-    </div>
-  )
 }
 
 // ── Prediction row ────────────────────────────────────────────────────────────
@@ -514,23 +431,18 @@ export function ProfilePage() {
       {activeTab === 'badges' && (
         <div>
           {badgesLoading ? (
-            <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
-              {Array.from({ length: 6 }).map((_, i) => (
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="glass-card aspect-[3/4] rounded-xl animate-pulse" />
               ))}
             </div>
-          ) : badges && badges.length > 0 ? (
+          ) : (
             <>
               <p className="text-xs text-white/40 font-lexend mb-5">
-                {badges.filter((b) => b.is_unlocked).length} of {badges.length} unlocked
+                {badges ? badges.filter((b) => b.is_unlocked).length : 0} of 8 unlocked
               </p>
-              <BadgeGrid badges={badges} />
+              <BadgeGrid badges={badges ?? []} />
             </>
-          ) : (
-            <div className="text-center py-16">
-              <span className="material-symbols-outlined text-6xl text-white/10">military_tech</span>
-              <p className="font-lexend text-white/30 mt-3 uppercase text-sm">No badges yet</p>
-            </div>
           )}
         </div>
       )}

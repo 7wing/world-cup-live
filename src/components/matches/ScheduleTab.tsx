@@ -15,8 +15,12 @@ function localTime(isoUtc: string): string {
 }
 
 function localDateKey(isoUtc: string): string {
+  // Use the user's runtime timezone so that e.g. 23:30 UTC on June 23 stays
+  // June 23 for a UTC+1 user rather than shifting to June 24.
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
   const d = new Date(isoUtc)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  const local = new Date(d.toLocaleString('en-CA', { timeZone: tz }))
+  return `${local.getFullYear()}-${String(local.getMonth() + 1).padStart(2, '0')}-${String(local.getDate()).padStart(2, '0')}`
 }
 
 function formatDateLabel(isoUtc: string): string {

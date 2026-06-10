@@ -137,7 +137,7 @@ export function StadiumDetailPage() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
 
-  // stadiumId in the URL is actually the slug (see your router config)
+  // stadiumId param is the slug; useStadium queries by slug
   const { data: stadium, isLoading } = useStadium(stadiumId!)
   const { data: reviews = [] }       = useStadiumReviews(stadium?.id ?? '')
   const { data: photos  = [] }       = useStadiumPhotos(stadium?.id ?? '')

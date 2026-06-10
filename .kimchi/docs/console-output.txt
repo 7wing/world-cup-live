@@ -1,0 +1,31 @@
+src/components/fanzone/PostComposer.tsx:      console.error('[PostComposer] upload error:', err)
+src/components/fanzone/WatchPartiesSidebar.tsx:      console.error('[CreatePartyModal] error:', err)
+src/hooks/useAuth.ts:          console.error('[useAuth] profile setup failed:', err)
+src/api/profile.ts:    console.error('[fetchUserById] error:', error.message, '| code:', error.code)
+src/api/profile.ts:  if (error) { console.error('[fetchFriends]', error.message); throw error }
+src/api/profile.ts:  if (error) { console.error('[fetchUserPhotos]', error.message); throw error }
+src/api/miniLeague.ts:  if (error) { console.error('[fetchMiniLeague]', error.message); throw error }
+src/api/stadiums.ts:      console.error('[fetchStadiums]', error.message, error.code)
+src/api/games.ts:  if (error) { console.error('[fetchPotentialOpponents]', error.message); throw error }
+src/api/games.ts:  if (error) { console.error('[fetchUserDuelStats]', error.message); throw error }
+src/api/games.ts:  if (error) { console.error('[fetchRecentDuels]', error.message); throw error }
+src/api/games.ts:  if (error) { console.error('[fetchActiveDuel]', error.message); throw error }
+src/api/games.ts:  if (error) { console.error('[createDuelChallenge]', error.message); throw error }
+src/api/oracle.ts:  if (error) { console.error('[fetchOraclePrediction]', error.message); throw error }
+src/api/oracleVotes.ts:  if (error) { console.error('[fetchOracleVoteCounts]', error.message); throw error }
+src/api/oracleVotes.ts:  if (error) { console.error('[castOracleVote]', error.message); throw error }
+src/api/trivia.ts:    console.warn('[triggerGeneration] failed silently:', err)
+src/api/trivia.ts:    if (error) { console.error('[fetchTriviaQuestions]', error.message); throw error }
+src/api/trivia.ts:    if (error) { console.error('[fetchTriviaQuestions]', error.message); throw error }
+src/pages/ForgotPassword.tsx:      console.warn('email_has_account RPC failed, skipping pre-check:', rpcError.message)
+src/lib/matchAlerts.ts:    console.error('[matchAlerts] Failed to sync to Supabase:', error.message)
+src/lib/fantasyStorage.ts:  if (error) { console.error('[fantasyStorage] loadSquad:', error.message); return null }
+src/lib/fantasyStorage.ts:  if (pErr) { console.error('[fantasyStorage] loadPlayers:', pErr.message); return null }
+src/lib/fantasyStorage.ts:  if (error) { console.error('[fantasyStorage] listSquads:', error.message); return [] }
+src/lib/fantasyStorage.ts:    console.error('[fantasyStorage] saveSquad upsert:', squadErr?.message)
+src/lib/fantasyStorage.ts:    console.error('[fantasyStorage] saveSquad players:', pErr.message)
+src/lib/pushNotifications.ts:    console.warn('[pushNotifications] Push not supported in this browser.')
+src/lib/pushNotifications.ts:    console.error('[pushNotifications] VAPID public key is not configured.')
+src/lib/pushNotifications.ts:    console.warn('[pushNotifications] Notification permission denied.')
+src/lib/pushNotifications.ts:    console.error('[pushNotifications] Failed to save subscription:', error.message)
+src/lib/pushNotifications.ts:    console.warn('[pushNotifications] Failed to remove subscription:', error.message)

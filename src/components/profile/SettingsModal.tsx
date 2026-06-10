@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { GlassCard } from '@/components/ui/GlassCard'
 import { useAuthStore } from '@/store/authStore'
@@ -14,11 +14,8 @@ export function SettingsModal() {
   const navigate = useNavigate()
   const { open, setOpen } = useSettingsStore()
   const { user, signOut } = useAuthStore()
-  const [alerts, setAlerts] = useState(loadMatchAlerts)
-
-  useEffect(() => {
-    if (open) setAlerts(loadMatchAlerts())
-  }, [open])
+  // Recompute alerts whenever the modal opens
+  const alerts = useMemo(() => open ? loadMatchAlerts() : [], [open])
 
   function toggle(key: AlertKey) {
     setAlerts((prev) => {

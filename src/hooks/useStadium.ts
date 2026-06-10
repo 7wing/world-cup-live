@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   fetchStadiums,
-  fetchStadiumById,
+  fetchStadiumBySlug,
   fetchStadiumReviews,
   submitStadiumReview,
   fetchStadiumPhotos,
@@ -58,14 +58,14 @@ export function useStadiums() {
 
 // ── Single stadium by slug ────────────────────────────────────────────────────
 
-export function useStadium(slug: string) {
+export function useStadium(stadiumId: string) {
   return useQuery({
-    queryKey: ['stadiums', slug],
+    queryKey: ['stadium', stadiumId],
     queryFn: async () => {
-      const stadium = await fetchStadiumById(slug)
+      const stadium = await fetchStadiumBySlug(stadiumId)
       return withLocalHero(stadium)
     },
-    enabled: !!slug,
+    enabled: !!stadiumId,
     staleTime: 1000 * 60 * 10,
   })
 }
@@ -74,7 +74,7 @@ export function useStadium(slug: string) {
 
 export function useStadiumReviews(stadiumId: string) {
   return useQuery({
-    queryKey: ['stadiums', stadiumId, 'reviews'],
+    queryKey: ['stadium', stadiumId, 'reviews'],
     queryFn: () => fetchStadiumReviews(stadiumId),
     enabled: !!stadiumId,
   })
@@ -96,11 +96,11 @@ export function useSubmitReview(stadiumId: string, stadiumSlug: string) {
       submitStadiumReview(review),
     onSuccess: () => {
       // 1. Refresh the reviews list for this stadium
-      qc.invalidateQueries({ queryKey: ['stadiums', stadiumId, 'reviews'] })
+      qc.invalidateQueries({ queryKey: ['stadium', stadiumId, 'reviews'] })
 
       // 2. Refresh the stadium detail (keyed by slug) so updated averages
       //    from the DB trigger are reflected immediately in the UI
-      qc.invalidateQueries({ queryKey: ['stadiums', stadiumSlug] })
+      qc.invalidateQueries({ queryKey: ['stadium', stadiumSlug] })
 
       // 3. Refresh the stadiums list so the card on StadiumsPage also updates
       qc.invalidateQueries({ queryKey: ['stadiums'] })

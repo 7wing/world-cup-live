@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useMatchStore } from '@/store/matchStore'
 import { useChatStore } from '@/store/chatStore'
-import type { ChatMessage } from '@/types'
+import type { ChatMessage, Match } from '@/types'
 
 export function useRealtimeMatch(matchId: string) {
   const { updateMatch } = useMatchStore()
@@ -14,7 +14,7 @@ export function useRealtimeMatch(matchId: string) {
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'matches', filter: `id=eq.${matchId}` },
-        (payload) => updateMatch(matchId, payload.new as any)
+        (payload) => updateMatch(matchId, payload.new as Match)
       )
       .on(
         'postgres_changes',
@@ -24,5 +24,5 @@ export function useRealtimeMatch(matchId: string) {
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [matchId])
+  }, [matchId, updateMatch, addMessage])
 }

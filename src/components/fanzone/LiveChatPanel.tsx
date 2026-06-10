@@ -16,14 +16,15 @@ export function LiveChatPanel({ matchId }: LiveChatPanelProps) {
   const [input, setInput] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
   useRealtimeMatch(matchId)
+  const matchMessages = messages[matchId] ?? []
 
   useEffect(() => {
     fetchChatMessages(matchId).then((msgs) => setMessages(matchId, msgs))
-  }, [matchId])
+  }, [matchId, setMessages])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages[matchId]])
+  }, [matchMessages.length])
 
   const handleSend = async () => {
     if (!input.trim() || !user) return
@@ -40,7 +41,6 @@ export function LiveChatPanel({ matchId }: LiveChatPanelProps) {
     await sendChatMessage(matchId, user.id, optimistic.content)
   }
 
-  const matchMessages = messages[matchId] ?? []
 
   return (
     <div className="flex flex-col h-full">

@@ -7,6 +7,7 @@ import { PageWrapper } from '@/components/layout/PageWrapper'
 import { GlassCard } from '@/components/ui/GlassCard'
 import { NeonButton } from '@/components/ui/NeonButton'
 import { TriviaTab } from '@/components/games/TriviaTab'
+import { BracketTab } from '@/components/matches/BracketTab'
 import { useMatches, usePredictionsForMatches, useSubmitMatchPrediction } from '@/hooks/useMatches'
 import { useAuthStore } from '@/store/authStore'
 import { fetchGeminiTrivia, isGeminiEnabled } from '@/lib/gemini'
@@ -16,9 +17,13 @@ import {
   fetchUserDuelStats,
   fetchRecentDuels,
   fetchActiveDuel,
+  fetchIncomingChallenges,
   createDuelChallenge,
+  acceptDuel,
+  rejectDuel,
   type DuelStats,
   type RecentDuel,
+  type IncomingChallenge,
 } from '@/api/games'
 import { formatKickoff } from '@/utils/formatDate'
 import type { Match, TriviaQuestion } from '@/types'
@@ -48,6 +53,7 @@ function AiTriviaWrapper() {
 
   useEffect(() => {
     if (!isGeminiEnabled()) return
+    const matchId = liveMatch?.id
     fetchGeminiTrivia(liveMatch).then((q) => {
       if (!q) return
       setGeminiQuestion({
@@ -59,10 +65,11 @@ function AiTriviaWrapper() {
         tag:        liveMatch ? 'AI · Live Match' : 'AI · World Cup',
         difficulty: 'medium',
         source:     'gemini',
-        match_id:   liveMatch?.id ?? null,
+        match_id:   matchId ?? null,
         created_at: new Date().toISOString(),
       })
     })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveMatch?.id])
 
   // Tribe Battleground sidebar
@@ -129,14 +136,13 @@ function PredictorTab() {
   const { data: saved = [] }          = usePredictionsForMatches(user?.id, matchIds)
   const { mutate: lockIn, isPending } = useSubmitMatchPrediction()
 
-  const [scores, setScores] = useState<Record<string, [number, number]>>({})
-
-  // Seed local scores from saved predictions (run once per saved array identity)
-  useEffect(() => {
+  // Initialize scores from saved predictions
+  const initialScores = (() => {
     const init: Record<string, [number, number]> = {}
     for (const p of saved) init[p.match_id] = [p.predicted_home, p.predicted_away]
-    setScores((prev) => ({ ...init, ...prev }))
-  }, [saved.map((p) => p.id).join(',')])
+    return init
+  })()
+  const [scores, setScores] = useState<Record<string, [number, number]>>(initialScores)
 
   const savedMap = new Map(saved.map((p) => [p.match_id, p]))
 
@@ -288,6 +294,76 @@ function PredictorTab() {
   )
 }
 
+// ── Incoming challenges section ──────────────────────────────────────────────
+function IncomingChallengesSection() {
+  const { user }    = useAuthStore()
+  const queryClient = useQueryClient()
+
+  const { data: incoming = [] } = useQuery<IncomingChallenge[]>({
+    queryKey: ['incoming_challenges', user?.id],
+    queryFn:  () => fetchIncomingChallenges(user!.id),
+    enabled:  !!user,
+    refetchInterval: 10_000,
+  })
+
+  const { mutate: accept, isPending: accepting } = useMutation({
+    mutationFn: (duelId: string) => acceptDuel(duelId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['incoming_challenges', user?.id] }),
+  })
+
+  const { mutate: reject, isPending: rejecting } = useMutation({
+    mutationFn: (duelId: string) => rejectDuel(duelId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['incoming_challenges', user?.id] }),
+  })
+
+  if (!user || incoming.length === 0) return null
+
+  return (
+    <GlassCard className="overflow-hidden border-primary-container/30">
+      <div className="px-4 py-2.5 border-b border-primary-container/20 flex items-center gap-2">
+        <div className="w-1.5 h-1.5 rounded-full bg-primary-container animate-pulse" />
+        <p className="font-lexend font-black text-[9px] uppercase tracking-widest text-primary-container">
+          Incoming Challenges
+        </p>
+        <span className="ml-auto text-[9px] font-lexend font-bold text-primary-container/60 bg-primary-container/10 px-1.5 py-0.5 rounded-full">
+          {incoming.length}
+        </span>
+      </div>
+      <div className="p-4 space-y-2">
+        {incoming.map((c) => (
+          <div key={c.id} className="flex items-center gap-3 px-3 py-2.5 bg-white/3 rounded-xl border border-white/8">
+            <div className="w-8 h-8 rounded-full bg-primary-container/10 border border-primary-container/20 flex items-center justify-center text-[11px] font-lexend font-bold text-primary-container flex-shrink-0">
+              {c.challengerName.slice(0, 2).toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-lexend font-semibold text-xs text-white/70 truncate">
+                {c.challengerName}
+              </p>
+              <p className="text-[9px] font-lexend text-white/25">challenged you to a duel</p>
+            </div>
+            <div className="flex gap-1.5 flex-shrink-0">
+              <button
+                onClick={() => accept(c.id)}
+                disabled={accepting}
+                className="px-2.5 py-1 rounded-lg text-[10px] font-lexend font-black uppercase tracking-widest bg-primary-container/15 text-primary-container border border-primary-container/30 hover:bg-primary-container/25 transition-colors disabled:opacity-40"
+              >
+                Accept
+              </button>
+              <button
+                onClick={() => reject(c.id)}
+                disabled={rejecting}
+                className="px-2.5 py-1 rounded-lg text-[10px] font-lexend font-black uppercase tracking-widest bg-white/5 text-white/30 border border-white/10 hover:bg-red-400/10 hover:border-red-400/20 hover:text-red-400 transition-colors disabled:opacity-40"
+              >
+                Reject
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </GlassCard>
+  )
+}
+
 // ── Fan Duel tab ───────────────────────────────────────────────────────────────
 function FanDuelTab() {
   const { user }        = useAuthStore()
@@ -342,6 +418,9 @@ function FanDuelTab() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
       <div className="lg:col-span-8 space-y-5">
+        {/* Incoming challenges */}
+        <IncomingChallengesSection />
+
         {/* Challenge list */}
         <GlassCard className="overflow-hidden">
           <div className="px-4 py-2.5 border-b border-white/8 flex items-center gap-2">
@@ -514,18 +593,7 @@ function FanDuelTab() {
 }
 
 // ── Bracket tab placeholder ────────────────────────────────────────────────────
-function BracketGameTab() {
-  return (
-    <GlassCard className="p-8 text-center">
-      <span className="material-symbols-outlined text-5xl text-white/10 block mb-3">
-        account_tree
-      </span>
-      <p className="font-lexend font-bold text-white/30 text-sm">
-        Bracket predictor coming once the group stage concludes.
-      </p>
-    </GlassCard>
-  )
-}
+
 
 // ── Main page ──────────────────────────────────────────────────────────────────
 export function GamesPage() {
@@ -568,7 +636,7 @@ export function GamesPage() {
       {activeTab === 'trivia'    && <AiTriviaWrapper />}
       {activeTab === 'predictor' && <PredictorTab />}
       {activeTab === 'duel'      && <FanDuelTab />}
-      {activeTab === 'bracket'   && <BracketGameTab />}
+      {activeTab === 'bracket'   && <BracketTab />}
     </PageWrapper>
   )
 }

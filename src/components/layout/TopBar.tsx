@@ -3,10 +3,11 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/store/authStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import { Avatar } from '@/components/ui/Avatar'
+import { LanguageToggle } from '@/components/ui/LanguageToggle'
 import { fetchStadiums } from '@/api/stadiums'
 import { fetchTribes } from '@/api/fanzone'
 import { cn } from '@/utils/cn'
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect, useLayoutEffect } from 'react'
 
 const navLinks = [
   { to: '/matches',   label: 'Matches',  exact: false },
@@ -15,7 +16,7 @@ const navLinks = [
   { to: '/stadiums',  label: 'Stadiums', exact: false },
 ]
 
-export function TopBar() {
+export const TopBar = React.memo(function TopBar() {
   const { pathname } = useLocation()
   const qc = useQueryClient()
   const { user } = useAuthStore()
@@ -24,14 +25,23 @@ export function TopBar() {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20)
+    let ticking = false
+    const onScroll = () => {
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          setScrolled(window.scrollY > 20)
+          ticking = false
+        })
+        ticking = true
+      }
+    }
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  useEffect(() => {
-    setMobileOpen(false)
-  }, [pathname])
+  // useLayoutEffect is correct here: we need to close the menu synchronously
+  // when the route changes, before the next paint, to avoid flickering.
+  useLayoutEffect(() => { setMobileOpen(false) }, [pathname])
 
   const avatarFallback = user?.username
     ? user.username.charAt(0).toUpperCase()
@@ -127,6 +137,27 @@ export function TopBar() {
 
         {/* Desktop right side — settings + profile */}
         <div className="hidden md:flex items-center gap-2 shrink-0">
+          {/* Discover */}
+          <Link
+            to="/discover"
+            className="flex items-center justify-center w-8 h-8 rounded-xl text-white/40 hover:text-primary-container hover:bg-primary-container/10 transition-colors"
+            aria-label="Discover Players"
+          >
+            <span className="material-symbols-outlined text-[18px]">person_search</span>
+          </Link>
+
+          {/* Messages */}
+          <Link
+            to="/messages"
+            className="flex items-center justify-center w-8 h-8 rounded-xl text-white/40 hover:text-primary-container hover:bg-primary-container/10 transition-colors"
+            aria-label="Messages"
+          >
+            <span className="material-symbols-outlined text-[18px]">chat</span>
+          </Link>
+
+          {/* Language */}
+          <LanguageToggle />
+
           {/* Settings */}
           <button
             type="button"
@@ -284,4 +315,4 @@ export function TopBar() {
       )}
     </>
   )
-}
+})

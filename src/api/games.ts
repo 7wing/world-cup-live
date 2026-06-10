@@ -129,3 +129,50 @@ export async function createDuelChallenge(
     .insert({ challenger_id: challengerId, opponent_id: opponentId, status: 'pending' })
   if (error) { console.error('[createDuelChallenge]', error.message); throw error }
 }
+
+export interface IncomingChallenge {
+  id:           string
+  challengerId: string
+  challengerName: string
+  createdAt:    string
+}
+
+export async function fetchIncomingChallenges(userId: string): Promise<IncomingChallenge[]> {
+  const { data, error } = await supabase
+    .from('duel_sessions')
+    .select(`
+      id,
+      challenger_id,
+      created_at,
+      challenger:users!duel_sessions_challenger_id_fkey(username)
+    `)
+    .eq('opponent_id', userId)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+
+  if (error) { console.error('[fetchIncomingChallenges]', error.message); throw error }
+
+  return (data ?? []).map((d) => {
+    const challengerRaw = d.challenger
+    const challengerName = Array.isArray(challengerRaw)
+      ? challengerRaw[0]?.username ?? 'Unknown'
+      : (challengerRaw as { username?: string } | null)?.username ?? 'Unknown'
+    return { id: d.id, challengerId: d.challenger_id, challengerName, createdAt: d.created_at }
+  })
+}
+
+export async function acceptDuel(duelId: string): Promise<void> {
+  const { error } = await supabase
+    .from('duel_sessions')
+    .update({ status: 'active' })
+    .eq('id', duelId)
+  if (error) { console.error('[acceptDuel]', error.message); throw error }
+}
+
+export async function rejectDuel(duelId: string): Promise<void> {
+  const { error } = await supabase
+    .from('duel_sessions')
+    .delete()
+    .eq('id', duelId)
+  if (error) { console.error('[rejectDuel]', error.message); throw error }
+}

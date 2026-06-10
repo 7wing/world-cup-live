@@ -1,0 +1,54 @@
+> world-cup-live@0.0.0 build
+> vite build
+
+vite v8.0.14 building client environment for production...
+[2K[2Ktransforming...(node:34961) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+✓ 563 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                1.52 kB │ gzip:   0.75 kB
+dist/assets/trophy22-Cr0PK1OX.png            160.42 kB
+dist/assets/trophy26-B3crGAse.png            218.42 kB
+dist/assets/arrowhead-CkGqh75A.jpg           328.57 kB
+dist/assets/lincoln-BG1IIrwx.jpg           1,309.78 kB
+dist/assets/bc-place-C7YI8uL5.jpg          1,717.37 kB
+dist/assets/mercedes-benz-BmgzrsS5.jpg     1,925.60 kB
+dist/assets/sofi-Jm5Y3Kql.jpg              2,048.13 kB
+dist/assets/metlife-BIsyoPGO.jpg           2,657.74 kB
+dist/assets/akron-C4EsgFxi.jpg             2,690.77 kB
+dist/assets/azteca-DS-SXKFZ.jpg            2,706.66 kB
+dist/assets/bmo-CRT6CTh6.jpg               2,788.50 kB
+dist/assets/bbva-CTVnE1Xl.jpg              3,061.11 kB
+dist/assets/gillette-BkcEG8If.jpg          3,123.51 kB
+dist/assets/levis-7nDqmes3.jpg             3,760.17 kB
+dist/assets/att-B_d92kMk.jpg               4,101.65 kB
+dist/assets/nrg-51zN8qtp.jpg               4,896.25 kB
+dist/assets/lumen-BYmR9nj6.jpg             5,413.78 kB
+dist/assets/hard-rock-DztO0s-N.jpg         5,807.53 kB
+dist/assets/index-Cnt2u0Z5.css                87.47 kB │ gzip:  13.62 kB
+dist/assets/PasswordInput-D177CcDU.js          0.89 kB │ gzip:   0.55 kB
+dist/assets/gemini-Bj9j3RRT.js                 1.86 kB │ gzip:   0.84 kB
+dist/assets/CheckEmail-DmUnEww9.js             2.16 kB │ gzip:   0.96 kB
+dist/assets/Login-ccyeLAVU.js                  2.48 kB │ gzip:   1.08 kB
+dist/assets/ForgotPassword-CUv2e0K5.js         3.92 kB │ gzip:   1.62 kB
+dist/assets/Signup-B-av6EGk.js                 4.20 kB │ gzip:   1.77 kB
+dist/assets/ResetPassword-BOkW2CTR.js          4.25 kB │ gzip:   1.76 kB
+dist/assets/ProfilePage-C2WjeUXa.js           19.23 kB │ gzip:   5.05 kB
+dist/assets/StadiumDetailPage-Cq8Qlca0.js     23.30 kB │ gzip:   5.74 kB
+dist/assets/GamesPage-zbMB-9KA.js             23.54 kB │ gzip:   5.60 kB
+dist/assets/FanZonePage-K-7lrlsa.js           32.33 kB │ gzip:   8.87 kB
+dist/assets/MatchDetailPage-DGuKU0CC.js       40.72 kB │ gzip:   8.90 kB
+dist/assets/index-BU3NcHRt.js                933.99 kB │ gzip: 256.74 kB
+
+[33m[PLUGIN_TIMINGS] [0mYour build spent significant time in plugins. Here is a breakdown:
+  - vite:asset (82%)
+  - vite:css (11%)
+See https://rolldown.rs/options/checks#plugintimings for more details.
+
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 7.24s

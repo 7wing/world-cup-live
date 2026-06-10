@@ -5,7 +5,8 @@ import { useState, useMemo }    from 'react'
 import { useParams }            from 'react-router-dom'
 import { PageWrapper }          from '@/components/layout/PageWrapper'
 import { ScoreCard }            from '@/components/matches/ScoreCard'
-import { VibeMeter }            from '@/components/matches/VibeMeter'
+// VibeMeter import kept for when vibe data pipeline is added
+// import { VibeMeter }            from '@/components/matches/VibeMeter'
 import { LiveChatPanel }        from '@/components/fanzone/LiveChatPanel'
 import { OraclePrediction }     from '@/components/games/OraclePrediction'
 import { GlassCard }            from '@/components/ui/GlassCard'
@@ -85,7 +86,7 @@ function lineupsToXI(lineups: Lineup[], teamId: string): PitchPlayer[] {
  * Map finished match rows → H2HMatch[] for H2HCard.
  * stage is stored in the DB; falls back to 'World Cup' when absent.
  */
-function matchesToH2HRows(matches: ReturnType<typeof Array<any>>): H2HMatch[] {
+function matchesToH2HRows(matches: unknown[]): H2HMatch[] {
   return matches.map(m => {
     const homeScore = m.home_score ?? 0
     const awayScore = m.away_score ?? 0
@@ -343,21 +344,16 @@ export function MatchDetailPage() {
               data={momentumData}
               homeLabel={homeCode}
               awayLabel={awayCode}
+              matchEvents={events as MatchEvent[]}
             />
             <LiveFeed events={events as MatchEvent[]} />
             <MatchStatsCard statRows={statRows} homeCode={homeCode} awayCode={awayCode} />
           </div>
 
           <div className="lg:col-span-4 space-y-5">
-            {match.status === 'live' && (
-              <VibeMeter
-                value={94}
-                atmosphere={98}
-                crowdNoise={93}
-                energyIndex={88}
-                match={match}
-              />
-            )}
+            {/* VibeMeter requires real-time vibe data (vibe_score, atmosphere, crowdNoise,
+                 energyIndex) which is not yet available on the Match type. Hidden until
+                 the data pipeline is in place. */}
             <OraclePrediction
               match={match}
               homeWin={oracle?.homeWin}
@@ -382,6 +378,7 @@ export function MatchDetailPage() {
               data={momentumData}
               homeLabel={homeCode}
               awayLabel={awayCode}
+              matchEvents={events as MatchEvent[]}
             />
             <MatchStatsCard
               statRows={statRows}
@@ -499,6 +496,7 @@ export function MatchDetailPage() {
               data={momentumData}
               homeLabel={homeCode}
               awayLabel={awayCode}
+              matchEvents={events as MatchEvent[]}
             />
           </div>
         </div>

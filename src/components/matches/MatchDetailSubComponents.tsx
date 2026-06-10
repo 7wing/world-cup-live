@@ -85,10 +85,12 @@ export function MomentumChart({
   data,
   homeLabel = 'Home',
   awayLabel = 'Away',
+  matchEvents = [],
 }: {
   data: { minute: number; home: number; away: number }[]
   homeLabel?: string
   awayLabel?: string
+  matchEvents?: MatchEvent[]
 }) {
   if (!data.length) return null
 
@@ -100,10 +102,15 @@ export function MomentumChart({
       .map((d, i) => `${(i / (data.length - 1)) * W},${H - (d[key] / 100) * H}`)
       .join(' ')
 
-  // Goal marker: first bucket where home jumps by ≥20 points
-  const goalIdx = data.findIndex((d, i) => i > 0 && d.home - data[i - 1].home >= 20)
-  const markerX = goalIdx >= 0 ? (goalIdx / (data.length - 1)) * W : null
-  const markerY = goalIdx >= 0 ? H - (data[goalIdx].home / 100) * H : null
+  // Mark actual goal events from match_events, not synthetic spikes.
+  const goalEvents = matchEvents.filter(e => e.event_type === 'goal')
+  const goalMarkers = goalEvents
+    .map(ge => {
+      const idx = data.findIndex(d => d.minute === ge.minute)
+      if (idx < 0) return null
+      return { x: (idx / Math.max(1, data.length - 1)) * W, y: H - (data[idx].home / 100) * H }
+    })
+    .filter(Boolean) as { x: number; y: number }[]
 
   return (
     <GlassCard className="p-4">
@@ -143,15 +150,15 @@ export function MomentumChart({
           fill="none" stroke="#00ff41" strokeWidth="2"
           strokeLinejoin="round" strokeLinecap="round"
         />
-        {markerX !== null && markerY !== null && (
-          <>
-            <circle cx={markerX} cy={markerY} r="4" fill="#00ff41" />
+        {goalMarkers.map((m, i) => (
+          <g key={i}>
+            <circle cx={m.x} cy={m.y} r="4" fill="#00ff41" />
             <line
-              x1={markerX} y1="0" x2={markerX} y2={H}
+              x1={m.x} y1="0" x2={m.x} y2={H}
               stroke="#00ff41" strokeWidth="0.5" strokeOpacity="0.3"
             />
-          </>
-        )}
+          </g>
+        ))}
       </svg>
 
       <div className="flex justify-between mt-1 text-[9px] font-lexend text-white/15">

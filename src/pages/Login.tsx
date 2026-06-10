@@ -1,8 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
-import { ensureUserProfile } from '@/api/profile'
-import { useAuthStore } from '@/store/authStore'
 import { NeonButton } from '@/components/ui/NeonButton'
 import { PasswordInput } from '@/components/ui/PasswordInput'
 import { useNotificationStore } from '@/store/notificationStore'
@@ -10,7 +8,6 @@ import { useNotificationStore } from '@/store/notificationStore'
 export function LoginPage() {
   const navigate = useNavigate()
   const { push } = useNotificationStore()
-  const { setUser, setSession } = useAuthStore()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -18,18 +15,12 @@ export function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
       push(error.message, 'error')
-    } else if (data.session?.user) {
-      try {
-        setSession(data.session)
-        const profile = await ensureUserProfile(data.session.user)
-        setUser(profile)
-        navigate('/matches')
-      } catch {
-        push('Signed in but could not load your profile. Try again.', 'error')
-      }
+    } else {
+      // Profile creation and session state are handled by the useAuth listener
+      navigate('/matches')
     }
     setLoading(false)
   }

@@ -38,6 +38,9 @@ export async function castOracleVote(
 ): Promise<void> {
   const { error } = await supabase
     .from('oracle_votes')
-    .upsert({ question: questionId, option_idx: optionIdx, user_id: userId })
+    .upsert(
+      { question: questionId, option_idx: optionIdx, user_id: userId },
+      { onConflict: 'user_id,question' }
+    )
   if (error) { console.error('[castOracleVote]', error.message); throw error }
 }

@@ -1,5 +1,4 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
 import { supabase } from '@/lib/supabase'
 import type { Session } from '@supabase/supabase-js'
 import type { User } from '@/types'
@@ -15,19 +14,16 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
-      user:       null,
-      session:    null,
-      loading:    true,
-      setUser:    (user)    => set({ user }),
-      setSession: (session) => set({ session }),
-      setLoading: (loading) => set({ loading }),
-      signOut: async () => {
-        await supabase.auth.signOut()
-        set({ user: null, session: null })
-      },
-    }),
-    { name: 'wcl-auth', partialize: (s) => ({ session: s.session }) }
-  )
+  (set) => ({
+    user:       null,
+    session:    null,
+    loading:    true,
+    setUser:    (user)    => set({ user }),
+    setSession: (session) => set({ session }),
+    setLoading: (loading) => set({ loading }),
+    signOut: async () => {
+      await supabase.auth.signOut()
+      set({ user: null, session: null })
+    },
+  })
 )

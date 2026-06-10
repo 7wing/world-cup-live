@@ -1,7 +1,7 @@
 // src/components/games/TriviaTab.tsx
 // Queries trivia_questions from Supabase. No mock data.
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { GlassCard } from '@/components/ui/GlassCard'
 import { fetchTriviaQuestions } from '@/api/trivia'
@@ -29,7 +29,21 @@ export function TriviaTab({ matchId, liveQuestion }: TriviaTabProps) {
 
   // answers: { [questionId]: selectedOptionIndex }
   const [answers, setAnswers] = useState<Record<string, number>>({})
-  const [score, setScore]     = useState(0)
+  const [score, setScore] = useState(() => {
+    if (typeof window === 'undefined') return 0
+    const saved = localStorage.getItem('trivia_score')
+    return saved ? parseInt(saved, 10) : 0
+  })
+
+  useEffect(() => {
+    localStorage.setItem('trivia_score', String(score))
+  }, [score])
+
+  function resetSession() {
+    setScore(0)
+    setAnswers({})
+    localStorage.removeItem('trivia_score')
+  }
 
   function handleAnswer(qid: string, idx: number, correct: number, pts: number) {
     if (answers[qid] !== undefined) return
@@ -156,6 +170,13 @@ export function TriviaTab({ matchId, liveQuestion }: TriviaTabProps) {
             {score}
           </p>
           <p className="text-[10px] font-lexend text-white/20 mt-1">pts earned</p>
+
+          <button
+            onClick={resetSession}
+            className="mt-3 px-3 py-1.5 rounded-lg text-[10px] font-lexend font-black uppercase tracking-widest bg-white/5 border border-white/10 text-white/30 hover:bg-white/10 hover:text-white/50 transition-colors w-full"
+          >
+            New Session
+          </button>
 
           <div className="mt-4 h-1 bg-white/5 rounded-full overflow-hidden">
             <div
