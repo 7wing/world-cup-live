@@ -12,10 +12,11 @@ interface PostComposerProps {
     mediaType?: 'image' | 'video',
     cleanupMedia?: () => void,
   ) => void
+  hashtags?: string[]
   autoFocus?: boolean
 }
 
-export function PostComposer({ onPost, autoFocus = false }: PostComposerProps) {
+export function PostComposer({ onPost, hashtags = [], autoFocus = false }: PostComposerProps) {
   const { user } = useAuthStore()
   const [content, setContent] = useState('')
   const [mediaUrl, setMediaUrl] = useState<string | null>(null)
@@ -24,6 +25,9 @@ export function PostComposer({ onPost, autoFocus = false }: PostComposerProps) {
   const [uploadError, setUploadError] = useState<string | null>(null)
   const imageRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLInputElement>(null)
+
+  const MAX_LENGTH = 280
+  const atLimit = content.length > MAX_LENGTH
 
   // Track storage paths so we can clean up on post failure
   const mediaBucket = useRef<'post-images' | 'post-videos' | null>(null)
@@ -109,11 +113,32 @@ export function PostComposer({ onPost, autoFocus = false }: PostComposerProps) {
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="Share your match energy..."
+            maxLength={MAX_LENGTH}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && e.metaKey) handlePost()
             }}
             className="w-full bg-transparent border-none outline-none text-white/80 text-sm font-lexend resize-none h-[68px] leading-relaxed pt-1 placeholder:text-white/20"
           />
+
+          {/* Hashtag chips */}
+          {hashtags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {hashtags.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => {
+                    const separator = content.length && !content.endsWith(' ') ? ' ' : ''
+                    const updated = content + separator + tag + ' '
+                    if (updated.length <= MAX_LENGTH) setContent(updated)
+                  }}
+                  className="px-2 py-0.5 rounded-full text-[10px] font-lexend font-bold text-primary-container border border-outline-variant bg-primary-container/10 hover:bg-primary-container/20 transition-colors"
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Media preview */}
           {mediaUrl && (
@@ -199,11 +224,14 @@ export function PostComposer({ onPost, autoFocus = false }: PostComposerProps) {
 
             <NeonButton
               onClick={handlePost}
-              disabled={(!content.trim() && !mediaUrl) || uploading}
+              disabled={(!content.trim() && !mediaUrl) || uploading || atLimit}
               className="px-4 py-1.5 text-[10px]"
             >
               {uploading ? 'Uploading...' : 'Post'}
             </NeonButton>
+            <span className={`text-[10px] font-lexend ${atLimit ? 'text-error' : 'text-white/30'}`}>
+              {content.length}/{MAX_LENGTH}
+            </span>
           </div>
         </div>
       </div>

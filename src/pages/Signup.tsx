@@ -22,7 +22,7 @@ export function SignupPage() {
     setLoading(true)
 
     // Server-side upsert handles collisions naturally — no pre-flight check needed
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { username: username.trim() } },
@@ -34,11 +34,20 @@ export function SignupPage() {
       return
     }
 
-    // If Supabase email confirmation is enabled the user lands here unconfirmed.
-    // Send them to a holding page so they know to check their inbox rather than
-    // dropping them into /matches in a half-authenticated state.
-    push('Account created! Check your email to confirm.', 'success')
-    navigate('/check-email', { replace: true, state: { email } })
+    // If email confirmation is disabled the user is already confirmed.
+    // Skip the holding page and send them straight into the app.
+    const isConfirmed = Boolean(data?.user?.email_confirmed_at)
+
+    if (isConfirmed) {
+      push('Account created! Welcome.', 'success')
+      navigate('/matches', { replace: true })
+    } else {
+      // If Supabase email confirmation is enabled the user lands here unconfirmed.
+      // Send them to a holding page so they know to check their inbox rather than
+      // dropping them into /matches in a half-authenticated state.
+      push('Account created! Check your email to confirm.', 'success')
+      navigate('/check-email', { replace: true, state: { email } })
+    }
 
     setLoading(false)
   }

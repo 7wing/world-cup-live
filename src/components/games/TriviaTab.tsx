@@ -15,9 +15,10 @@ interface TriviaTabProps {
 }
 
 export function TriviaTab({ matchId, liveQuestion }: TriviaTabProps) {
+  const MAX_ROUNDS = 5
   const { data: dbQuestions = [], isLoading } = useQuery({
     queryKey: ['trivia_questions', matchId ?? 'global'],
-    queryFn:  () => fetchTriviaQuestions(matchId, 10),
+    queryFn:  () => fetchTriviaQuestions(matchId, MAX_ROUNDS),
     staleTime: 5 * 60_000,
   })
 
@@ -34,19 +35,29 @@ export function TriviaTab({ matchId, liveQuestion }: TriviaTabProps) {
     const saved = localStorage.getItem('trivia_score')
     return saved ? parseInt(saved, 10) : 0
   })
+  const [sessionFinished, setSessionFinished] = useState(false)
 
   useEffect(() => {
     localStorage.setItem('trivia_score', String(score))
   }, [score])
 
+  useEffect(() => {
+    // If all questions in the session are answered, mark finished
+    const answeredCount = questions.filter((q) => answers[q.id] !== undefined).length
+    if (answeredCount >= Math.min(MAX_ROUNDS, questions.length) && questions.length > 0) {
+      setSessionFinished(true)
+    }
+  }, [answers, questions])
+
   function resetSession() {
     setScore(0)
     setAnswers({})
+    setSessionFinished(false)
     localStorage.removeItem('trivia_score')
   }
 
   function handleAnswer(qid: string, idx: number, correct: number, pts: number) {
-    if (answers[qid] !== undefined) return
+    if (answers[qid] !== undefined || sessionFinished) return
     setAnswers((prev) => ({ ...prev, [qid]: idx }))
     if (idx === correct) setScore((s) => s + pts)
   }
@@ -72,9 +83,24 @@ export function TriviaTab({ matchId, liveQuestion }: TriviaTabProps) {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-5">
-      {/* ── Questions ── */}
+      {/* ── Questions / Summary ── */}
       <div className="space-y-4">
-        {questions.map((q) => {
+        {sessionFinished && (
+          <GlassCard className="p-6 text-center">
+            <span className="material-symbols-outlined text-5xl text-primary-container block mb-3">emoji_events</span>
+            <p className="font-lexend font-black text-sm uppercase tracking-widest text-white/40 mb-2">Session Complete</p>
+            <p className="font-lexend font-black text-5xl text-primary-container leading-none mb-2">
+              {score}
+            </p>
+            <p className="text-[11px] font-lexend text-white/30 mb-4">
+              {score > 0 ? 'Great job!' : 'Better luck next time!'}
+            </p>
+            <NeonButton size="sm" onClick={resetSession}>
+              Play Again
+            </NeonButton>
+          </GlassCard>
+        )}
+        {!sessionFinished && questions.map((q) => {
           const picked   = answers[q.id] ?? null
           const isLiveAi = q.source === 'gemini'
 

@@ -261,9 +261,14 @@ export async function joinTribe(userId: string, tribeId: string): Promise<void> 
   if (error && error.code !== '23505') throw error
 }
 
-// --------------------------------------------------------------------------
-// Watch Parties
-// --------------------------------------------------------------------------
+export async function leaveTribe(userId: string, tribeId: string): Promise<void> {
+  const { error } = await supabase
+    .from('tribe_members')
+    .delete()
+    .eq('user_id', userId)
+    .eq('tribe_id', tribeId)
+  if (error) throw error
+}
 
 export interface WatchParty {
   id:           string
@@ -288,6 +293,21 @@ export async function fetchWatchParties(): Promise<WatchParty[]> {
   return data as WatchParty[]
 }
 
+export async function createTribe(
+  payload: Pick<Tribe, 'name' | 'badge_url' | 'team_id'>,
+): Promise<Tribe> {
+  const { data, error } = await supabase
+    .from('tribes')
+    .insert({
+      name: payload.name,
+      badge_url: payload.badge_url ?? null,
+      team_id: payload.team_id ?? null,
+    })
+    .select()
+    .single()
+  if (error) throw error
+  return data as Tribe
+}
 export async function createWatchParty(
   party: Pick<WatchParty, 'name' | 'flag' | 'match_id' | 'created_by'>,
 ): Promise<WatchParty> {
@@ -309,9 +329,23 @@ export async function createWatchParty(
   }
 }
 
-// --------------------------------------------------------------------------
-// Players (fantasy pool)
-// --------------------------------------------------------------------------
+export async function updateWatchPartyViewerCount(
+  partyId: string,
+  delta: number,
+): Promise<void> {
+  const { data: party, error: fetchErr } = await supabase
+    .from('watch_parties')
+    .select('viewer_count')
+    .eq('id', partyId)
+    .single()
+  if (fetchErr) throw fetchErr
+  const next = Math.max(0, (party?.viewer_count ?? 0) + delta)
+  const { error: updErr } = await supabase
+    .from('watch_parties')
+    .update({ viewer_count: next })
+    .eq('id', partyId)
+  if (updErr) throw updErr
+}
 
 export interface Player {
   id:       string

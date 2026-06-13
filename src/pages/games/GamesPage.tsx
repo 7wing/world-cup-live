@@ -21,6 +21,7 @@ import {
   createDuelChallenge,
   acceptDuel,
   rejectDuel,
+  fetchTriviaQuestions,
   type DuelStats,
   type RecentDuel,
   type IncomingChallenge,
@@ -294,6 +295,119 @@ function PredictorTab() {
   )
 }
 
+// ── Practice Duel Bot ──────────────────────────────────────────────────────────
+function PracticeDuelBot() {
+  const [questions, setQuestions] = useState<TriviaQuestion[]>([])
+  const [current, setCurrent]     = useState(0)
+  const [userScore, setUserScore] = useState(0)
+  const [botScore, setBotScore]   = useState(0)
+  const [feedback, setFeedback]   = useState<'idle' | 'correct' | 'wrong'>('idle')
+  const [finished, setFinished]   = useState(false)
+  const [botPick, setBotPick]     = useState<string | null>(null)
+
+  const start = async () => {
+    const qs = await fetchTriviaQuestions(5)
+    setQuestions(qs)
+    setCurrent(0)
+    setUserScore(0)
+    setBotScore(0)
+    setFeedback('idle')
+    setFinished(false)
+    setBotPick(null)
+  }
+
+  const answer = (option: string) => {
+    if (finished || feedback !== 'idle') return
+    const q = questions[current]
+    if (!q) return
+    const isCorrect = option === q.correctAnswer
+    if (isCorrect) setUserScore((s) => s + 1)
+    setFeedback(isCorrect ? 'correct' : 'wrong')
+    // bot picks a random option; 70% chance correct
+    const botCorrect = Math.random() < 0.7
+    const botAnswer  = botCorrect ? q.correctAnswer : q.options[Math.floor(Math.random() * q.options.length)]
+    setBotPick(botAnswer)
+    if (botAnswer === q.correctAnswer) setBotScore((s) => s + 1)
+    setTimeout(() => {
+      if (current + 1 >= questions.length) {
+        setFinished(true)
+      } else {
+        setCurrent((c) => c + 1)
+        setFeedback('idle')
+        setBotPick(null)
+      }
+    }, 1500)
+  }
+
+  if (questions.length === 0) {
+    return (
+      <div className="p-4 text-center space-y-3">
+        <p className="text-[11px] font-lexend text-white/20">
+          No opponent online? Practice against the bot.
+        </p>
+        <NeonButton onClick={start} variant="secondary">Start Practice Duel</NeonButton>
+      </div>
+    )
+  }
+
+  const q = questions[current]
+  const message = finished
+    ? userScore > botScore
+      ? 'You win!'
+      : userScore < botScore
+        ? 'Bot wins.'
+        : 'Draw.'
+    : null
+
+  return (
+    <div className="p-4 space-y-3">
+      {!finished && (
+        <div className="flex items-center justify-between text-[10px] font-lexend text-white/30">
+          <span>Q{current + 1}/{questions.length}</span>
+          <span className="text-white/60">You {userScore} – Bot {botScore}</span>
+        </div>
+      )}
+      {finished ? (
+        <div className="text-center space-y-3">
+          <p className={`font-lexend font-black text-xl ${userScore > botScore ? 'text-primary-container' : userScore < botScore ? 'text-red-400' : 'text-white/60'}`}>
+            {message}
+          </p>
+          <p className="text-[11px] font-lexend text-white/20">Final score: You {userScore} – Bot {botScore}</p>
+          <NeonButton onClick={start} variant="secondary">Play Again</NeonButton>
+        </div>
+      ) : (
+        <>
+          <p className="font-lexend font-semibold text-sm text-white/80">{q?.question}</p>
+          <div className="space-y-2">
+            {q?.options.map((opt) => {
+              let extra = ''
+              if (feedback !== 'idle') {
+                if (opt === q.correctAnswer) extra = 'bg-green-500/15 border-green-500/30 text-white'
+                else extra = 'opacity-40'
+              }
+              if (feedback !== 'idle' && opt === botPick) {
+                extra = opt === q.correctAnswer ? 'bg-green-500/15 border-green-500/30 text-white' : 'bg-red-500/10 border-red-500/25 text-white/40'
+              }
+              return (
+                <button
+                  key={opt}
+                  onClick={() => answer(opt)}
+                  disabled={feedback !== 'idle'}
+                  className={`w-full text-left px-3 py-2 rounded-lg border text-[12px] font-lexend font-semibold transition-colors bg-white/3 border-white/5 hover:bg-white/5 ${extra}`}
+                >
+                  {opt} {feedback !== 'idle' && opt === botPick && <span className="text-[9px] text-white/20 ml-1">(bot)</span>}
+                </button>
+              )
+            })}
+          </div>
+          {feedback === 'correct' && <p className="text-[10px] font-lexend text-green-400">Correct! {q?.explanation}</p>}
+          {feedback === 'wrong' && <p className="text-[10px] font-lexend text-red-400">Wrong. {q?.explanation}</p>}
+        </>
+      )}
+    </div>
+  )
+}
+
 // ── Incoming challenges section ──────────────────────────────────────────────
 function IncomingChallengesSection() {
   const { user }    = useAuthStore()
@@ -526,6 +640,12 @@ function FanDuelTab() {
             </div>
           </GlassCard>
         )}
+        <GlassCard className="overflow-hidden">
+          <div className="px-4 py-2.5 border-b border-white/8">
+            <p className="font-lexend font-black text-[9px] uppercase tracking-widest text-white/20">Practice vs Bot</p>
+          </div>
+          <PracticeDuelBot />
+        </GlassCard>
       </div>
 
       {/* Sidebar */}

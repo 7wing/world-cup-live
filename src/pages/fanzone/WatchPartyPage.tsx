@@ -5,7 +5,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate, useParams }      from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore }                from '@/store/authStore'
-import { fetchWatchParties, fetchPartyMessages, sendPartyMessage } from '@/api/fanzone'
+import { fetchWatchParties, fetchPartyMessages, sendPartyMessage, updateWatchPartyViewerCount } from '@/api/fanzone'
 import { supabase }                   from '@/lib/supabase'
 import { Avatar }                      from '@/components/ui/Avatar'
 import { formatRelative }              from '@/utils/formatDate'
@@ -34,6 +34,32 @@ export function WatchPartyPage() {
   const [input, setInput]     = useState('')
   const [optimistic, setOptimistic] = useState<PartyMessage[]>([])
   const bottomRef             = useRef<HTMLDivElement>(null)
+
+  // Track join state in localStorage so it persists across reloads
+  const storageKey = `wp-joined-${partyId}-${user?.id ?? 'guest'}`
+  const [hasJoined, setHasJoined] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return localStorage.getItem(storageKey) === '1'
+  })
+
+  // ── Join / leave party ─────────────────────────────────────────────────
+  const { mutate: joinParty, isPending: joining } = useMutation({
+    mutationFn: () => updateWatchPartyViewerCount(partyId!, +1),
+    onSuccess: () => {
+      setHasJoined(true)
+      localStorage.setItem(storageKey, '1')
+      queryClient.invalidateQueries({ queryKey: ['watch_parties'] })
+    },
+  })
+
+  const { mutate: leaveParty, isPending: leaving } = useMutation({
+    mutationFn: () => updateWatchPartyViewerCount(partyId!, -1),
+    onSuccess: () => {
+      setHasJoined(false)
+      localStorage.removeItem(storageKey)
+      queryClient.invalidateQueries({ queryKey: ['watch_parties'] })
+    },
+  })
 
   // ── Fetch party metadata ──────────────────────────────────────────────────
   const { data: parties = [] } = useQuery({
@@ -149,6 +175,19 @@ export function WatchPartyPage() {
                 <LiveDot />
                 <span className="font-lexend font-black text-[7px] uppercase tracking-widest text-primary-container">Live</span>
               </div>
+              {user && party && (
+                <button
+                  onClick={() => (hasJoined ? leaveParty() : joinParty())}
+                  disabled={joining || leaving}
+                  className={`flex-shrink-0 px-3 py-1 rounded-lg text-[10px] font-lexend font-bold uppercase tracking-widest transition-colors cursor-pointer border ${
+                    hasJoined
+                      ? 'bg-white/5 border-white/10 text-white/40 hover:text-white/70'
+                      : 'bg-primary-container/10 border-primary-container/30 text-primary-container hover:bg-primary-container/20'
+                  } disabled:opacity-30`}
+                >
+                  {joining || leaving ? '...' : hasJoined ? 'Leave' : 'Join'}
+                </button>
+              )}
             </div>
           ) : (
             <div className="h-5 w-48 bg-white/5 rounded animate-pulse" />

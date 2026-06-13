@@ -160,7 +160,7 @@ export function FanZonePage() {
             onClick={(e) => e.stopPropagation()}
             className="w-full max-w-[560px] animate-[fadeUp_0.2s_ease_forwards]"
           >
-            <PostComposer onPost={handlePost} autoFocus />
+            <PostComposer onPost={handlePost} hashtags={HASHTAGS} autoFocus />
           </div>
         </div>
       )}

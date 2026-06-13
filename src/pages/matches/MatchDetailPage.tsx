@@ -1,7 +1,7 @@
 // src/pages/matches/MatchDetailPage.tsx
 // All data from Supabase. No mock data anywhere.
 
-import { useState, useMemo }    from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useParams }            from 'react-router-dom'
 import { PageWrapper }          from '@/components/layout/PageWrapper'
 import { ScoreCard }            from '@/components/matches/ScoreCard'
@@ -20,6 +20,8 @@ import {
 } from '@/hooks/useMatches'
 import { useOraclePrediction }  from '@/hooks/useOracle'
 import { buildMomentumSeries }  from '@/api/matchEvents'
+import { resolveHomePossession } from '@/utils/resolveHomePossession'
+import { getMatchYear }         from '@/utils/tournament'
 import type { Lineup }          from '@/types'
 import type { MatchEvent }      from '@/api/matchEvents'
 import type { MatchStat }       from '@/api/matches'
@@ -61,6 +63,8 @@ function buildStatRows(
     { label: 'Corners',       home: matchStat.home_corners           ?? 0, away: matchStat.away_corners           ?? 0, unit: ''  },
     { label: 'Fouls',         home: matchStat.home_fouls             ?? 0, away: matchStat.away_fouls             ?? 0, unit: ''  },
     { label: 'Yellow Cards',  home: matchStat.home_yellow_cards      ?? 0, away: matchStat.away_yellow_cards      ?? 0, unit: ''  },
+    { label: 'Red Cards',     home: matchStat.home_red_cards         ?? 0, away: matchStat.away_red_cards         ?? 0, unit: ''  },
+    { label: 'Passes',        home: matchStat.home_passes            ?? 0, away: matchStat.away_passes            ?? 0, unit: ''  },
     { label: 'Pass Accuracy', home: matchStat.home_pass_accuracy     ?? 0, away: matchStat.away_pass_accuracy     ?? 0, unit: '%' },
   ]
 }
@@ -129,6 +133,19 @@ function eventsToPOTMCandidates(
   return Array.from(map.entries())
     .map(([name, { votes, flag }]) => ({ name, flag, votes }))
     .sort((a, b) => b.votes - a.votes)
+}
+
+// ── Year-based conditional rendering helper ───────────────────────────────────
+
+/** 2022 matches have already happened — hide prediction and chat features. */
+function is2022Match(matchId: string): boolean {
+  return getMatchYear(matchId) === 2022
+}
+
+/** Knockout slots that haven't been resolved yet use placeholder team names. */
+function hasPlaceholderTeams(match: Match): boolean {
+  const placeholder = /^(Winner|Runner|W\d+|R\d+|TBC|To Be Confirmed|Placeholders?)/i
+  return placeholder.test(match.home_team.name) || placeholder.test(match.away_team.name)
 }
 
 // ── Skeleton ──────────────────────────────────────────────────────────────────
@@ -255,6 +272,18 @@ export function MatchDetailPage() {
 
   // ── Data fetching ──────────────────────────────────────────────────────────
   const { data: match,    isLoading } = useMatch(matchId!)
+
+  // Hide Predict tab for finished / 2022 matches (already decided)
+  const showPredict = match ? match.status !== 'finished' && !is2022Match(match.id) : true
+  const visibleTabs = showPredict ? DETAIL_TABS : DETAIL_TABS.filter(t => t.id !== 'predictor')
+
+  // If active tab gets hidden after match load, fall back to overview
+  useEffect(() => {
+    if (match && !visibleTabs.some(t => t.id === activeTab)) {
+      setActiveTab('overview')
+    }
+  }, [match, activeTab, visibleTabs])
+
   const { data: oracle }              = useOraclePrediction(match ?? null)
   const { data: matchStat }           = useMatchStats(matchId)
   const { data: lineups = [] }        = useLineups(matchId)
@@ -268,8 +297,8 @@ export function MatchDetailPage() {
   // home_possession is on the `matches` row, NOT on match_stats.
   // matchStat covers shots, corners, fouls, cards, pass accuracy.
   const statRows = useMemo(
-    () => buildStatRows(matchStat, match?.home_possession ?? 50),
-    [matchStat, match?.home_possession],
+    () => buildStatRows(matchStat, resolveHomePossession(matchId!, match?.home_possession ?? 50)),
+    [matchStat, match?.home_possession, matchId],
   )
 
   const momentumData = useMemo(
@@ -315,9 +344,18 @@ export function MatchDetailPage() {
       {/* Score card */}
       <ScoreCard match={match} />
 
+      {/* Seeding pending notice */}
+      {hasPlaceholderTeams(match) && (
+        <div className="mt-4 p-3 rounded-lg border border-amber-400/20 bg-amber-400/5 text-center">
+          <p className="text-xs font-lexend text-amber-400/80">
+            This will be confirmed when the games start
+          </p>
+        </div>
+      )}
+
       {/* Tab bar */}
       <div className="flex gap-1 border-b border-white/8 my-5 overflow-x-auto scrollbar-none">
-        {DETAIL_TABS.map(tab => (
+        {visibleTabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
@@ -354,16 +392,23 @@ export function MatchDetailPage() {
             {/* VibeMeter requires real-time vibe data (vibe_score, atmosphere, crowdNoise,
                  energyIndex) which is not yet available on the Match type. Hidden until
                  the data pipeline is in place. */}
-            <OraclePrediction
-              match={match}
-              homeWin={oracle?.homeWin}
-              draw={oracle?.draw}
-              awayWin={oracle?.awayWin}
-              predictedHome={oracle?.predictedHome}
-              predictedAway={oracle?.predictedAway}
-              confidence={oracle?.confidence}
-            />
-            {potmCandidates.length > 0 && (
+            {!is2022Match(match.id) && (
+              <>
+                <OraclePrediction
+                  match={match}
+                  homeWin={oracle?.homeWin}
+                  draw={oracle?.draw}
+                  awayWin={oracle?.awayWin}
+                  predictedHome={oracle?.predictedHome}
+                  predictedAway={oracle?.predictedAway}
+                  confidence={oracle?.confidence}
+                />
+                {potmCandidates.length > 0 && (
+                  <POTMPoll candidates={potmCandidates} />
+                )}
+              </>
+            )}
+            {is2022Match(match.id) && potmCandidates.length > 0 && (
               <POTMPoll candidates={potmCandidates} />
             )}
           </div>
@@ -460,15 +505,17 @@ export function MatchDetailPage() {
             )}
           </div>
           <div className="lg:col-span-5 space-y-5">
-            <OraclePrediction
-              match={match}
-              homeWin={oracle?.homeWin}
-              draw={oracle?.draw}
-              awayWin={oracle?.awayWin}
-              predictedHome={oracle?.predictedHome}
-              predictedAway={oracle?.predictedAway}
-              confidence={oracle?.confidence}
-            />
+            {!is2022Match(match.id) && (
+              <OraclePrediction
+                match={match}
+                homeWin={oracle?.homeWin}
+                draw={oracle?.draw}
+                awayWin={oracle?.awayWin}
+                predictedHome={oracle?.predictedHome}
+                predictedAway={oracle?.predictedAway}
+                confidence={oracle?.confidence}
+              />
+            )}
           </div>
         </div>
       )}
@@ -483,15 +530,17 @@ export function MatchDetailPage() {
             )}
           </div>
           <div className="lg:col-span-7 space-y-5">
-            <OraclePrediction
-              match={match}
-              homeWin={oracle?.homeWin}
-              draw={oracle?.draw}
-              awayWin={oracle?.awayWin}
-              predictedHome={oracle?.predictedHome}
-              predictedAway={oracle?.predictedAway}
-              confidence={oracle?.confidence}
-            />
+            {!is2022Match(match.id) && (
+              <OraclePrediction
+                match={match}
+                homeWin={oracle?.homeWin}
+                draw={oracle?.draw}
+                awayWin={oracle?.awayWin}
+                predictedHome={oracle?.predictedHome}
+                predictedAway={oracle?.predictedAway}
+                confidence={oracle?.confidence}
+              />
+            )}
             <MomentumChart
               data={momentumData}
               homeLabel={homeCode}
@@ -502,22 +551,24 @@ export function MatchDetailPage() {
         </div>
       )}
 
-      {/* Live Chat — always visible */}
-      <div className="mt-5">
-        <div className="flex items-center gap-2 mb-3">
-          <span className="w-1 h-5 bg-primary-container rounded-full" />
-          <h2 className="font-lexend font-bold uppercase tracking-tighter text-sm">Match Chat</h2>
-          {match.status === 'live' && (
-            <div className="flex items-center gap-1.5 bg-surface-container-high px-2.5 py-0.5 rounded-full border border-white/5">
-              <div className="w-1.5 h-1.5 rounded-full bg-primary-container animate-pulse" />
-              <span className="text-[10px] font-lexend font-bold text-primary-container">LIVE</span>
-            </div>
-          )}
+      {/* Live Chat — hidden for past 2022 matches */}
+      {!is2022Match(match.id) && (
+        <div className="mt-5">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="w-1 h-5 bg-primary-container rounded-full" />
+            <h2 className="font-lexend font-bold uppercase tracking-tighter text-sm">Match Chat</h2>
+            {match.status === 'live' && (
+              <div className="flex items-center gap-1.5 bg-surface-container-high px-2.5 py-0.5 rounded-full border border-white/5">
+                <div className="w-1.5 h-1.5 rounded-full bg-primary-container animate-pulse" />
+                <span className="text-[10px] font-lexend font-bold text-primary-container">LIVE</span>
+              </div>
+            )}
+          </div>
+          <GlassCard className="h-[480px] flex flex-col overflow-hidden">
+            <LiveChatPanel matchId={match.id} />
+          </GlassCard>
         </div>
-        <GlassCard className="h-[480px] flex flex-col overflow-hidden">
-          <LiveChatPanel matchId={match.id} />
-        </GlassCard>
-      </div>
+      )}
 
     </PageWrapper>
   )

@@ -6,7 +6,7 @@ import { NeonButton } from '@/components/ui/NeonButton'
 import { useQuery } from '@tanstack/react-query'
 import { fetchTribeById, fetchTribeMembers } from '@/api/fanzone'
 import { useAuthStore } from '@/store/authStore'
-import { useJoinTribe } from '@/hooks/useTribes'
+import { useJoinTribe, useLeaveTribe } from '@/hooks/useTribes'
 import { cn } from '@/utils/cn'
 
 export function TribeDetailPage() {
@@ -14,6 +14,7 @@ export function TribeDetailPage() {
   const { user } = useAuthStore()
   const navigate = useNavigate()
   const { joinMutation, isJoining } = useJoinTribe()
+  const { leaveMutation, isLeaving } = useLeaveTribe()
 
   const { data: tribe, isLoading: tribeLoading, error: tribeError } = useQuery({
     queryKey: ['tribes', tribeId],
@@ -145,12 +146,16 @@ export function TribeDetailPage() {
             )}
             {isMember && (
               <div className="mt-5 flex justify-center md:justify-start">
-                <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-container/10 border border-primary-container/30">
-                  <span className="material-symbols-outlined text-primary-container text-base">check_circle</span>
-                  <span className="font-lexend font-bold uppercase text-primary-container text-xs">
-                    Member
+                <button
+                  disabled={isLeaving(tribe.id)}
+                  onClick={() => leaveMutation.mutate(tribe.id)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors cursor-pointer disabled:opacity-40"
+                >
+                  <span className="material-symbols-outlined text-white/40 text-base">logout</span>
+                  <span className="font-lexend font-bold uppercase text-white/40 text-xs">
+                    {isLeaving(tribe.id) ? 'Leaving…' : 'Leave Tribe'}
                   </span>
-                </div>
+                </button>
               </div>
             )}
           </div>

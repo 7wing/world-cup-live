@@ -1,6 +1,6 @@
 // src/components/matches/BracketTab.tsx
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMatches } from '@/hooks/useMatches'
 import { TeamFlag } from '@/components/ui/TeamFlag'
@@ -29,8 +29,21 @@ function localDateLabel(isoUtc: string): string {
   return new Date(isoUtc).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
-function MatchCard({ match, isFinal = false }: { match: Match | null; isFinal?: boolean }) {
+function MatchCard({
+  match,
+  isFinal = false,
+  predictionMode,
+  picked,
+  onPick,
+}: {
+  match: Match | null
+  isFinal?: boolean
+  predictionMode?: boolean
+  picked?: Record<string, string>
+  onPick?: (matchId: string, teamId: string, teamName: string) => void
+}) {
   const navigate = useNavigate()
+  const [showPicker, setShowPicker] = useState(false)
   const isPlaceholder = !match
 
   if (isPlaceholder) {
@@ -50,42 +63,68 @@ function MatchCard({ match, isFinal = false }: { match: Match | null; isFinal?: 
   }
 
   const isFinished = match.status === 'finished'
+  const isUpcoming = match.status === 'upcoming'
   const isClickable = isFinished || match.status === 'live'
   const winner = getKnockoutWinner(match)
   const pens = getPenaltyScores(match)
 
   const rows = [
-    {
-      team: match.home_team,
-      score: match.home_score,
-      penScore: pens.home,
-      winner: winner === 'home',
-    },
-    {
-      team: match.away_team,
-      score: match.away_score,
-      penScore: pens.away,
-      winner: winner === 'away',
-    },
+    { side: 'home', team: match.home_team, score: match.home_score, penScore: pens.home, isWinner: winner === 'home' },
+    { side: 'away', team: match.away_team, score: match.away_score, penScore: pens.away, isWinner: winner === 'away' },
   ]
+
+  const predictedTeamId = match?.id ? picked?.[match.id] : undefined
 
   return (
     <div
-      onClick={() => isClickable && navigate(`/matches/${match.id}`)}
-      className={`rounded-xl overflow-hidden border transition-all ${
+      onClick={() => {
+        if (!predictionMode && isClickable && match) {
+          navigate(`/matches/${match.id}`)
+        }
+      }}
+      className={`rounded-xl overflow-hidden border transition-all relative ${
         isFinal
           ? 'border-amber-400/40 bg-amber-400/5'
           : 'border-white/10 bg-white/3 hover:border-white/20'
-      } ${isClickable ? 'cursor-pointer hover:border-white/30' : 'cursor-default'}`}
+      } ${isClickable && !predictionMode ? 'cursor-pointer hover:border-white/30' : 'cursor-default'}`}
     >
+      {predictionMode && (
+        <div className="absolute top-1 right-1 z-10">
+          <button
+            onClick={(e) => { e.stopPropagation(); setShowPicker((s) => !s) }}
+            className="w-5 h-5 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/20 transition-colors"
+            title="Pick winner"
+          >
+            <span className="material-symbols-outlined text-[12px]">edit</span>
+          </button>
+        </div>
+      )}
+      {showPicker && predictionMode && (
+        <div className="absolute inset-0 z-20 bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center gap-2 p-3">
+          <p className="text-[9px] font-lexend font-black uppercase tracking-widest text-white/40 mb-1">Pick Winner</p>
+          {rows.map((r) => (
+            <button
+              key={r.side}
+              onClick={() => {
+                onPick?.(match.id, r.team?.id ?? '', r.team?.name ?? 'TBC')
+                setShowPicker(false)
+              }}
+              className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:bg-primary-container/20 hover:border-primary-container/40 transition-colors text-[11px] font-lexend font-bold text-white/80 truncate"
+            >
+              {r.team?.name ?? 'TBC'}
+            </button>
+          ))}
+          <button onClick={() => setShowPicker(false)} className="text-[10px] text-white/30 hover:text-white/50 font-lexend mt-1">Close</button>
+        </div>
+      )}
       {rows.map((row, i) => (
         <div
           key={i}
-          className={`flex items-center gap-2 px-3 py-2 ${i === 0 ? 'border-b border-white/8' : ''} ${row.winner ? 'bg-primary-container/10' : ''}`}
+          className={`flex items-center gap-2 px-3 py-2 ${i === 0 ? 'border-b border-white/8' : ''} ${row.isWinner ? 'bg-primary-container/10' : ''} ${predictedTeamId && row.team?.id === predictedTeamId ? 'ring-1 ring-primary-container/50' : ''}`}
         >
           <TeamFlag code={row.team?.code} flagUrl={row.team?.flag_url} />
           <span className={`font-lexend font-semibold text-[11px] flex-1 truncate ${
-            row.winner ? 'text-white'
+            row.isWinner ? 'text-white'
             : isFinished ? 'text-white/35'
             : 'text-white/70'
           }`}>
@@ -93,8 +132,8 @@ function MatchCard({ match, isFinal = false }: { match: Match | null; isFinal?: 
           </span>
           {isFinished && (
             <div className="flex items-center gap-1 flex-shrink-0">
-              <span className={`font-lexend font-black text-sm ${row.winner ? 'text-primary-container' : 'text-white/20'}`}>
-                {row.score ?? '–'}
+              <span className={`font-lexend font-black text-sm ${row.isWinner ? 'text-primary-container' : 'text-white/20'}`}>
+                {row.score ?? '-'}
               </span>
               {pens.decidedByPens && row.penScore != null && (
                 <span className="text-[9px] font-lexend text-white/30">({row.penScore})</span>
@@ -116,12 +155,14 @@ function MatchCard({ match, isFinal = false }: { match: Match | null; isFinal?: 
   )
 }
 
-function RoundCol({ label, matches }: { label: string; matches: (Match | null)[] }) {
+function RoundCol({ label, matches, predictionMode, picked, onPick }: { label: string; matches: (Match | null)[]; predictionMode?: boolean; picked?: Record<string,string>; onPick?: (matchId:string,teamId:string,teamName:string)=>void }) {
   return (
     <div className="flex flex-col flex-1 min-w-[120px]">
       <p className="font-lexend font-black text-[9px] uppercase tracking-widest text-white/25 text-center mb-3">{label}</p>
       <div className="flex flex-col flex-1 justify-around gap-3">
-        {matches.map((m, i) => <MatchCard key={m?.id ?? i} match={m} />)}
+        {matches.map((m, i) => (
+          <MatchCard key={m?.id ?? i} match={m} predictionMode={predictionMode} picked={picked} onPick={onPick} />
+        ))}
       </div>
     </div>
   )
@@ -151,7 +192,49 @@ function BracketSkeleton() {
 
 export function BracketTab() {
   const [year, setYear] = useState<TournamentYear>(2026)
+  const [isPredicting, setIsPredicting] = useState(false)
+  const [picked, setPicked] = useState<Record<string, string>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(`bracket-picks-${year}`) ?? '{}')
+    } catch {
+      return {}
+    }
+  })
+
   const { data: allMatches = [], isLoading, isError, refetch } = useMatches()
+
+  // Persist picks whenever they change
+  useEffect(() => {
+    localStorage.setItem(`bracket-picks-${year}`, JSON.stringify(picked))
+  }, [picked, year])
+
+  // Advance a picked winner into the next round slot
+  const downstream: Record<string, { matchId: string; slot: 'home' | 'away' }> = {
+    'of-2022-57': { matchId: 'of-2022-61', slot: 'away' },
+    'of-2022-58': { matchId: 'of-2022-61', slot: 'home' },
+    'of-2022-59': { matchId: 'of-2022-62', slot: 'away' },
+    'of-2022-60': { matchId: 'of-2022-62', slot: 'home' },
+    'of-2022-61': { matchId: 'of-2022-64', slot: 'home' },
+    'of-2022-62': { matchId: 'of-2022-64', slot: 'away' },
+  }
+
+  const handlePick = (matchId: string, teamId: string, teamName: string) => {
+    const next = downstream[matchId]
+    setPicked((prev) => {
+      const updated = { ...prev, [matchId]: teamId }
+      if (next) {
+        // propagate winner team name as raw string into next slot
+        // (we store display-name predictions for downstream placeholders)
+        updated[next.matchId] = teamName
+      }
+      return updated
+    })
+  }
+
+  const clearPicks = () => {
+    setPicked({})
+    localStorage.removeItem(`bracket-picks-${year}`)
+  }
 
   const matches = useMemo(
     () => filterByYear(allMatches, year).filter((m) => KNOCKOUT_STAGES.includes(m.stage as typeof KNOCKOUT_STAGES[number])),
@@ -189,6 +272,16 @@ export function BracketTab() {
         ? (finalMatch.away_team?.name ?? 'TBC')
         : 'TBC'
   }
+  // Show predicted champion if final match has a prediction
+  const predictedChampionId = finalMatch?.id ? picked[finalMatch.id] : undefined
+  if (predictedChampionId) {
+    const team = finalMatch?.home_team?.id === predictedChampionId
+      ? finalMatch.home_team
+      : finalMatch?.away_team?.id === predictedChampionId
+        ? finalMatch.away_team
+        : undefined
+    if (team) champion = team.name
+  }
 
   const trophy = TROPHY_BY_YEAR[year]
   const is2026Empty = year === 2026 && matches.length === 0
@@ -206,7 +299,19 @@ export function BracketTab() {
             </p>
           )}
         </div>
-        <YearToggle year={year} onChange={setYear} />
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsPredicting((p) => !p)}
+            className={`px-3 py-1.5 rounded-lg text-[10px] font-lexend font-bold uppercase tracking-widest border transition-colors ${
+              isPredicting
+                ? 'bg-primary-container/10 border-primary-container/30 text-primary-container'
+                : 'bg-white/5 border-white/10 text-white/30 hover:text-white/60'
+            }`}
+          >
+            {isPredicting ? 'Done Predicting' : 'Predict Bracket'}
+          </button>
+          <YearToggle year={year} onChange={setYear} />
+        </div>
       </div>
 
       {isLoading && (
@@ -238,7 +343,7 @@ export function BracketTab() {
 
           <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-4">
             <div className="flex gap-2 min-w-[640px] items-stretch">
-              <RoundCol label="Quarterfinal" matches={qfLeft} />
+              <RoundCol label="Quarterfinal" matches={qfLeft} predictionMode={isPredicting} picked={picked} onPick={handlePick} />
               <div className="flex flex-col justify-around w-3 flex-shrink-0 py-4">
                 {qfLeft.map((_, i) => (
                   <div key={i} className="flex-1 flex items-center">
@@ -249,7 +354,7 @@ export function BracketTab() {
 
               <div className="flex flex-col flex-1 min-w-[120px] justify-center">
                 <p className="font-lexend font-black text-[9px] uppercase tracking-widest text-white/25 text-center mb-3">Semifinal</p>
-                <MatchCard match={sfLeft[0]} />
+                <MatchCard match={sfLeft[0]} predictionMode={isPredicting} picked={picked} onPick={handlePick} />
               </div>
               <div className="flex items-center w-3 flex-shrink-0">
                 <div className="w-full border-t border-white/8" />
@@ -264,7 +369,7 @@ export function BracketTab() {
                     {champion}
                   </p>
                 </div>
-                <MatchCard match={finalMatch} isFinal />
+                <MatchCard match={finalMatch} isFinal predictionMode={isPredicting} picked={picked} onPick={handlePick} />
               </div>
 
               <div className="flex items-center w-3 flex-shrink-0">
@@ -273,7 +378,7 @@ export function BracketTab() {
 
               <div className="flex flex-col flex-1 min-w-[120px] justify-center">
                 <p className="font-lexend font-black text-[9px] uppercase tracking-widest text-white/25 text-center mb-3">Semifinal</p>
-                <MatchCard match={sfRight[0]} />
+                <MatchCard match={sfRight[0]} predictionMode={isPredicting} picked={picked} onPick={handlePick} />
               </div>
               <div className="flex flex-col justify-around w-3 flex-shrink-0 py-4">
                 {qfRight.map((_, i) => (
@@ -283,7 +388,7 @@ export function BracketTab() {
                 ))}
               </div>
 
-              <RoundCol label="Quarterfinal" matches={qfRight} />
+              <RoundCol label="Quarterfinal" matches={qfRight} predictionMode={isPredicting} picked={picked} onPick={handlePick} />
             </div>
           </div>
 
@@ -296,7 +401,7 @@ export function BracketTab() {
             <div className="mt-6">
               <p className="font-lexend font-black text-[9px] uppercase tracking-widest text-white/25 mb-3">Third Place</p>
               <div className="max-w-[200px]">
-                <MatchCard match={thirdMatch} />
+                <MatchCard match={thirdMatch} predictionMode={isPredicting} picked={picked} onPick={handlePick} />
               </div>
             </div>
           )}
@@ -305,7 +410,7 @@ export function BracketTab() {
             <p className="font-lexend font-black text-[9px] uppercase tracking-widest text-white/25 mb-4">Round of 16</p>
             <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-2">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2 min-w-[480px]">
-                {r16Padded.map((m, i) => <MatchCard key={m?.id ?? `placeholder-${i}`} match={m} />)}
+                {r16Padded.map((m, i) => <MatchCard key={m?.id ?? `placeholder-${i}`} match={m} predictionMode={isPredicting} picked={picked} onPick={handlePick} />)}
               </div>
             </div>
           </div>
