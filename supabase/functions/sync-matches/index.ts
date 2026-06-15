@@ -521,74 +521,131 @@ async function syncESPNDetails(
 
     const summary: ESPNSummary = await res.json()
 
-    if (!summary.boxscore) return
+    if (!summary.boxscore && !summary.rosters) return
 
-    // Accumulate stats for both teams
+    // ── STATS ──────────────────────────────────────────────────────────────────
     const homeStats: ExtractedStats = {}
     const awayStats: ExtractedStats = {}
 
-    for (const teamBox of summary.boxscore.teams) {
-      const boxNorm = normalizeTeamName(teamBox.team.name)
-      const boxAliases = new Set([boxNorm, ...(aliases[boxNorm] || [])])
-      // Find the DB team ID that matches this boxscore team and is one of the match teams
-      let teamId: string | null = null
-      for (const [id, n] of idToNormName) {
-        if (boxAliases.has(n) && (id === matchedMatch.home_team_id || id === matchedMatch.away_team_id)) {
-          teamId = id
-          break
+    if (summary.boxscore?.teams) {
+      for (const teamBox of summary.boxscore.teams) {
+        const boxNorm = normalizeTeamName(teamBox.team.name)
+        const boxAliases = new Set([boxNorm, ...(aliases[boxNorm] || [])])
+        let teamId: string | null = null
+        for (const [id, n] of idToNormName) {
+          if (boxAliases.has(n) && (id === matchedMatch.home_team_id || id === matchedMatch.away_team_id)) {
+            teamId = id
+            break
+          }
+        }
+        if (!teamId) continue
+        const teamStats = extractTeamStats(teamBox.stats)
+        if (teamId === matchedMatch.home_team_id) Object.assign(homeStats, teamStats)
+        else if (teamId === matchedMatch.away_team_id) Object.assign(awayStats, teamStats)
+      }
+    }
+
+    // Fallback: aggregate player stats from rosters when boxscore is empty
+    if ((!homeStats.shots || !awayStats.shots) && summary.rosters?.length) {
+      for (const roster of summary.rosters) {
+        const teamDisplayName = (roster as any).team?.displayName as string | undefined
+        if (!teamDisplayName) continue
+        const rosterNorm = normalizeTeamName(teamDisplayName)
+        const rosterAliases = new Set([rosterNorm, ...(aliases[rosterNorm] || [])])
+        const homeName = idToNormName.get(matchedMatch.home_team_id ?? '') || ''
+        const awayName = idToNormName.get(matchedMatch.away_team_id ?? '') || ''
+        const isHome = rosterAliases.has(homeName)
+        const isAway = rosterAliases.has(awayName)
+        if (!isHome && !isAway) continue
+        const agg = aggregatePlayerStats(roster.roster as any[])
+        if (isHome) Object.assign(homeStats, agg)
+        if (isAway) Object.assign(awayStats, agg)
+      }
+    }
+
+    if (homeStats.shots || awayStats.shots || homeStats.fouls || awayStats.fouls) {
+      const mergedStats: MatchStatsRow = {
+        match_id: matchId,
+        home_shots: homeStats.shots ?? null,
+        away_shots: awayStats.shots ?? null,
+        home_shots_on_target: homeStats.shotsOnTarget ?? null,
+        away_shots_on_target: awayStats.shotsOnTarget ?? null,
+        home_corners: homeStats.corners ?? null,
+        away_corners: awayStats.corners ?? null,
+        home_fouls: homeStats.fouls ?? null,
+        away_fouls: awayStats.fouls ?? null,
+        home_yellow_cards: homeStats.yellowCards ?? null,
+        away_yellow_cards: awayStats.yellowCards ?? null,
+        home_red_cards: homeStats.redCards ?? null,
+        away_red_cards: awayStats.redCards ?? null,
+        home_passes: homeStats.totalPasses ?? null,
+        away_passes: awayStats.totalPasses ?? null,
+        home_pass_accuracy: homeStats.passingAccuracy ?? null,
+        away_pass_accuracy: awayStats.passingAccuracy ?? null,
+        home_possession: homeStats.possession ?? null,
+      }
+      const { error: statsError } = await supabase
+        .from('match_stats')
+        .upsert(mergedStats, { onConflict: 'match_id' })
+      if (statsError) console.error(`[sync] Stats upsert error: ${statsError.message}`)
+    }
+
+    // ── LINEUPS ────────────────────────────────────────────────────────────────
+    let lineupsInserted = false
+    if (summary.boxscore?.teams) {
+      for (const teamBox of summary.boxscore.teams) {
+        const boxNorm = normalizeTeamName(teamBox.team.name)
+        const boxAliases = new Set([boxNorm, ...(aliases[boxNorm] || [])])
+        let teamId: string | null = null
+        for (const [id, n] of idToNormName) {
+          if (boxAliases.has(n) && (id === matchedMatch.home_team_id || id === matchedMatch.away_team_id)) {
+            teamId = id
+            break
+          }
+        }
+        if (!teamId) continue
+        const lineups = parseESPNLineups(teamBox.players, matchId, teamId)
+        if (lineups.length > 0) {
+          const { error } = await supabase
+            .from('lineups')
+            .upsert(lineups, { onConflict: 'id' })
+          if (error) console.error(`[sync] Lineups upsert error: ${error.message}`)
+          else lineupsInserted = true
         }
       }
-      if (!teamId) continue
+    }
 
-      const teamStats = extractTeamStats(teamBox.stats)
-      if (teamId === matchedMatch.home_team_id) {
-        Object.assign(homeStats, teamStats)
-      } else if (teamId === matchedMatch.away_team_id) {
-        Object.assign(awayStats, teamStats)
-      }
-
-      // Parse lineups
-      const lineups = parseESPNLineups(teamBox.players, matchId, teamId)
-      if (lineups.length > 0) {
-        const { error } = await supabase
-          .from('lineups')
-          .upsert(lineups, { onConflict: 'id' })
-        if (error) console.error(`[sync] Lineups upsert error: ${error.message}`)
+    // Fallback: rosters
+    if (!lineupsInserted && summary.rosters?.length) {
+      for (const roster of summary.rosters) {
+        const teamDisplayName = (roster as any).team?.displayName as string | undefined
+        if (!teamDisplayName) continue
+        const rosterId = resolveTeamId(teamDisplayName, idToNormName, aliases, matchedMatch.home_team_id, matchedMatch.away_team_id)
+        if (!rosterId) continue
+        const lineups = parseESPNRoster(roster as any, matchId, rosterId)
+        if (lineups.length > 0) {
+          const { error } = await supabase
+            .from('lineups')
+            .upsert(lineups, { onConflict: 'id' })
+          if (error) console.error(`[sync] Lineup upsert error: ${error.message}`)
+        }
       }
     }
 
-    // Merge and upsert match stats
-    const mergedStats: MatchStatsRow = {
-      match_id: matchId,
-      home_shots: homeStats.shots ?? null,
-      away_shots: awayStats.shots ?? null,
-      home_shots_on_target: homeStats.shotsOnTarget ?? null,
-      away_shots_on_target: awayStats.shotsOnTarget ?? null,
-      home_corners: homeStats.corners ?? null,
-      away_corners: awayStats.corners ?? null,
-      home_fouls: homeStats.fouls ?? null,
-      away_fouls: awayStats.fouls ?? null,
-      home_yellow_cards: homeStats.yellowCards ?? null,
-      away_yellow_cards: awayStats.yellowCards ?? null,
-      home_red_cards: homeStats.redCards ?? null,
-      away_red_cards: awayStats.redCards ?? null,
-      home_passes: homeStats.totalPasses ?? null,
-      away_passes: awayStats.totalPasses ?? null,
-      home_pass_accuracy: homeStats.passingAccuracy ?? null,
-      away_pass_accuracy: awayStats.passingAccuracy ?? null,
-      home_possession: homeStats.possession ?? null,
+    // ── EVENTS ─────────────────────────────────────────────────────────────────
+    const playEvents = await parseESPNEvents(eventId, matchId, idToNormName, aliases, matchedMatch.home_team_id, matchedMatch.away_team_id)
+    const keyEvents: MatchEventRow[] = []
+    if (!playEvents.length && summary.keyEvents) {
+      for (const e of summary.keyEvents) {
+        const event = mapESPNKeyEvent(e, matchId, idToNormName, aliases, matchedMatch.home_team_id, matchedMatch.away_team_id)
+        if (event) keyEvents.push(event)
+      }
     }
-    const { error: statsError } = await supabase
-      .from('match_stats')
-      .upsert(mergedStats, { onConflict: 'match_id' })
-    if (statsError) console.error(`[sync] Stats upsert error: ${statsError.message}`)
-
-    // Parse match events from ESPN plays API
-    const events = await parseESPNEvents(eventId, matchId, idToNormName, aliases)
-    if (events.length > 0) {
+    const allEvents = playEvents.length > 0 ? playEvents : keyEvents
+    if (allEvents.length > 0) {
       const { error } = await supabase
         .from('match_events')
-        .insert(events)
+        .insert(allEvents)
       if (error) console.error(`[sync] Events insert error: ${error.message}`)
     }
   } catch (err) {
@@ -674,6 +731,122 @@ async function fetchESPNPlays(eventId: string): Promise<any[]> {
   } catch {
     return []
   }
+}
+
+function resolveTeamId(
+  name: string,
+  idToNormName: Map<string, string>,
+  aliases: Record<string, string[]>,
+  homeTeamId: string | null,
+  awayTeamId: string | null,
+): string | null {
+  const n = normalizeTeamName(name)
+  const tAliases = new Set([n, ...(aliases[n] || [])])
+  if (homeTeamId && tAliases.has(idToNormName.get(homeTeamId) || '')) return homeTeamId
+  if (awayTeamId && tAliases.has(idToNormName.get(awayTeamId) || '')) return awayTeamId
+  for (const [id, nm] of idToNormName) {
+    if (tAliases.has(nm)) return id
+  }
+  return null
+}
+
+function parseESPNRoster(
+  roster: any,
+  matchId: string,
+  teamId: string,
+): LineupRow[] {
+  const players = roster.roster
+  if (!players || !Array.isArray(players)) return []
+  return players.map((player: any) => {
+    const athlete = player.athlete
+    const posAbbrev = athlete?.position?.abbreviation ?? player.position?.abbreviation ?? ''
+    const position: LineupRow['position'] =
+      posAbbrev === 'G' || posAbbrev === 'GK' ? 'GK' :
+      posAbbrev.startsWith('D') || posAbbrev.includes('D') ? 'DEF' :
+      posAbbrev.startsWith('M') || posAbbrev.includes('M') ? 'MID' :
+      posAbbrev.startsWith('F') || posAbbrev.includes('F') ? 'FWD' : null
+    return {
+      match_id: matchId,
+      team_id: teamId,
+      player_name: athlete?.displayName || athlete?.fullName || 'Unknown',
+      player_number: player.jersey ? parseInt(player.jersey) : null,
+      position,
+      position_x: null,
+      position_y: null,
+      is_starter: player.starter ?? false,
+      is_captain: false,
+    }
+  })
+}
+
+function mapESPNKeyEvent(
+  e: any,
+  matchId: string,
+  idToNormName: Map<string, string>,
+  aliases: Record<string, string[]>,
+  homeTeamId: string | null,
+  awayTeamId: string | null,
+): MatchEventRow | null {
+  const typeText = (e.type?.text || '').toLowerCase()
+  let eventType: MatchEventRow['event_type'] | null = null
+  if (typeText.includes('goal') && !typeText.includes('own')) eventType = 'goal'
+  else if (typeText.includes('own goal')) eventType = 'goal'
+  else if (typeText.includes('yellow card')) eventType = 'yellow_card'
+  else if (typeText.includes('red card')) eventType = 'red_card'
+  else if (typeText.includes('substitution')) eventType = 'substitution'
+  else if (typeText.includes('corner')) eventType = 'corner'
+  else if (typeText.includes('kickoff')) eventType = 'kick_off'
+  else if (typeText.includes('half time')) eventType = 'half_time'
+  else if (typeText.includes('full time') || typeText.includes('end')) eventType = 'full_time'
+  else if (typeText.includes('penalty')) eventType = 'penalty'
+  if (!eventType) return null
+
+  const teamDisplayName = e.team?.displayName as string | undefined
+  let teamId: string | null = null
+  if (teamDisplayName) {
+    teamId = resolveTeamId(teamDisplayName, idToNormName, aliases, homeTeamId, awayTeamId)
+  }
+  const playerName = e.participants?.[0]?.athlete?.displayName || null
+  const minute = e.clock?.value ? Math.round(e.clock.value / 60) : null
+  return {
+    match_id: matchId,
+    team_id: teamId,
+    event_type: eventType,
+    player_name: playerName,
+    player_in: null,
+    minute,
+    extra_time: false,
+    description: e.text || null,
+  }
+}
+
+function aggregatePlayerStats(players: any[]): ExtractedStats {
+  const stats: ExtractedStats = {
+    shots: 0, shotsOnTarget: 0, corners: 0, fouls: 0,
+    yellowCards: 0, redCards: 0, totalPasses: 0,
+    passingAccuracy: null, possession: null,
+  }
+  let passAccSum = 0
+  let passAccCount = 0
+  for (const p of players || []) {
+    for (const s of p.stats || []) {
+      const val = s.value ?? 0
+      switch (s.name) {
+        case 'totalShots': stats.shots! += val; break
+        case 'shotsOnTarget': stats.shotsOnTarget! += val; break
+        case 'cornerKicks': stats.corners! += val; break
+        case 'foulsCommitted': stats.fouls! += val; break
+        case 'yellowCards': stats.yellowCards! += val; break
+        case 'redCards': stats.redCards! += val; break
+        case 'totalPasses': stats.totalPasses! += val; break
+        case 'passingAccuracy':
+          if (val > 0) { passAccSum += val; passAccCount++ }
+          break
+      }
+    }
+  }
+  if (passAccCount > 0) stats.passingAccuracy = Math.round(passAccSum / passAccCount)
+  return stats
 }
 
 function mapESPNPlayToEvent(
