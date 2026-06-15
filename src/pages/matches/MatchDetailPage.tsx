@@ -2,6 +2,7 @@
 // All data from Supabase. No mock data anywhere.
 
 import { useState, useMemo, useEffect } from 'react'
+import { useTranslation }       from 'react-i18next'
 import { useParams }            from 'react-router-dom'
 import { PageWrapper }          from '@/components/layout/PageWrapper'
 import { ScoreCard }            from '@/components/matches/ScoreCard'
@@ -267,6 +268,7 @@ function MatchStatsCard({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function MatchDetailPage() {
+  const { t } = useTranslation()
   const { matchId }  = useParams<{ matchId: string }>()
   const [activeTab, setActiveTab] = useState<DetailTab>('overview')
 

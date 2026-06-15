@@ -223,7 +223,9 @@ async function fetchESPN(url: string): Promise<Response> {
 
 async function syncFromFootballData(
   supabase: any,
-  teamNameToId: Map<string, string>,
+  idToNormName: Map<string, string>,
+  _normNameToIds: Map<string, string[]>,
+  _aliases: Record<string, string[]>,
 ): Promise<{ synced: number; errors: string[] }> {
   let synced = 0
   const errors: string[] = []
@@ -246,30 +248,56 @@ async function syncFromFootballData(
       // football-data 2026 WC matches are from the 2026 competition
       const matchId = `fd-2026-${fixture.id}`
 
-      // Check if match exists in Supabase
-      const { data: existing } = await supabase
+      // Try to find match by ID first, then by date+teams
+      let existingMatchId = matchId
+      let { data: existing } = await supabase
         .from('matches')
-        .select('id')
+        .select('*')
         .eq('id', matchId)
-        .single()
+        .maybeSingle()
 
       if (!existing) {
-        console.log(`[sync] Skipping new match: ${matchId}`)
-        continue
+        let homeTeamId: string | null = null
+        let awayTeamId: string | null = null
+        const hNorm = normalizeTeamName(fixture.homeTeam.name)
+        const aNorm = normalizeTeamName(fixture.awayTeam.name)
+        for (const [id, n] of idToNormName) {
+          if (n === hNorm) homeTeamId = id
+          if (n === aNorm) awayTeamId = id
+        }
+        if (homeTeamId && awayTeamId) {
+          const { data: byTeams } = await supabase
+            .from('matches')
+            .select('*')
+            .eq('kickoff_at', fixture.utcDate)
+            .eq('home_team_id', homeTeamId)
+            .eq('away_team_id', awayTeamId)
+            .maybeSingle()
+          if (byTeams) {
+            existing = byTeams
+            existingMatchId = byTeams.id
+          }
+        }
       }
 
       // Map status
       const status = mapFDStatus(fixture.status)
       const minute = fixture.status === 'IN_PLAY' || fixture.status === 'PAUSED'
-        ? (fixture.elapsed ?? 0)
-        : 0
+        ? (fixture.minute ?? fixture.elapsed ?? 0)
+        : (fixture.status === 'FINISHED' ? 90 : 0)
 
       // Extract group letter
       const groupLetter = extractGroupLetter(fixture.group)
 
-      // Try to get team IDs by name
-      const homeTeamId = teamNameToId.get(normalizeTeamName(fixture.homeTeam.name)) ?? null
-      const awayTeamId = teamNameToId.get(normalizeTeamName(fixture.awayTeam.name)) ?? null
+      // Try to get team IDs by name matching against all known IDs
+      let homeTeamIdFD: string | null = null
+      let awayTeamIdFD: string | null = null
+      const hNorm2 = normalizeTeamName(fixture.homeTeam.name)
+      const aNorm2 = normalizeTeamName(fixture.awayTeam.name)
+      for (const [id, n] of idToNormName) {
+        if (n === hNorm2) homeTeamIdFD = id
+        if (n === aNorm2) awayTeamIdFD = id
+      }
 
       // Map stage (simplify for common stages)
       let stage = fixture.stage ?? 'UNKNOWN'
@@ -296,23 +324,48 @@ async function syncFromFootballData(
         stage: groupLetter ? `Group ${groupLetter}` : stage,
         group_letter: groupLetter,
         kickoff_at: fixture.utcDate,
-        home_team_id: homeTeamId,
-        away_team_id: awayTeamId,
+        home_team_id: homeTeamIdFD,
+        away_team_id: awayTeamIdFD,
       }
 
-      const { error } = await supabase
-        .from('matches')
-        .update(updateData)
-        .eq('id', matchId)
-
-      if (error) {
-        errors.push(`Failed to update ${matchId}: ${error.message}`)
+      if (existing) {
+        const { error } = await supabase
+          .from('matches')
+          .update(updateData)
+          .eq('id', existingMatchId)
+        if (error) {
+          errors.push(`Failed to update ${existingMatchId}: ${error.message}`)
+        } else {
+          synced++
+        }
       } else {
-        synced++
+        // Insert new match
+        const insertData: MatchRow = {
+          id: matchId,
+          status,
+          minute,
+          home_score: fixture.score.fullTime.home,
+          away_score: fixture.score.fullTime.away,
+          home_score_pens: decidedByPens ? (fixture.score.penalties?.home ?? null) : null,
+          away_score_pens: decidedByPens ? (fixture.score.penalties?.away ?? null) : null,
+          decided_by_pens: decidedByPens,
+          stage: groupLetter ? `Group ${groupLetter}` : stage,
+          group_letter: groupLetter,
+          kickoff_at: fixture.utcDate,
+          home_team_id: homeTeamIdFD,
+          away_team_id: awayTeamIdFD,
+          home_possession: 50,
+        }
+        const { error } = await supabase
+          .from('matches')
+          .insert(insertData)
+        if (error) {
+          errors.push(`Failed to insert ${matchId}: ${error.message}`)
+        } else {
+          synced++
+          console.log(`[sync] Created new match: ${matchId}`)
+        }
       }
-
-      // Rate limit: 6 seconds between API calls
-      await sleep(6000)
     }
   } catch (err) {
     console.error('[sync] football-data error:', err)
@@ -328,7 +381,9 @@ async function syncFromFootballData(
 
 async function syncFromESPN(
   supabase: any,
-  teamNameToId: Map<string, string>,
+  idToNormName: Map<string, string>,
+  normNameToIds: Map<string, string[]>,
+  aliases: Record<string, string[]>,
 ): Promise<{ synced: number; errors: string[] }> {
   let synced = 0
   const errors: string[] = []
@@ -345,14 +400,14 @@ async function syncFromESPN(
 
     console.log(`[sync] Found ${events.length} events from ESPN`)
 
-    // Fetch all existing matches to find live/finished ones
+    // Fetch all existing 2026 matches to sync status & score transitions
     const { data: matches } = await supabase
       .from('matches')
       .select('id, home_team_id, away_team_id, status, kickoff_at')
-      .in('status', ['live', 'finished'])
+      .not('id', 'like', 'of-2022%')
 
     if (!matches || matches.length === 0) {
-      console.log('[sync] No live/finished matches to sync from ESPN')
+      console.log('[sync] No 2026 matches to sync from ESPN')
       return { synced: 0, errors: [] }
     }
 
@@ -381,23 +436,21 @@ async function syncFromESPN(
 
       if (!homeCompetitor || !awayCompetitor) continue
 
-      // Find matching match by team names
+      // Find matching match by comparing team names via id→name map
       const homeNorm = normalizeTeamName(homeCompetitor.team.name)
       const awayNorm = normalizeTeamName(awayCompetitor.team.name)
 
+      // Build alias set for more flexible matching
+      const homeAliases = new Set([homeNorm, ...(aliases[homeNorm] || [])])
+      const awayAliases = new Set([awayNorm, ...(aliases[awayNorm] || [])])
+
       let matchedMatch = null
       for (const m of potentialMatches) {
-        const mHomeId = m.home_team_id
-        const mAwayId = m.away_team_id
+        const dbHomeNorm = idToNormName.get(m.home_team_id) ?? ''
+        const dbAwayNorm = idToNormName.get(m.away_team_id) ?? ''
 
-        // Get team names from our team lookup
-        let homeMatch = false
-        let awayMatch = false
-
-        for (const [name, id] of teamNameToId) {
-          if (id === mHomeId && normalizeTeamName(name) === homeNorm) homeMatch = true
-          if (id === mAwayId && normalizeTeamName(name) === awayNorm) awayMatch = true
-        }
+        const homeMatch = homeAliases.has(dbHomeNorm)
+        const awayMatch = awayAliases.has(dbAwayNorm)
 
         if (homeMatch && awayMatch) {
           matchedMatch = m
@@ -424,7 +477,7 @@ async function syncFromESPN(
         .from('matches')
         .update({
           status,
-          minute: status === 'live' ? (competition.status?.clock ?? 0) : 0,
+          minute: status === 'live' ? Math.round((competition.status?.clock ?? 0) / 60) : 0,
           home_score: homeScore,
           away_score: awayScore,
         })
@@ -439,7 +492,7 @@ async function syncFromESPN(
 
       // Fetch detailed summary for events, stats, lineups
       const summaryUrl = `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/summary?event=${event.id}`
-      await syncESPNDetails(supabase, summaryUrl, String(event.id), matchId, teamNameToId, matchedMatch)
+      await syncESPNDetails(supabase, summaryUrl, String(event.id), matchId, idToNormName, normNameToIds, aliases, matchedMatch)
     }
   } catch (err) {
     console.error('[sync] ESPN error:', err)
@@ -454,7 +507,9 @@ async function syncESPNDetails(
   summaryUrl: string,
   eventId: string,
   matchId: string,
-  teamNameToId: Map<string, string>,
+  idToNormName: Map<string, string>,
+  normNameToIds: Map<string, string[]>,
+  aliases: Record<string, string[]>,
   matchedMatch: { id: string; home_team_id: string | null; away_team_id: string | null },
 ): Promise<void> {
   try {
@@ -473,7 +528,16 @@ async function syncESPNDetails(
     const awayStats: ExtractedStats = {}
 
     for (const teamBox of summary.boxscore.teams) {
-      const teamId = teamNameToId.get(normalizeTeamName(teamBox.team.name))
+      const boxNorm = normalizeTeamName(teamBox.team.name)
+      const boxAliases = new Set([boxNorm, ...(aliases[boxNorm] || [])])
+      // Find the DB team ID that matches this boxscore team and is one of the match teams
+      let teamId: string | null = null
+      for (const [id, n] of idToNormName) {
+        if (boxAliases.has(n) && (id === matchedMatch.home_team_id || id === matchedMatch.away_team_id)) {
+          teamId = id
+          break
+        }
+      }
       if (!teamId) continue
 
       const teamStats = extractTeamStats(teamBox.stats)
@@ -520,7 +584,7 @@ async function syncESPNDetails(
     if (statsError) console.error(`[sync] Stats upsert error: ${statsError.message}`)
 
     // Parse match events from ESPN plays API
-    const events = await parseESPNEvents(eventId, matchId, teamNameToId)
+    const events = await parseESPNEvents(eventId, matchId, idToNormName, aliases)
     if (events.length > 0) {
       const { error } = await supabase
         .from('match_events')
@@ -615,7 +679,10 @@ async function fetchESPNPlays(eventId: string): Promise<any[]> {
 function mapESPNPlayToEvent(
   play: any,
   matchId: string,
-  teamNameToId: Map<string, string>,
+  idToNormName: Map<string, string>,
+  homeTeamId: string | null,
+  awayTeamId: string | null,
+  aliases: Record<string, string[]>,
 ): MatchEventRow | null {
   const type = play.type?.text as string | undefined
   const text = play.text as string | undefined
@@ -639,7 +706,17 @@ function mapESPNPlayToEvent(
   if (!eventType) return null
 
   const teamName = play.team?.displayName as string | undefined
-  const teamId = teamName ? teamNameToId.get(normalizeTeamName(teamName)) ?? null : null
+  let teamId: string | null = null
+  if (teamName) {
+    const tNorm = normalizeTeamName(teamName)
+    const tAliases = new Set([tNorm, ...(aliases[tNorm] || [])])
+    for (const [id, n] of idToNormName) {
+      if (tAliases.has(n) && (id === homeTeamId || id === awayTeamId)) {
+        teamId = id
+        break
+      }
+    }
+  }
 
   const playerName = play.athletes?.[0]?.displayName ?? play.participants?.[0]?.athlete?.displayName ?? null
   const minute = play.clock?.value ? Math.round(play.clock.value / 60) : null
@@ -659,13 +736,16 @@ function mapESPNPlayToEvent(
 async function parseESPNEvents(
   eventId: string,
   matchId: string,
-  teamNameToId: Map<string, string>,
+  idToNormName: Map<string, string>,
+  aliases: Record<string, string[]>,
+  homeTeamId?: string | null,
+  awayTeamId?: string | null,
 ): Promise<MatchEventRow[]> {
   const plays = await fetchESPNPlays(eventId)
   const events: MatchEventRow[] = []
 
   for (const play of plays) {
-    const event = mapESPNPlayToEvent(play, matchId, teamNameToId)
+    const event = mapESPNPlayToEvent(play, matchId, idToNormName, homeTeamId ?? null, awayTeamId ?? null, aliases)
     if (event) events.push(event)
   }
 
@@ -692,31 +772,48 @@ serve(async (req: Request) => {
       .from('teams')
       .select('id, name')
 
-    const teamNameToId = new Map<string, string>()
+    // Build id → normalized name (avoids duplicate-name collisions)
+    const idToNormName = new Map<string, string>()
     if (teams) {
       for (const team of teams) {
-        teamNameToId.set(normalizeTeamName(team.name), team.id)
+        idToNormName.set(team.id, normalizeTeamName(team.name))
       }
     }
-    console.log(`[sync] Loaded ${teamNameToId.size} teams`)
 
-    // 2. Try football-data first
-    const fdResult = await syncFromFootballData(supabase, teamNameToId)
-    totalSynced += fdResult.synced
-    errors.push(...fdResult.errors)
+    // Build normalized name → list of IDs (for reverse lookup)
+    const normNameToIds = new Map<string, string[]>()
+    for (const [id, n] of idToNormName) {
+      if (!normNameToIds.has(n)) normNameToIds.set(n, [])
+      normNameToIds.get(n)!.push(id)
+    }
 
-    // 3. If football-data failed or synced nothing, try ESPN fallback
-    if (fdResult.synced === 0 && fdResult.errors.length > 0) {
-      console.log('[sync] football-data failed, trying ESPN fallback...')
+    // Common name aliases for cross-source matching
+    const TEAM_ALIASES: Record<string, string[]> = {
+      capeverde: ['capeverdeislands', 'capeverde'],
+      capeverdeislands: ['capeverde', 'capeverdeislands'],
+      usa: ['unitedstates', 'usa'],
+      unitedstates: ['usa', 'unitedstates'],
+      korearepublic: ['southkorea', 'korearepublic'],
+      southkorea: ['korearepublic', 'southkorea'],
+    }
+
+    console.log(`[sync] Loaded ${idToNormName.size} teams`)
+
+    // 2. Try ESPN first (ESPN has more reliable live minutes / real-time data)
+    const espnResult = await syncFromESPN(supabase, idToNormName, normNameToIds, TEAM_ALIASES)
+    totalSynced += espnResult.synced
+    errors.push(...espnResult.errors)
+
+    // 3. If ESPN synced nothing (no errors or otherwise), always try football-data
+    // so we get at least status/score updates when ESPN has stale/no data.
+    if (espnResult.synced === 0) {
+      console.log('[sync] ESPN synced 0, trying football-data...')
+      source = 'football-data'
+      const fdResult = await syncFromFootballData(supabase, idToNormName, normNameToIds, TEAM_ALIASES)
+      totalSynced += fdResult.synced
+      errors.push(...fdResult.errors)
+    } else {
       source = 'espn'
-      const espnResult = await syncFromESPN(supabase, teamNameToId)
-      totalSynced += espnResult.synced
-      errors.push(...espnResult.errors)
-    } else if (fdResult.synced > 0) {
-      // Even with success, sync ESPN details for live/finished matches
-      const espnResult = await syncFromESPN(supabase, teamNameToId)
-      // Don't double count match updates, just details
-      errors.push(...espnResult.errors)
     }
 
     const response = {
