@@ -31,15 +31,19 @@ export const StadiumCard = memo(function StadiumCard({
   const primarySrc  = stadium.hero_image_url ?? null
   const fallbackSrc = getOptimizedImageUrl(stadium.hero_image_url, 512, 60)
 
-  const [src,     setSrc]     = useState<string | null>(primarySrc)
-  const [errored, setErrored] = useState(false)
+  const [imgSrc, setImgSrc]   = useState<string | null>(primarySrc)
+  const [attempt, setAttempt] = useState(0)
 
   function handleError() {
-    if (!errored && fallbackSrc && src !== fallbackSrc) {
-      setSrc(fallbackSrc)
-      setErrored(true)   // only one retry
+    if (attempt < 1) {
+      // First failure: retry once with the fallback. For local images the
+      // fallback is the same URL, but we still bump the attempt counter so
+      // the <img> key changes and the browser makes a fresh fetch attempt.
+      setAttempt((a) => a + 1)
+      setImgSrc(fallbackSrc ?? primarySrc)
     } else {
-      setSrc(null)       // give up — show placeholder
+      // Second failure: give up and show the placeholder.
+      setImgSrc(null)
     }
   }
 
@@ -49,15 +53,15 @@ export const StadiumCard = memo(function StadiumCard({
       onClick={() => onSelect(stadium.slug)}
     >
       <div className="relative h-44 overflow-hidden bg-[#1a1c1c]">
-        {src ? (
+        {imgSrc ? (
           <img
-            src={src}
+            key={`${stadium.id}-${attempt}`}
+            src={imgSrc}
             alt={stadium.name}
             width={512}
             height={176}
-            loading="eager"
+            loading={priority ? 'eager' : 'lazy'}
             decoding="async"
-            fetchPriority={priority ? 'high' : 'low'}
             onError={handleError}
             className="w-full h-full object-cover"
           />

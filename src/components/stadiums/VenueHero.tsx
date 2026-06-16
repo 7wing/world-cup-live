@@ -1,6 +1,6 @@
 // src/components/stadiums/VenueHero.tsx
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { NeonButton } from '@/components/ui/NeonButton'
 import type { Stadium } from '@/types'
 
@@ -17,10 +17,30 @@ interface VenueHeroProps {
  * without any Supabase optimisation transforms.
  */
 export function VenueHero({ stadium, onReview }: VenueHeroProps) {
-  const [imgError,  setImgError]  = useState(false)
-  const [imgLoaded, setImgLoaded] = useState(false)
+  const imgRef = useRef<HTMLImageElement>(null)
+  const [imgError, setImgError]     = useState(false)
+  const [imgLoaded, setImgLoaded]   = useState(false)
+  const [attempt, setAttempt]       = useState(0)
 
   const heroSrc = stadium.hero_image_url ?? null
+
+  // If the image is already cached by the browser, onLoad may not fire on remount.
+  // Check .complete immediately after mount so cached images show instantly.
+  useEffect(() => {
+    if (imgRef.current?.complete && !imgError) {
+      setImgLoaded(true)
+    }
+  }, [])
+
+  function handleError() {
+    // First failure: retry once — the key change forces the browser
+    // to attempt loading the image again.
+    if (attempt < 1) {
+      setAttempt((a) => a + 1)
+    } else {
+      setImgError(true)
+    }
+  }
 
   return (
     <div className="relative w-full h-[500px] rounded-xl overflow-hidden glass-surface border-2 border-yellow-500/30">
@@ -35,15 +55,17 @@ export function VenueHero({ stadium, onReview }: VenueHeroProps) {
       {/* Hero image */}
       {heroSrc && !imgError && (
         <img
+          key={`hero-${stadium.id}-${attempt}`}
           src={heroSrc}
           alt={stadium.name}
           fetchPriority="high"
           loading="eager"
           decoding="async"
+          ref={imgRef}
           onLoad={() => setImgLoaded(true)}
-          onError={() => setImgError(true)}
+          onError={handleError}
           className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${
-            imgLoaded ? 'opacity-60' : 'opacity-0'
+            imgLoaded ? 'opacity-100' : 'opacity-0'
           }`}
         />
       )}
@@ -59,7 +81,7 @@ export function VenueHero({ stadium, onReview }: VenueHeroProps) {
               Category 1 Venue
             </span>
             {stadium.capacity != null && (
-              <span className="bg-white/10 text-white font-lexend text-[10px] px-3 py-1 rounded-sm uppercase backdrop-blur-md">
+              <span className="bg-white/10 text-white font-lexend text-[10px] px-3 py-1 rounded-sm uppercase">
                 {stadium.capacity.toLocaleString()} Capacity
               </span>
             )}

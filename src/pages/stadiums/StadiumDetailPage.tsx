@@ -1,6 +1,6 @@
 // src/pages/stadiums/StadiumDetailPage.tsx
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { PageWrapper } from '@/components/layout/PageWrapper'
@@ -95,9 +95,18 @@ function StarRating({ value }: { value: number }) {
 }
 
 function PhotoTile({ src, caption }: { src: string; caption: string | null }) {
+  const imgRef = useRef<HTMLImageElement>(null)
   const [loaded, setLoaded] = useState(false)
   const [error, setError]   = useState(false)
   const optimized = getOptimizedImageUrl(src, 400, 70)
+
+  // If the image is already cached, onLoad may not fire on remount.
+  // Check .complete immediately after mount so cached images show instantly.
+  useEffect(() => {
+    if (imgRef.current?.complete && !error) {
+      setLoaded(true)
+    }
+  }, [])
 
   return (
     <div className="aspect-square rounded-xl overflow-hidden bg-surface-container-low relative">
@@ -108,6 +117,7 @@ function PhotoTile({ src, caption }: { src: string; caption: string | null }) {
         <img
           src={optimized}
           alt={caption ?? ''}
+          ref={imgRef}
           loading="lazy"
           decoding="async"
           onLoad={() => setLoaded(true)}
@@ -196,6 +206,7 @@ export function StadiumDetailPage() {
       </button>
 
       <VenueHero
+        key={stadium.id}
         stadium={stadium}
         onReview={() => { setShowReviewForm(true); setActiveTab('reviews') }}
       />
