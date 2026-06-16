@@ -40,13 +40,16 @@ export function ScoreCard({ match, onClick }: ScoreCardProps) {
             'font-lexend font-bold uppercase text-sm truncate',
             winner === 'home' && isFinished && 'text-white',
             winner === 'away' && isFinished && 'text-white/40',
-          )}>{match.home_team.name}</span>
+          )}>
+            <span className="sm:hidden">{match.home_team.code}</span>
+            <span className="hidden sm:inline">{match.home_team.name}</span>
+          </span>
         </div>
         <div className="flex flex-col items-center gap-0.5">
           {(isLive || isFinished) ? (
             <>
               <span className={cn('font-lexend font-black text-xl', isLive && 'text-primary-container')}>
-                {match.home_score} - {match.away_score}
+                {match.home_score ?? 0} - {match.away_score ?? 0}
               </span>
               {pens.decidedByPens && isFinished && (
                 <span className="text-[9px] font-lexend text-white/30">
@@ -63,7 +66,10 @@ export function ScoreCard({ match, onClick }: ScoreCardProps) {
             'font-lexend font-bold uppercase text-sm truncate text-right',
             winner === 'away' && isFinished && 'text-white',
             winner === 'home' && isFinished && 'text-white/40',
-          )}>{match.away_team.name}</span>
+          )}>
+            <span className="sm:hidden">{match.away_team.code}</span>
+            <span className="hidden sm:inline">{match.away_team.name}</span>
+          </span>
           <TeamFlag code={match.away_team.code} flagUrl={match.away_team.flag_url} size="md" />
         </div>
       </div>

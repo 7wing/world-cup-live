@@ -4,9 +4,21 @@ import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { GlassCard } from '@/components/ui/GlassCard'
 import { TeamFlag } from '@/components/ui/TeamFlag'
+import { YearToggle } from '@/components/matches/YearToggle'
 import { useMatches } from '@/hooks/useMatches'
 import { usePrefetchMatch } from '@/hooks/usePrefetchMatch'
-import { formatMatchStageLabel, getKnockoutWinner, getPenaltyScores } from '@/utils/tournament'
+import {
+  formatMatchStageLabel,
+  getKnockoutWinner,
+  getPenaltyScores,
+  type TournamentYear,
+  filterByYear,
+} from '@/utils/tournament'
+
+interface ScheduleTabProps {
+  year: TournamentYear
+  onYearChange: (y: TournamentYear) => void
+}
 import type { Match } from '@/types'
 
 // ── Timezone helpers ──────────────────────────────────────────────────────────
@@ -17,10 +29,18 @@ function localTime(isoUtc: string): string {
 function localDateKey(isoUtc: string): string {
   // Use the user's runtime timezone so that e.g. 23:30 UTC on June 23 stays
   // June 23 for a UTC+1 user rather than shifting to June 24.
-  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
   const d = new Date(isoUtc)
-  const local = new Date(d.toLocaleString('en-CA', { timeZone: tz }))
-  return `${local.getFullYear()}-${String(local.getMonth() + 1).padStart(2, '0')}-${String(local.getDate()).padStart(2, '0')}`
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
+  const parts = fmt.formatToParts(d)
+  const y = parts.find((p) => p.type === 'year')?.value ?? ''
+  const m = parts.find((p) => p.type === 'month')?.value ?? ''
+  const day = parts.find((p) => p.type === 'day')?.value ?? ''
+  return `${y}-${m}-${day}`
 }
 
 function formatDateLabel(isoUtc: string): string {
@@ -35,14 +55,18 @@ function tzAbbr(): string {
   } catch { return '' }
 }
 
-function groupByLocalDate(matches: Match[]): [string, Match[]][] {
+function groupByLocalDate(matches: Match[], sort: 'asc' | 'desc' = 'asc'): [string, Match[]][] {
   const map: Record<string, Match[]> = {}
   for (const m of matches) {
     const key = localDateKey(m.kickoff_at)
     if (!map[key]) map[key] = []
     map[key].push(m)
   }
-  return Object.entries(map).sort(([a], [b]) => a.localeCompare(b))
+  const entries = Object.entries(map)
+  if (sort === 'desc') {
+    return entries.sort(([a], [b]) => b.localeCompare(a))
+  }
+  return entries.sort(([a], [b]) => a.localeCompare(b))
 }
 
 // ── Fixture Row ───────────────────────────────────────────────────────────────
@@ -60,6 +84,7 @@ function FixtureRow({ match }: { match: Match }) {
       onMouseEnter={() => prefetch(match)}
       onFocus={() => prefetch(match)}
       tabIndex={0}
+      style={{ contentVisibility: 'auto', containIntrinsicSize: '0 48px' }}
       className="flex items-center gap-3 px-4 py-3 border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors cursor-pointer group outline-none"
     >
       {/* Local time / FT / Live */}
@@ -79,7 +104,8 @@ function FixtureRow({ match }: { match: Match }) {
           : isFinished ? 'text-white/35'
           : 'text-white/70'
         }`}>
-          {match.home_team.name}
+          <span className="sm:hidden">{match.home_team.code}</span>
+          <span className="hidden sm:inline">{match.home_team.name}</span>
         </span>
         <TeamFlag code={match.home_team.code} flagUrl={match.home_team.flag_url} />
       </div>
@@ -116,7 +142,8 @@ function FixtureRow({ match }: { match: Match }) {
           : isFinished ? 'text-white/35'
           : 'text-white/70'
         }`}>
-          {match.away_team.name}
+          <span className="sm:hidden">{match.away_team.code}</span>
+          <span className="hidden sm:inline">{match.away_team.name}</span>
         </span>
       </div>
 
@@ -173,24 +200,26 @@ function SkeletonRows() {
 // ── Main ──────────────────────────────────────────────────────────────────────
 type TabView = 'upcoming' | 'results'
 
-export function ScheduleTab() {
+export function ScheduleTab({ year, onYearChange }: ScheduleTabProps) {
   const [view, setView] = useState<TabView>('upcoming')
   const { data: matches = [], isLoading, isError, refetch } = useMatches()
 
+  const yearMatches = useMemo(() => filterByYear(matches, year), [matches, year])
+
   const upcoming = useMemo(() =>
-    matches.filter(m => m.status === 'upcoming' || m.status === 'live')
+    yearMatches.filter(m => m.status === 'upcoming' || m.status === 'live')
       .sort((a, b) => new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime()),
-    [matches]
+    [yearMatches]
   )
 
   const results = useMemo(() =>
-    matches.filter(m => m.status === 'finished')
+    yearMatches.filter(m => m.status === 'finished')
       .sort((a, b) => new Date(b.kickoff_at).getTime() - new Date(a.kickoff_at).getTime()),
-    [matches]
+    [yearMatches]
   )
 
   const upcomingByDate = useMemo(() => groupByLocalDate(upcoming), [upcoming])
-  const resultsByDate  = useMemo(() => groupByLocalDate(results),  [results])
+  const resultsByDate  = useMemo(() => groupByLocalDate(results, 'desc'),  [results])
 
   const tz = tzAbbr()
   const activeList = view === 'upcoming' ? upcoming : results
@@ -202,6 +231,7 @@ export function ScheduleTab() {
           <p className="text-[11px] font-lexend font-bold uppercase tracking-widest text-white/25">
             {isLoading ? 'Loading…' : `${activeList.length} ${activeList.length === 1 ? (view === 'upcoming' ? 'Fixture' : 'Result') : (view === 'upcoming' ? 'Fixtures' : 'Results')}`}
           </p>
+
           {tz && (
             <p className="text-[9px] font-lexend text-white/15 mt-0.5">
               Times shown in your local timezone · {tz}
@@ -209,18 +239,21 @@ export function ScheduleTab() {
           )}
         </div>
 
-        <div className="flex bg-white/5 p-0.5 rounded-lg border border-white/10 self-end sm:self-auto">
-          {(['upcoming', 'results'] as TabView[]).map(v => (
-            <button
-              key={v}
-              onClick={() => setView(v)}
-              className={`px-3 py-1 text-[10px] font-lexend font-bold uppercase tracking-wider rounded-md transition-all ${
-                view === v ? 'bg-white/10 text-white shadow-sm' : 'text-white/40 hover:text-white/70'
-              }`}
-            >
-              {v === 'upcoming' ? 'Upcoming' : 'Results'}
-            </button>
-          ))}
+        <div className="flex items-center gap-3 self-end sm:self-auto">
+          {view === 'results' && <YearToggle year={year} onChange={onYearChange} />}
+          <div className="flex bg-white/5 p-0.5 rounded-lg border border-white/10">
+            {(['upcoming', 'results'] as TabView[]).map(v => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                className={`px-3 py-1 text-[10px] font-lexend font-bold uppercase tracking-wider rounded-md transition-all ${
+                  view === v ? 'bg-white/10 text-white shadow-sm' : 'text-white/40 hover:text-white/70'
+                }`}
+              >
+                {v === 'upcoming' ? 'Upcoming' : 'Results'}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
