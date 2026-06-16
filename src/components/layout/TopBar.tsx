@@ -7,23 +7,23 @@ import { LanguageToggle } from '@/components/ui/LanguageToggle'
 import { fetchStadiums } from '@/api/stadiums'
 import { fetchTribes } from '@/api/fanzone'
 import { cn } from '@/utils/cn'
-import React, { useState, useEffect, useLayoutEffect } from 'react'
+import React, { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 
-const navLinks = [
-  { to: '/matches',   label: 'Matches',  exact: false },
-  { to: '/fan-zone',  label: 'Fan Zone', exact: true  },
-  { to: '/games',     label: 'Games',    exact: false },
-  { to: '/stadiums',  label: 'Stadiums', exact: false },
+const NAV_LINKS = [
+  { to: '/matches',   key: 'nav.matches' as const,  exact: false },
+  { to: '/fan-zone',  key: 'nav.fanZone' as const,  exact: true  },
+  { to: '/games',     key: 'nav.games'  as const,  exact: false },
+  { to: '/stadiums',  key: 'nav.stadiums' as const, exact: false },
 ]
 
 export const TopBar = React.memo(function TopBar() {
+  const { t } = useTranslation()
   const { pathname } = useLocation()
   const qc = useQueryClient()
   const { user } = useAuthStore()
   const setSettingsOpen = useSettingsStore((s) => s.setOpen)
   const [scrolled, setScrolled] = useState(false)
-  const [mobileOpen, setMobileOpen] = useState(false)
-
   useEffect(() => {
     let ticking = false
     const onScroll = () => {
@@ -38,10 +38,6 @@ export const TopBar = React.memo(function TopBar() {
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
-
-  // useLayoutEffect is correct here: we need to close the menu synchronously
-  // when the route changes, before the next paint, to avoid flickering.
-  useLayoutEffect(() => { setMobileOpen(false) }, [pathname])
 
   const avatarFallback = user?.username
     ? user.username.charAt(0).toUpperCase()
@@ -62,8 +58,7 @@ export const TopBar = React.memo(function TopBar() {
     exact ? pathname === to : pathname.startsWith(to)
 
   return (
-    <>
-      <header
+    <header
         className={cn(
           'fixed top-4 left-1/2 -translate-x-1/2 z-50',
           'w-[calc(100%-2rem)] max-w-4xl',
@@ -84,7 +79,7 @@ export const TopBar = React.memo(function TopBar() {
         <Link
           to="/"
           className="group flex items-center gap-2 shrink-0"
-          aria-label="Home"
+          aria-label={t('nav.home')}
         >
           <span
             className="flex items-center justify-center w-8 h-8 rounded-xl transition-all duration-300 group-hover:scale-110"
@@ -100,7 +95,7 @@ export const TopBar = React.memo(function TopBar() {
 
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-1 h-full">
-          {navLinks.map(({ to, label, exact }) => {
+          {NAV_LINKS.map(({ to, key, exact }) => {
             const active = isActive(to, exact)
             return (
               <Link
@@ -129,7 +124,7 @@ export const TopBar = React.memo(function TopBar() {
                     }}
                   />
                 )}
-                {label}
+                {t(key)}
               </Link>
             )
           })}
@@ -141,7 +136,7 @@ export const TopBar = React.memo(function TopBar() {
           <Link
             to="/discover"
             className="flex items-center justify-center w-8 h-8 rounded-xl text-white/40 hover:text-primary-container hover:bg-primary-container/10 transition-colors"
-            aria-label="Discover Players"
+            aria-label={t('nav.discover')}
           >
             <span className="material-symbols-outlined text-[18px]">person_search</span>
           </Link>
@@ -150,7 +145,7 @@ export const TopBar = React.memo(function TopBar() {
           <Link
             to="/messages"
             className="flex items-center justify-center w-8 h-8 rounded-xl text-white/40 hover:text-primary-container hover:bg-primary-container/10 transition-colors"
-            aria-label="Messages"
+            aria-label={t('common.messages')}
           >
             <span className="material-symbols-outlined text-[18px]">chat</span>
           </Link>
@@ -163,7 +158,7 @@ export const TopBar = React.memo(function TopBar() {
             type="button"
             onClick={() => setSettingsOpen(true)}
             className="flex items-center justify-center w-8 h-8 rounded-xl text-white/40 hover:text-white/80 hover:bg-white/5 transition-colors"
-            aria-label="Settings"
+            aria-label={t('nav.settings')}
           >
             <span className="material-symbols-outlined text-[18px]">settings</span>
           </button>
@@ -173,7 +168,7 @@ export const TopBar = React.memo(function TopBar() {
             to={profileTo}
             className="flex items-center justify-center w-8 h-8 rounded-xl overflow-hidden transition-all duration-300 hover:scale-105"
             style={{ border: '1px solid rgba(255,255,255,0.10)' }}
-            aria-label={user ? 'Profile' : 'Login'}
+            aria-label={user ? t('nav.profile') : t('nav.login')}
             onMouseEnter={(e) =>
               ((e.currentTarget as HTMLElement).style.borderColor =
                 'color-mix(in srgb, var(--color-green) 50%, transparent)')
@@ -198,121 +193,34 @@ export const TopBar = React.memo(function TopBar() {
           </Link>
         </div>
 
-        {/* Mobile hamburger */}
-        <button
-          type="button"
-          className="md:hidden flex items-center justify-center w-10 h-10 rounded-xl text-white/60 hover:text-white hover:bg-white/5 transition-colors"
-          onClick={() => setMobileOpen((v) => !v)}
-          aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
-          aria-expanded={mobileOpen}
+        {/* Mobile profile */}
+        <Link
+          to={profileTo}
+          className="md:hidden flex items-center justify-center w-9 h-9 rounded-xl overflow-hidden transition-all duration-300 hover:scale-105"
+          style={{ border: '1px solid rgba(255,255,255,0.10)' }}
+          aria-label={user ? t('nav.profile') : t('nav.login')}
+          onMouseEnter={(e) =>
+            ((e.currentTarget as HTMLElement).style.borderColor =
+              'color-mix(in srgb, var(--color-green) 50%, transparent)')
+          }
+          onMouseLeave={(e) =>
+            ((e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.10)')
+          }
         >
-          <span className="material-symbols-outlined text-[22px]">
-            {mobileOpen ? 'close' : 'menu'}
-          </span>
-        </button>
-      </header>
-
-      {/* Mobile dropdown */}
-      <div
-        className={cn(
-          'fixed top-[4.5rem] left-1/2 -translate-x-1/2 z-40 md:hidden',
-          'w-[calc(100%-2rem)] max-w-sm',
-          'rounded-2xl overflow-hidden',
-          'shadow-[0_16px_40px_rgba(0,0,0,0.5)]',
-          'transition-all duration-300 ease-out',
-          mobileOpen
-            ? 'opacity-100 translate-y-0 pointer-events-auto'
-            : 'opacity-0 -translate-y-3 pointer-events-none',
-        )}
-        style={{
-          background: 'rgba(0,0,0,0.92)',
-          border: '1px solid rgba(255,255,255,0.08)',
-        }}
-      >
-        <nav className="flex flex-col p-2 gap-0.5">
-          {navLinks.map(({ to, label, exact }) => {
-            const active = isActive(to, exact)
-            return (
-              <Link
-                key={to}
-                to={to}
-                onClick={() => setMobileOpen(false)}
-                onMouseEnter={() => handlePrefetch(to)}
-                onFocus={() => handlePrefetch(to)}
-                className={cn(
-                  'flex items-center gap-3 px-4 py-3 rounded-xl',
-                  'font-lexend uppercase tracking-tight text-sm font-semibold transition-colors',
-                  active ? 'text-[--color-green]' : 'text-white/50 hover:text-white hover:bg-white/5',
-                )}
-                style={
-                  active
-                    ? { background: 'color-mix(in srgb, var(--color-green) 10%, transparent)' }
-                    : undefined
-                }
-              >
-                {active && (
-                  <span
-                    className="w-1.5 h-1.5 rounded-full shrink-0"
-                    style={{ background: 'var(--color-green)' }}
-                  />
-                )}
-                {label}
-              </Link>
-            )
-          })}
-
-          <div className="my-1 border-t border-white/8" />
-
-          <Link
-            to={profileTo}
-            onClick={() => setMobileOpen(false)}
-            className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/70 hover:bg-white/5 transition-colors"
-          >
+          {user?.avatar_url ? (
+            <Avatar src={user.avatar_url} username={user.username} size="sm" />
+          ) : (
             <span
-              className="w-8 h-8 rounded-xl overflow-hidden flex items-center justify-center shrink-0"
-              style={{ border: '1px solid rgba(255,255,255,0.10)' }}
+              className="w-full h-full flex items-center justify-center font-lexend font-bold text-xs uppercase"
+              style={{
+                background: 'color-mix(in srgb, var(--color-green) 15%, transparent)',
+                color: 'var(--color-green)',
+              }}
             >
-              {user?.avatar_url ? (
-                <Avatar src={user.avatar_url} username={user.username} size="sm" />
-              ) : (
-                <span
-                  className="w-full h-full flex items-center justify-center font-lexend font-bold text-xs"
-                  style={{
-                    background: 'color-mix(in srgb, var(--color-green) 15%, transparent)',
-                    color: 'var(--color-green)',
-                  }}
-                >
-                  {avatarFallback}
-                </span>
-              )}
+              {avatarFallback}
             </span>
-            <span className="font-lexend font-semibold text-sm uppercase">
-              {user ? 'Profile' : 'Sign in'}
-            </span>
-          </Link>
-
-          <button
-            type="button"
-            onClick={() => {
-              setMobileOpen(false)
-              setSettingsOpen(true)
-            }}
-            className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/50 hover:text-white hover:bg-white/5 transition-colors w-full text-left"
-          >
-            <span className="material-symbols-outlined text-xl w-8 text-center">settings</span>
-            <span className="font-lexend font-semibold text-sm uppercase">Settings</span>
-          </button>
-        </nav>
-      </div>
-
-      {/* Mobile backdrop */}
-      {mobileOpen && (
-        <div
-          className="fixed inset-0 z-30 md:hidden bg-black/40"
-          onClick={() => setMobileOpen(false)}
-          aria-hidden
-        />
-      )}
-    </>
+          )}
+        </Link>
+    </header>
   )
 })
