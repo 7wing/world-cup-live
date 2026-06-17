@@ -1,23 +1,28 @@
 // src/pages/MatchesPage.tsx
+// Year selection is hoisted here so it survives tab switches.
 
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { BracketTab } from '@/components/matches/BracketTab'
 import { GroupsTab } from '@/components/matches/GroupsTab'
 import { ScheduleTab } from '@/components/matches/ScheduleTab'
+import type { TournamentYear } from '@/utils/tournament'
 
 // ─────────────────────────────────────────────────────────────────────────────
 type Tab = 'schedule' | 'groups' | 'bracket'
 
-const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: 'schedule', label: 'Schedule', icon: 'calendar_month' },
-  { id: 'groups',   label: 'Groups',   icon: 'grid_view'      },
-  { id: 'bracket',  label: 'Bracket',  icon: 'account_tree'   },
+const TABS: { id: Tab; labelKey: string; icon: string }[] = [
+  { id: 'schedule', labelKey: 'matches.schedule', icon: 'calendar_month' },
+  { id: 'groups',   labelKey: 'matches.groups',   icon: 'grid_view'      },
+  { id: 'bracket',  labelKey: 'matches.bracket',  icon: 'account_tree'   },
 ]
 
 // ─────────────────────────────────────────────────────────────────────────────
 export function MatchesPage() {
+  const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState<Tab>('schedule')
+  const [year, setYear] = useState<TournamentYear>(2026)
 
   return (
     <PageWrapper>
@@ -37,19 +42,19 @@ export function MatchesPage() {
             `}
           >
             <span className="material-symbols-outlined text-[15px]">{tab.icon}</span>
-            {tab.label}
+            {t(tab.labelKey)}
           </button>
         ))}
       </div>
 
       {/* ══ SCHEDULE ══ */}
-      {activeTab === 'schedule' && <ScheduleTab />}
+      {activeTab === 'schedule' && <ScheduleTab year={year} onYearChange={setYear} />}
 
       {/* ══ GROUPS ══ */}
-      {activeTab === 'groups' && <GroupsTab />}
+      {activeTab === 'groups' && <GroupsTab year={year} onYearChange={setYear} />}
 
       {/* ══ BRACKET ══ */}
-      {activeTab === 'bracket' && <BracketTab />}
+      {activeTab === 'bracket' && <BracketTab year={year} onYearChange={setYear} />}
     </PageWrapper>
   )
 }

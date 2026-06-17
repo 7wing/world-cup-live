@@ -4,8 +4,19 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { GlassCard } from '@/components/ui/GlassCard'
-import { fetchTriviaQuestions } from '@/api/trivia'
+import { NeonButton } from '@/components/ui/NeonButton'
+import { fetchTriviaQuestions, FALLBACK_TRIVIA } from '@/api/trivia'
 import type { TriviaQuestion } from '@/types'
+
+/** Shuffle fallback questions so each session feels different */
+function getShuffledFallbacks(limit: number): TriviaQuestion[] {
+  const shuffled = [...FALLBACK_TRIVIA]
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  }
+  return shuffled.slice(0, limit)
+}
 
 interface TriviaTabProps {
   /** Optional: scope questions to a specific match */
@@ -22,9 +33,15 @@ export function TriviaTab({ matchId, liveQuestion }: TriviaTabProps) {
     staleTime: 5 * 60_000,
   })
 
+  const fallbackQuestions = liveQuestion || dbQuestions.length > 0
+    ? []
+    : getShuffledFallbacks(MAX_ROUNDS)
+
   const questions: TriviaQuestion[] = liveQuestion
     ? [liveQuestion, ...dbQuestions.filter((q) => q.id !== liveQuestion.id)]
-    : dbQuestions
+    : dbQuestions.length > 0
+      ? dbQuestions
+      : fallbackQuestions
 
   const totalPts = questions.reduce((sum, q) => sum + q.points, 0)
 
@@ -77,6 +94,9 @@ export function TriviaTab({ matchId, liveQuestion }: TriviaTabProps) {
       <GlassCard className="p-12 text-center">
         <span className="material-symbols-outlined text-4xl text-white/10 block mb-3">psychology</span>
         <p className="font-lexend font-black text-sm text-white/20">No trivia questions available yet</p>
+        <p className="text-[11px] font-lexend text-white/15 mt-2">
+          Please check your connection or try refreshing the page.
+        </p>
       </GlassCard>
     )
   }

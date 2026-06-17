@@ -64,7 +64,7 @@ export function VibeMeter({
           {match.status === 'live' && (
             <div className="flex items-center gap-1.5">
               <span className="font-lexend font-black text-lg text-primary-container">
-                {match.home_score} – {match.away_score}
+                {match.home_score ?? 0} – {match.away_score ?? 0}
               </span>
               <span className="text-[10px] font-lexend text-white/30">{match.minute}'</span>
             </div>

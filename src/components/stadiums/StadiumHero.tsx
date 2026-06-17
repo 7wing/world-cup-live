@@ -1,6 +1,6 @@
 // src/components/stadiums/StadiumHero.tsx
 
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import type { Stadium } from '@/types'
 
 interface StadiumHeroProps {
@@ -54,18 +54,18 @@ export function StadiumHero({ stadiums, isLoading }: StadiumHeroProps) {
 
   const current = slides[index]?.hero_image_url ?? null
 
-  // Warm all slide images into browser cache so carousel switching is instant
-  const hasWarmed = useRef(false)
+  // Preload only the current + next slide to avoid lag from warming all images at once
   useEffect(() => {
-    if (hasWarmed.current) return
-    hasWarmed.current = true
-    slides.forEach((s) => {
-      if (!s.hero_image_url) return
+    if (slides.length === 0) return
+    const preload = (i: number) => {
+      const url = slides[i]?.hero_image_url
+      if (!url) return
       const img = new Image()
-      img.decoding = 'async'
-      img.src = s.hero_image_url
-    })
-  }, [slides])
+      img.src = url
+    }
+    preload(index)
+    preload((index + 1) % slides.length)
+  }, [slides, index])
 
   return (
     <div className="relative overflow-hidden rounded-2xl mb-8 h-64 isolate bg-surface-container-low">

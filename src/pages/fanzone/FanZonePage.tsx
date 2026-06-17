@@ -1,6 +1,7 @@
 // src/pages/fanzone/FanZonePage.tsx
 
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { LiveDot } from '@/components/ui/LiveDot'
 import { FAB } from '@/components/layout/FAB'
 import { PostCard } from '@/components/fanzone/PostCard'
@@ -22,6 +23,7 @@ function applyFilter(posts: Post[], filter: FeedFilterType): Post[] {
 }
 
 export function FanZonePage() {
+  const { t } = useTranslation()
   const { user } = useAuthStore()
   const effective = getEffectiveUser(user)
   const [filter, setFilter] = useState<FeedFilterType>('All')
@@ -73,11 +75,11 @@ export function FanZonePage() {
       <div className="flex items-center gap-2.5 mb-1.5">
         <LiveDot />
         <span className="text-[11px] font-lexend font-black text-primary-container uppercase tracking-widest">
-          Live Matchday Hub
+          {t('common.live')}
         </span>
       </div>
       <h1 className="font-lexend font-black text-5xl uppercase italic leading-none mb-7">
-        Fan Zone
+        {t('nav.fanZone')}
       </h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 items-start">

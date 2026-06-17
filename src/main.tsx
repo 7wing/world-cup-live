@@ -8,6 +8,7 @@ import { router } from '@/router'
 import { fetchMatches } from '@/api/matches'
 import { fetchStadiumsWithHero } from '@/hooks/useStadium'
 import { registerServiceWorker } from '@/lib/pushNotifications'
+import { supabase } from '@/lib/supabase'
 import '@/styles/globals.css'
 
 // Register service worker for push notifications (best-effort, non-blocking)
@@ -23,6 +24,24 @@ queryClient.prefetchQuery({
   queryKey: ['matches'],
   queryFn: fetchMatches,
 }).catch(() => {})
+
+// Global realtime subscription — one channel, invalidates the matches cache on any DB change
+supabase
+  .channel('matches:all')
+  .on(
+    'postgres_changes',
+    { event: '*', schema: 'public', table: 'matches' },
+    () => {
+      queryClient.invalidateQueries({ queryKey: ['matches'] })
+    },
+  )
+  .subscribe((status, err) => {
+    if (err) {
+      console.warn('[realtime] matches subscription error:', err)
+    } else if (status !== 'SUBSCRIBED') {
+      console.warn('[realtime] matches subscription status:', status)
+    }
+  })
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { GlassCard } from '@/components/ui/GlassCard'
 import { NeonButton } from '@/components/ui/NeonButton'
@@ -32,11 +33,11 @@ import type { Match, TriviaQuestion } from '@/types'
 // ── Tab definition ─────────────────────────────────────────────────────────────
 type GameTab = 'trivia' | 'predictor' | 'bracket' | 'duel'
 
-const GAME_TABS: { id: GameTab; label: string; icon: string }[] = [
-  { id: 'trivia',    label: 'AI Trivia', icon: 'psychology'   },
-  { id: 'predictor', label: 'Predictor', icon: 'auto_awesome' },
-  { id: 'bracket',   label: 'Bracket',   icon: 'account_tree' },
-  { id: 'duel',      label: 'Fan Duel',  icon: 'swords'       },
+const GAME_TABS: { id: GameTab; labelKey: string; icon: string }[] = [
+  { id: 'trivia',    labelKey: 'games.aiTrivia', icon: 'psychology'   },
+  { id: 'predictor', labelKey: 'games.predictor', icon: 'auto_awesome' },
+  { id: 'bracket',   labelKey: 'matches.bracket',   icon: 'account_tree' },
+  { id: 'duel',      labelKey: 'games.fanDuel',  icon: 'swords'       },
 ]
 
 function matchLabel(m: Match, side: 'home' | 'away') {
@@ -717,6 +718,7 @@ function FanDuelTab() {
 
 // ── Main page ──────────────────────────────────────────────────────────────────
 export function GamesPage() {
+  const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState<GameTab>('trivia')
 
   return (
@@ -748,7 +750,7 @@ export function GamesPage() {
             `}
           >
             <span className="material-symbols-outlined text-[15px]">{tab.icon}</span>
-            {tab.label}
+            {t(tab.labelKey)}
           </button>
         ))}
       </div>

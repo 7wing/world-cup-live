@@ -11,24 +11,23 @@ import {
   type TournamentYear,
 } from '@/utils/tournament'
 
+interface GroupsTabProps {
+  year: TournamentYear
+  onYearChange: (y: TournamentYear) => void
+}
+
 function GroupCard({ letter, standings }: { letter: string; standings: GroupStanding[] }) {
   return (
     <GlassCard className="overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/8 bg-white/3">
-        <span className="font-lexend font-black text-xs uppercase tracking-widest text-primary-container">
-          Group {letter}
+      {/* Header row: GROUP X + P GF GA PTS */}
+      <div className="grid grid-cols-[1rem_1.25rem_1fr_repeat(4,1.5rem)] gap-x-1.5 items-center px-4 py-2.5 border-b border-white/8 bg-white/3">
+        <span className="col-span-3 text-[9px] font-lexend font-black uppercase tracking-wider text-primary-container">
+          GROUP {letter}
         </span>
-      </div>
-
-      {/* Column headers */}
-      <div className="grid grid-cols-[1rem_1.25rem_1fr_repeat(4,1.5rem)] gap-x-1.5 px-4 py-1.5 border-b border-white/5 bg-white/2">
-        <span />
-        <span />
-        <span className="text-[8px] font-lexend font-bold uppercase tracking-wider text-white/20">Team</span>
         <span className="text-[8px] font-lexend font-bold uppercase tracking-wider text-white/20 text-center">P</span>
         <span className="text-[8px] font-lexend font-bold uppercase tracking-wider text-white/20 text-center">GF</span>
         <span className="text-[8px] font-lexend font-bold uppercase tracking-wider text-white/20 text-center">GA</span>
-        <span className="text-[8px] font-lexend font-bold uppercase tracking-wider text-primary-container/50 text-center">Pts</span>
+        <span className="text-[8px] font-lexend font-bold uppercase tracking-wider text-white/20 text-center">PTS</span>
       </div>
 
       {standings.map((row, i) => (
@@ -72,8 +71,7 @@ function SkeletonGrid({ count }: { count: number }) {
   )
 }
 
-export function GroupsTab() {
-  const [year, setYear] = useState<TournamentYear>(2026)
+export function GroupsTab({ year, onYearChange }: GroupsTabProps) {
   const { data: matches = [], isLoading, isError, refetch } = useMatches()
 
   const standings = useMemo(
@@ -97,7 +95,7 @@ export function GroupsTab() {
             </p>
           )}
         </div>
-        <YearToggle year={year} onChange={setYear} />
+        <YearToggle year={year} onChange={onYearChange} />
       </div>
 
       {isLoading && <SkeletonGrid count={year === 2022 ? 8 : 12} />}

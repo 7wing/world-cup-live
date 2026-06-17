@@ -6,7 +6,12 @@
     "teams": "Teams",
     "fanZone": "Fan Zone",
     "settings": "Settings",
-    "profile": "Profile"
+    "profile": "Profile",
+    "games": "Games",
+    "stadiums": "Stadiums",
+    "login": "Login",
+    "signup": "Sign Up",
+    "discover": "Discover"
   },
   "common": {
     "loading": "Loading…",
@@ -18,6 +23,10 @@
     "delete": "Delete",
     "edit": "Edit",
     "close": "Close",
+    "open": "Open",
+    "messages": "Messages",
+    "password": "Password",
+    "fanId": "Fan ID",
     "search": "Search",
     "share": "Share",
     "viewAll": "View all",
@@ -29,7 +38,11 @@
     "min": "min",
     "goals": "Goals",
     "assists": "Assists",
-    "points": "Points"
+    "points": "Points",
+    "password": "Password",
+    "messages": "Messages",
+    "open": "Open",
+    "fanId": "Fan ID"
   },
   "matches": {
     "title": "Matches",
@@ -41,6 +54,15 @@
     "penalties": "Penalties",
     "stats": "Stats",
     "lineups": "Line-ups",
+    "schedule": "Schedule",
+    "groups": "Groups",
+    "bracket": "Bracket",
+    "overview": "Overview",
+    "h2h": "H2H",
+    "liveChat": "Live Chat",
+    "predict": "Predict",
+    "overview": "Overview",
+    "h2h": "H2H",
     "timeline": "Timeline",
     "heatmap": "Heatmap",
     "possession": "Possession",
@@ -82,12 +104,19 @@
     "fantasy": "Fantasy",
     "socialFeed": "Social feed",
     "games": "Games",
+    "all": "All",
+    "trending": "Trending",
+    "following": "Following",
     "yourPick": "Your pick",
     "submitPrediction": "Submit prediction",
     "predictionLocked": "Prediction locked in",
     "correctPrediction": "Correct!",
     "wrongPrediction": "Wrong",
-    "leaderboard": "Leaderboard"
+    "leaderboard": "Leaderboard",
+    "all": "All",
+    "trending": "Trending",
+    "following": "Following",
+    "post": "Post"
   },
   "fantasy": {
     "title": "Fantasy Draft",
@@ -134,6 +163,11 @@
     "goalScored": "Goal scored!",
     "matchStarting": "Match starting soon",
     "fullTime": "Full time"
+  },
+  "games": {
+    "aiTrivia": "AI Trivia",
+    "predictor": "Predictor",
+    "fanDuel": "Fan Duel"
   },
   "errors": {
     "networkError": "Network error — check your connection",

@@ -4,15 +4,17 @@ import { useQueryClient } from '@tanstack/react-query'
 import { fetchStadiums } from '@/api/stadiums'
 import { fetchTribes } from '@/api/fanzone'
 import { cn } from '@/utils/cn'
+import { useTranslation } from 'react-i18next'
 
-const tabs = [
-  { to: '/matches',  icon: 'sports_soccer',  label: 'Matches',  exact: false },
-  { to: '/fan-zone', icon: 'groups',          label: 'Fan Zone', exact: true  },
-  { to: '/games',    icon: 'sports_esports',  label: 'Games',    exact: false },
-  { to: '/stadiums', icon: 'stadium',         label: 'Stadiums', exact: false },
+const TABS = [
+  { to: '/matches',  icon: 'sports_soccer',  key: 'nav.matches' as const,  exact: false },
+  { to: '/fan-zone', icon: 'groups',          key: 'nav.fanZone' as const,  exact: true  },
+  { to: '/games',    icon: 'sports_esports',  key: 'nav.games' as const,    exact: false },
+  { to: '/stadiums', icon: 'stadium',         key: 'nav.stadiums' as const, exact: false },
 ] as const
 
 export const BottomNav = React.memo(function BottomNav() {
+  const { t } = useTranslation()
   const { pathname } = useLocation()
   const qc = useQueryClient()
 
@@ -44,15 +46,15 @@ export const BottomNav = React.memo(function BottomNav() {
           '0 8px 32px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.07)',
       }}
     >
-      {tabs.map(({ to, icon, label, exact }) => {
+      {TABS.map(({ to, icon, key, exact }) => {
         const active = isActive(to, exact)
         return (
           <Link
             key={to}
             to={to}
-            aria-label={label}
+            aria-label={t(key)}
             aria-current={active ? 'page' : undefined}
-            title={label}
+            title={t(key)}
             onMouseEnter={() => handlePrefetch(to)}
             onFocus={() => handlePrefetch(to)}
             className="relative flex items-center justify-center w-12 h-12 rounded-full transition-colors duration-200 active:scale-95"

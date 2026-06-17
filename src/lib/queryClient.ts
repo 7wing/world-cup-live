@@ -8,7 +8,7 @@ export const queryClient = new QueryClient({
       staleTime: MINUTE,          // 1 min default — most data doesn't change faster
       gcTime: 5 * MINUTE,         // keep unused data in cache for 5 min
       retry: 1,
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: true,
     },
   },
 })

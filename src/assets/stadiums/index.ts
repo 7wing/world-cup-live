@@ -2,24 +2,24 @@
 // Vite statically imports each image at build time — fingerprinted & bundled.
 // Filenames match exactly what lives in src/assets/stadiums/.
 
-import attImg          from './att.jpg'
-import sofiImg         from './sofi.jpg'
-import metlifeImg      from './metlife.jpg'
-import lumenImg        from './lumen.jpg'
-import arrowheadImg    from './arrowhead.jpg'
-import hardRockImg     from './hard-rock.jpg'
-import nrgImg          from './nrg.jpg'
-import lincolnImg      from './lincoln.jpg'
-import gilletteImg     from './gillette.jpg'
-import levisImg        from './levis.jpg'
-import mercedesBenzImg from './mercedes-benz.jpg'
+import attImg          from './att.webp'
+import sofiImg         from './sofi.avif'
+import metlifeImg      from './metlife.webp'
+import lumenImg        from './lumen.webp'
+import arrowheadImg    from './arrowhead.webp'
+import hardRockImg     from './hard-rock.webp'
+import nrgImg          from './nrg.webp'
+import lincolnImg      from './lincoln.webp'
+import gilletteImg     from './gillette.avif'
+import levisImg        from './levis.webp'
+import mercedesBenzImg from './mercedes-benz.webp'
 // Canada
-import bcPlaceImg      from './bc-place.jpg'
-import bmoImg          from './bmo.jpg'
+import bcPlaceImg      from './bc-place.webp'
+import bmoImg          from './bmo.webp'
 // Mexico
-import aztecaImg       from './azteca.jpg'
-import akronImg        from './akron.jpg'
-import bbvaImg         from './bbva.jpg'
+import aztecaImg       from './azteca.avif'
+import akronImg        from './akron.webp'
+import bbvaImg         from './bbva.avif'
 
 /**
  * Maps DB slug → local bundled asset URL.

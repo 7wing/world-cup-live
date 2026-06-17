@@ -190,16 +190,28 @@ function BracketSkeleton() {
   )
 }
 
-export function BracketTab() {
-  const [year, setYear] = useState<TournamentYear>(2026)
+interface BracketTabProps {
+  year?: TournamentYear
+  onYearChange?: (y: TournamentYear) => void
+}
+
+export function BracketTab({ year: yearProp, onYearChange }: BracketTabProps) {
+  const [localYear, setLocalYear] = useState<TournamentYear>(2026)
+  const year = yearProp ?? localYear
+  const setYear = onYearChange ?? setLocalYear
+
   const [isPredicting, setIsPredicting] = useState(false)
-  const [picked, setPicked] = useState<Record<string, string>>(() => {
+  const [picked, setPicked] = useState<Record<string, string>>({ })
+
+  // Load picks when year changes (not just once on mount)
+  useEffect(() => {
     try {
-      return JSON.parse(localStorage.getItem(`bracket-picks-${year}`) ?? '{}')
+      const stored = localStorage.getItem(`bracket-picks-${year}`)
+      setPicked(stored ? JSON.parse(stored) : {})
     } catch {
-      return {}
+      setPicked({})
     }
-  })
+  }, [year])
 
   const { data: allMatches = [], isLoading, isError, refetch } = useMatches()
 

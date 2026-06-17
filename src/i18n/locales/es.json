@@ -6,7 +6,12 @@
     "teams": "Equipos",
     "fanZone": "Zona Fan",
     "settings": "Ajustes",
-    "profile": "Perfil"
+    "profile": "Perfil",
+    "games": "Juegos",
+    "stadiums": "Estadios",
+    "login": "Iniciar sesión",
+    "signup": "Registrarse",
+    "discover": "Descubrir"
   },
   "common": {
     "loading": "Cargando…",
@@ -29,7 +34,11 @@
     "min": "min",
     "goals": "Goles",
     "assists": "Asistencias",
-    "points": "Puntos"
+    "points": "Puntos",
+    "password": "Contraseña",
+    "messages": "Mensajes",
+    "open": "Abrir",
+    "fanId": "ID de Fan"
   },
   "matches": {
     "title": "Partidos",
@@ -54,7 +63,14 @@
     "passes": "Pases",
     "passAccuracy": "Precisión de pases",
     "setAlert": "Activar alerta",
-    "removeAlert": "Desactivar alerta"
+    "removeAlert": "Desactivar alerta",
+    "schedule": "Calendario",
+    "groups": "Grupos",
+    "bracket": "Bracket",
+    "overview": "Resumen",
+    "h2h": "H2H",
+    "liveChat": "Chat en vivo",
+    "predict": "Predecir"
   },
   "groups": {
     "title": "Grupos",
@@ -87,7 +103,16 @@
     "predictionLocked": "Predicción confirmada",
     "correctPrediction": "¡Correcto!",
     "wrongPrediction": "Incorrecto",
-    "leaderboard": "Tabla de posiciones"
+    "leaderboard": "Tabla de posiciones",
+    "all": "Todos",
+    "trending": "Tendencias",
+    "following": "Siguiendo",
+    "post": "Publicar"
+  },
+  "games": {
+    "aiTrivia": "Trivia IA",
+    "predictor": "Predictor",
+    "fanDuel": "Duelo de Fans"
   },
   "fantasy": {
     "title": "Fantasy Draft",

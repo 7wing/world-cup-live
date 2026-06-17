@@ -21,6 +21,8 @@ export function TeamFlag({ code, flagUrl, size = 'sm', className = '' }: TeamFla
       <img
         src={flagUrl}
         alt=""
+        loading="lazy"
+        decoding="async"
         className={`${dim} rounded-[2px] object-cover flex-shrink-0 shadow-sm ${className}`}
       />
     )

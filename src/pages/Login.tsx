@@ -1,28 +1,47 @@
-import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useNavigate, Link, useLocation } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { NeonButton } from '@/components/ui/NeonButton'
 import { PasswordInput } from '@/components/ui/PasswordInput'
 import { useNotificationStore } from '@/store/notificationStore'
+import { useAuthStore } from '@/store/authStore'
+import { useTranslation } from 'react-i18next'
 
 export function LoginPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
+  const location = useLocation()
   const { push } = useNotificationStore()
+  const user = useAuthStore((s) => s.user)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
 
+  // If the user is already logged in, redirect them away from the login page
+  useEffect(() => {
+    if (user) {
+      const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/matches'
+      navigate(from, { replace: true })
+    }
+  }, [user, navigate, location])
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) {
-      push(error.message, 'error')
-    } else {
-      // Profile creation and session state are handled by the useAuth listener
-      navigate('/matches')
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) {
+        push(error.message, 'error')
+      } else if (data?.session) {
+        const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/matches'
+        navigate(from, { replace: true })
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Something went wrong. Please try again.'
+      push(message, 'error')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   return (
@@ -40,10 +59,10 @@ export function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="glass-card p-6 sm:p-8 rounded-2xl">
           <h2 className="font-lexend font-bold text-xl sm:text-2xl text-center mb-1">
-            Welcome Back
+            {t('nav.login')}
           </h2>
           <p className="text-center text-white/50 text-xs sm:text-sm mb-7">
-            Enter your details to access the stadium.
+            {t('onboarding.welcome')}
           </p>
 
           <form onSubmit={handleLogin} className="space-y-5">
@@ -64,9 +83,8 @@ export function LoginPage() {
             <div>
               <div className="flex justify-between mb-2">
                 <label className="font-lexend text-[10px] uppercase text-outline font-semibold">
-                  Password
+                  {t('common.password')}
                 </label>
-                {/* Now links to the real forgot-password page */}
                 <Link
                   to="/forgot-password"
                   className="font-lexend text-[10px] uppercase text-primary-container hover:underline"
@@ -83,14 +101,14 @@ export function LoginPage() {
             </div>
 
             <NeonButton type="submit" className="w-full justify-center mt-2" disabled={loading}>
-              {loading ? 'Logging in...' : 'Login'}
+              {loading ? t('common.loading') : t('nav.login')}
             </NeonButton>
           </form>
 
           <p className="text-center text-white/50 text-xs sm:text-sm mt-7">
-            New to the stadium?{' '}
+            New here?{' '}
             <Link to="/signup" className="font-lexend font-bold text-primary-container hover:text-green-300">
-              Sign Up
+              {t('nav.signup')}
             </Link>
           </p>
         </div>

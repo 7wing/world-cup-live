@@ -3,6 +3,8 @@
 // Pill-style filter tabs: All | Trending | Following
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { useTranslation } from 'react-i18next'
+
 type FilterOption = 'All' | 'Trending' | 'Following'
 
 interface FeedFilterProps {
@@ -10,12 +12,18 @@ interface FeedFilterProps {
   onChange: (filter: FilterOption) => void
 }
 
-const OPTIONS: FilterOption[] = ['All', 'Trending', 'Following']
+const OPTION_KEYS: Record<FilterOption, string> = {
+  All: 'fanZone.all',
+  Trending: 'fanZone.trending',
+  Following: 'fanZone.following',
+}
 
 export function FeedFilter({ active, onChange }: FeedFilterProps) {
+  const { t } = useTranslation()
+  const options: FilterOption[] = ['All', 'Trending', 'Following']
   return (
     <div className="flex gap-0.5 bg-white/[0.03] rounded-[20px] p-[3px] border border-white/10">
-      {OPTIONS.map((f) => (
+      {options.map((f) => (
         <button
           key={f}
           onClick={() => onChange(f)}
@@ -28,7 +36,7 @@ export function FeedFilter({ active, onChange }: FeedFilterProps) {
             }
           `}
         >
-          {f}
+          {t(OPTION_KEYS[f])}
         </button>
       ))}
     </div>

@@ -6,7 +6,12 @@
     "teams": "المنتخبات",
     "fanZone": "منطقة المشجعين",
     "settings": "الإعدادات",
-    "profile": "الملف الشخصي"
+    "profile": "الملف الشخصي",
+    "games": "الألعاب",
+    "stadiums": "الملاعب",
+    "login": "تسجيل الدخول",
+    "signup": "إنشاء حساب",
+    "discover": "اكتشاف"
   },
   "common": {
     "loading": "جارٍ التحميل…",
@@ -29,7 +34,11 @@
     "min": "د",
     "goals": "أهداف",
     "assists": "تمريرات حاسمة",
-    "points": "نقاط"
+    "points": "نقاط",
+    "password": "كلمة المرور",
+    "messages": "الرسائل",
+    "open": "فتح",
+    "fanId": "معرف المشجع"
   },
   "matches": {
     "title": "المباريات",
@@ -54,7 +63,14 @@
     "passes": "التمريرات",
     "passAccuracy": "دقة التمريرات",
     "setAlert": "تفعيل التنبيه",
-    "removeAlert": "إلغاء التنبيه"
+    "removeAlert": "إلغاء التنبيه",
+    "schedule": "الجدول",
+    "groups": "المجموعات",
+    "bracket": "الجدول النهائي",
+    "overview": "نظرة عامة",
+    "h2h": "مواجهات مباشرة",
+    "liveChat": "الدردشة المباشرة",
+    "predict": "توقع"
   },
   "groups": {
     "title": "المجموعات",
@@ -87,7 +103,16 @@
     "predictionLocked": "تم تأكيد التوقع",
     "correctPrediction": "صحيح!",
     "wrongPrediction": "خطأ",
-    "leaderboard": "لوحة الصدارة"
+    "leaderboard": "لوحة الصدارة",
+    "all": "الكل",
+    "trending": "الرائج",
+    "following": "المتابَعة",
+    "post": "نشر"
+  },
+  "games": {
+    "aiTrivia": "ألعاب الذكاء الاصطناعي",
+    "predictor": "التوقعات",
+    "fanDuel": "مبارزة المشجعين"
   },
   "fantasy": {
     "title": "اختيار الفانتازي",

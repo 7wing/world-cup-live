@@ -27,8 +27,9 @@ export function useMatches() {
   return useQuery({
     queryKey:       ['matches'],
     queryFn:        fetchMatches,
-    staleTime:      5 * MINUTE,   // match list changes slowly (kickoff times, scores)
+    staleTime:      30_000,
     refetchInterval: 30_000,
+    refetchIntervalInBackground: true,
   })
 }
 
@@ -38,8 +39,12 @@ export function useLiveMatches() {
     queryFn:        fetchLiveMatches,
     staleTime:      15_000,
     refetchInterval: 15_000,
+    refetchIntervalInBackground: true,
   })
 }
+
+const LIVE_REFETCH   = 15_000
+const UPCOMING_REFETCH = 60_000
 
 export function useMatch(id: string) {
   return useQuery({
@@ -47,6 +52,13 @@ export function useMatch(id: string) {
     queryFn:   () => fetchMatchById(id),
     enabled:   !!id,
     staleTime: 30_000,
+    refetchInterval: (query) => {
+      const match = query.state.data as Match | undefined
+      if (match?.status === 'live')     return LIVE_REFETCH
+      if (match?.status === 'upcoming') return UPCOMING_REFETCH
+      return false
+    },
+    refetchIntervalInBackground: true,
   })
 }
 

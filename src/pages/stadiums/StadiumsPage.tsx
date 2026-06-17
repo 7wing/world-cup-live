@@ -1,12 +1,12 @@
 // src/pages/stadiums/StadiumsPage.tsx
 
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { StadiumHero } from '@/components/stadiums/StadiumHero'
 import { StadiumCard } from '@/components/stadiums/StadiumCard'
-import { useStadiums, getOptimizedImageUrl } from '@/hooks/useStadium'
-import type { Stadium } from '@/types'
+import { useStadiums } from '@/hooks/useStadium'
 
 type Country = 'all' | 'USA' | 'Canada' | 'Mexico'
 
@@ -30,55 +30,23 @@ function SkeletonCard() {
   )
 }
 
-/**
- * Applies Supabase image optimisation params ONLY to DB/storage URLs.
- * Local bundled assets (injected by useStadiums via withLocalHero) are
- * already fingerprinted by Vite and served from the same origin — no
- * transform needed, and getOptimizedImageUrl passes them through unchanged.
- */
-function applyCardImageOptimizations(stadiums: Stadium[]): Stadium[] {
-  return stadiums.map((s) => ({
-    ...s,
-    hero_image_url: getOptimizedImageUrl(s.hero_image_url, 512, 72),
-  }))
-}
 
-/** Decode all card images into the browser cache after data arrives — no lazy pop-in. */
-function useWarmStadiumImages(urls: (string | null)[]) {
-  useEffect(() => {
-    urls.forEach((url) => {
-      if (!url) return
-      const img = new Image()
-      img.decoding = 'async'
-      img.src = url
-    })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urls.join('|')])
-}
 
 export function StadiumsPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { data, isFetching, isError, error, refetch, status } = useStadiums()
 
-  // useStadiums already injects local hero URLs — optimisation pass is a no-op
-  // for local assets but correctly applies Supabase params for any DB fallbacks.
-  const optimisedStadiums = useMemo(
-    () => applyCardImageOptimizations(data ?? []),
-    [data],
-  )
+  const stadiums = data ?? []
 
-  const isLoading = optimisedStadiums.length === 0 && (isFetching || status === 'pending')
+  const isLoading = stadiums.length === 0 && (isFetching || status === 'pending')
 
   const [search, setSearch]   = useState('')
   const [country, setCountry] = useState<Country>('all')
 
-  useWarmStadiumImages(
-    useMemo(() => optimisedStadiums.map((s) => s.hero_image_url), [optimisedStadiums]),
-  )
-
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
-    return optimisedStadiums.filter((s) => {
+    return stadiums.filter((s) => {
       const matchCountry = country === 'all' || s.country === country
       const matchSearch  =
         !q ||
@@ -86,7 +54,7 @@ export function StadiumsPage() {
         s.city.toLowerCase().includes(q)
       return matchCountry && matchSearch
     })
-  }, [optimisedStadiums, search, country])
+  }, [stadiums, search, country])
 
   const handleSelect = useCallback(
     (slug: string) => navigate(`/stadiums/${slug}`),
@@ -95,7 +63,7 @@ export function StadiumsPage() {
 
   return (
     <PageWrapper>
-      <StadiumHero stadiums={optimisedStadiums} isLoading={isLoading} />
+      <StadiumHero stadiums={stadiums} isLoading={isLoading} />
 
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <div className="relative flex-1">
@@ -133,8 +101,8 @@ export function StadiumsPage() {
       <p className="text-[11px] font-lexend font-bold uppercase tracking-widest text-white/25 mb-4">
         {isLoading
           ? 'Loading venues...'
-          : filtered.length === optimisedStadiums.length
-            ? `Showing all ${optimisedStadiums.length} venues`
+          : filtered.length === stadiums.length
+            ? `Showing all ${stadiums.length} venues`
             : `${filtered.length} venue${filtered.length !== 1 ? 's' : ''} found`}
       </p>
 
@@ -155,7 +123,7 @@ export function StadiumsPage() {
       )}
 
       {!isError && isLoading && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
           {Array.from({ length: 6 }).map((_, i) => (
             <SkeletonCard key={i} />
           ))}
@@ -169,7 +137,7 @@ export function StadiumsPage() {
       )}
 
       {!isError && !isLoading && filtered.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
           {filtered.map((stadium, i) => (
             <StadiumCard
               key={stadium.id}

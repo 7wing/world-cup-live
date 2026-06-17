@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/authStore'
 import { ensureUserProfile } from '@/api/profile'
+import type { Session } from '@supabase/supabase-js'
 
 export function useAuth() {
   const { setUser, setSession, setLoading } = useAuthStore()
@@ -9,9 +10,8 @@ export function useAuth() {
   useEffect(() => {
     let cancelled = false
 
-    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const handleSession = async (session: Session | null) => {
       if (cancelled) return
-
       setSession(session)
 
       if (session?.user) {
@@ -26,8 +26,16 @@ export function useAuth() {
         setUser(null)
       }
 
-      // Only mark loading done after user row is resolved
       if (!cancelled) setLoading(false)
+    }
+
+    // Restore existing session on mount (page refresh)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      handleSession(session)
+    })
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      handleSession(session)
     })
 
     return () => {

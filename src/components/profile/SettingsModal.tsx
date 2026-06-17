@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { GlassCard } from '@/components/ui/GlassCard'
 import { useAuthStore } from '@/store/authStore'
 import { useSettingsStore } from '@/store/settingsStore'
@@ -11,6 +12,7 @@ import {
 } from '@/lib/matchAlerts'
 
 export function SettingsModal() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { open, setOpen } = useSettingsStore()
   const { user, signOut } = useAuthStore()

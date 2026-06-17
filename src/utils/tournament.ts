@@ -47,7 +47,7 @@ export function extractGroupLetter(match: Match): string | null {
 
 export function isGroupStageMatch(match: Match, year: TournamentYear): boolean {
   if (getMatchYear(match.id) !== year) return false
-  if (year === 2026) return /^Group\s+[A-L]$/i.test(match.stage)
+  if (year === 2026) return !!match.group_letter || /^Group\s+[A-L]$/i.test(match.stage)
   return match.stage === 'group'
 }
 
@@ -144,14 +144,18 @@ function computeStandingsForGroup(
   const table = new Map<string, GroupStanding>()
   for (const team of teams) table.set(team.id, emptyStanding(team))
 
-  const teamIds = new Set(teams.map((t) => t.id))
+  const nameToId = new Map<string, string>()
+  for (const team of teams) nameToId.set(team.name, team.id)
+
   for (const m of groupMatches) {
     if (m.status !== 'finished') continue
-    if (!teamIds.has(m.home_team.id) || !teamIds.has(m.away_team.id)) continue
+    const homeId = nameToId.get(m.home_team.name)
+    const awayId = nameToId.get(m.away_team.name)
+    if (!homeId || !awayId) continue
     const home = m.home_score ?? 0
     const away = m.away_score ?? 0
-    applyResult(table, m.home_team.id, home, away)
-    applyResult(table, m.away_team.id, away, home)
+    applyResult(table, homeId, home, away)
+    applyResult(table, awayId, away, home)
   }
 
   return sortStandings(teams.map((t) => table.get(t.id)!))
@@ -166,20 +170,27 @@ export function buildGroupStandings(
   const result: Record<string, GroupStanding[]> = {}
 
   for (const [letter, teams] of Object.entries(groups)) {
-    if (year === 2026) {
-      result[letter] = sortStandings(teams.map(emptyStanding))
+    if (year === 2022) {
+      const names = new Set(WC2022_GROUP_NAMES[letter] ?? [])
+      const groupNames = new Set(
+        teams.filter((t) => names.has(t.name)).map((t) => t.name),
+      )
+      const groupMatches = yearMatches.filter(
+        (m) =>
+          isGroupStageMatch(m, 2022) &&
+          groupNames.has(m.home_team.name) &&
+          groupNames.has(m.away_team.name),
+      )
+      result[letter] = computeStandingsForGroup(teams, groupMatches)
       continue
     }
 
-    const names = new Set(WC2022_GROUP_NAMES[letter] ?? [])
-    const teamIds = new Set(
-      teams.filter((t) => names.has(t.name)).map((t) => t.id),
-    )
+    const groupNames = new Set(teams.map((t) => t.name))
     const groupMatches = yearMatches.filter(
       (m) =>
-        isGroupStageMatch(m, 2022) &&
-        teamIds.has(m.home_team.id) &&
-        teamIds.has(m.away_team.id),
+        isGroupStageMatch(m, 2026) &&
+        groupNames.has(m.home_team.name) &&
+        groupNames.has(m.away_team.name),
     )
     result[letter] = computeStandingsForGroup(teams, groupMatches)
   }
@@ -215,8 +226,9 @@ export function buildGroupsFromMatches(
     const letter = extractGroupLetter(m)
     if (!letter) continue
     if (!groups[letter]) groups[letter] = new Map()
-    groups[letter].set(m.home_team.id, m.home_team)
-    groups[letter].set(m.away_team.id, m.away_team)
+    // Deduplicate by team name — some DB seeds assign multiple IDs to the same team
+    groups[letter].set(m.home_team.name, m.home_team)
+    groups[letter].set(m.away_team.name, m.away_team)
   }
 
   const result: Record<string, Team[]> = {}

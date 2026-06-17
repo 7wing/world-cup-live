@@ -90,7 +90,9 @@ export default function App() {
   }, [])
 
   return (
-    <div className="dark min-h-screen bg-background">
+    <div
+      className="dark min-h-screen bg-background"
+    >
       <TopBar />
       <NotificationToast />
       <SettingsModal />

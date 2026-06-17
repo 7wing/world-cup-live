@@ -1,0 +1,183 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <!-- Dramatic stadium base -->
+    <radialGradient id="arena-glow" cx="50%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#1a2e1a" stop-opacity="0.8"/>
+      <stop offset="30%" stop-color="#0f1a0f" stop-opacity="0.95"/>
+      <stop offset="70%" stop-color="#070a07" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#020302" stop-opacity="1"/>
+    </radialGradient>
+
+    <!-- Pitch glow at bottom -->
+    <linearGradient id="pitch-glow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#00ff41" stop-opacity="0"/>
+      <stop offset="50%" stop-color="#00ff41" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#00ff41" stop-opacity="0.15"/>
+    </linearGradient>
+
+    <!-- Strong green accent glow -->
+    <radialGradient id="green-aura" cx="50%" cy="0%" r="60%">
+      <stop offset="0%" stop-color="#00ff41" stop-opacity="0.12"/>
+      <stop offset="40%" stop-color="#00ff41" stop-opacity="0.04"/>
+      <stop offset="100%" stop-color="#00ff41" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Floodlight beam -->
+    <linearGradient id="beam" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.15"/>
+      <stop offset="40%" stop-color="#e8ffe8" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#00ff41" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- Stands gradient -->
+    <linearGradient id="stands" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0a0c0a" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#151815" stop-opacity="0.6"/>
+    </linearGradient>
+
+    <!-- Pitch lines pattern -->
+    <pattern id="pitch" x="0" y="0" width="1440" height="300" patternUnits="userSpaceOnUse">
+      <!-- Center line -->
+      <line x1="0" y1="150" x2="1440" y2="150" stroke="#00ff41" stroke-width="1" opacity="0.15"/>
+      <!-- Center circle -->
+      <ellipse cx="720" cy="150" rx="80" ry="25" stroke="#00ff41" stroke-width="1" fill="none" opacity="0.12"/>
+      <ellipse cx="720" cy="150" rx="4" ry="2" fill="#00ff41" opacity="0.2"/>
+      <!-- Penalty boxes -->
+      <rect x="200" y="50" width="180" height="200" stroke="#00ff41" stroke-width="1" fill="none" opacity="0.1"/>
+      <rect x="1060" y="50" width="180" height="200" stroke="#00ff41" stroke-width="1" fill="none" opacity="0.1"/>
+      <!-- Goal boxes -->
+      <rect x="280" y="100" width="60" height="100" stroke="#00ff41" stroke-width="0.8" fill="none" opacity="0.08"/>
+      <rect x="1100" y="100" width="60" height="100" stroke="#00ff41" stroke-width="0.8" fill="none" opacity="0.08"/>
+      <!-- Sidelines -->
+      <line x1="0" y1="20" x2="1440" y2="20" stroke="#00ff41" stroke-width="0.8" opacity="0.1"/>
+      <line x1="0" y1="280" x2="1440" y2="280" stroke="#00ff41" stroke-width="0.8" opacity="0.1"/>
+      <!-- Penalty spots -->
+      <ellipse cx="380" cy="150" rx="3" ry="1.5" fill="#00ff41" opacity="0.15"/>
+      <ellipse cx="1060" cy="150" rx="3" ry="1.5" fill="#00ff41" opacity="0.15"/>
+    </pattern>
+
+    <!-- Hexagon pattern (bigger, more visible) -->
+    <pattern id="hex-pattern" x="0" y="0" width="80" height="138.6" patternUnits="userSpaceOnUse">
+      <path d="M40 0 L80 23.1 L80 69.3 L40 92.4 L0 69.3 L0 23.1 Z" stroke="#1a201a" stroke-width="1" fill="none" opacity="0.5"/>
+      <path d="M40 92.4 L80 69.3 L80 115.5 L40 138.6 L0 115.5 L0 69.3 Z" stroke="#1a201a" stroke-width="1" fill="none" opacity="0.5"/>
+    </pattern>
+
+    <!-- Noise filter -->
+    <filter id="grain">
+      <feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="4" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.04"/>
+      </feComponentTransfer>
+    </filter>
+  </defs>
+
+  <!-- ═══ BASE LAYER ═══ -->
+  <rect width="100%" height="100%" fill="#0a0c0a"/>
+
+  <!-- ═══ HEXAGON TEXTURE (upper area) ═══ -->
+  <rect width="100%" height="65%" fill="url(#hex-pattern)"/>
+
+  <!-- ═══ STADIUM ARENA GLOW ═══ -->
+  <rect width="100%" height="100%" fill="url(#arena-glow)"/>
+
+  <!-- ═══ STANDS (side silhouettes) ═══ -->
+  <g opacity="0.4">
+    <!-- Left stands -->
+    <polygon points="0,0 300,0 200,500 0,600" fill="url(#stands)"/>
+    <!-- Right stands -->
+    <polygon points="1440,0 1140,0 1240,500 1440,600" fill="url(#stands)"/>
+    <!-- Top stands curve -->
+    <path d="M0,0 Q720,200 1440,0 L1440,0 L0,0" fill="url(#stands)" opacity="0.6"/>
+  </g>
+
+  <!-- ═══ STAND SEATING DOTS (subtle crowd texture) ═══ -->
+  <g fill="#1a221a" opacity="0.3">
+    <circle cx="100" cy="80" r="1.5"/><circle cx="130" cy="90" r="1"/><circle cx="160" cy="75" r="1.2"/>
+    <circle cx="200" cy="100" r="1"/><circle cx="240" cy="85" r="1.5"/><circle cx="280" cy="95" r="1"/>
+    <circle cx="1160" cy="80" r="1.5"/><circle cx="1190" cy="90" r="1"/><circle cx="1220" cy="75" r="1.2"/>
+    <circle cx="1260" cy="100" r="1"/><circle cx="1300" cy="85" r="1.5"/><circle cx="1340" cy="95" r="1"/>
+    <circle cx="400" cy="60" r="1"/><circle cx="500" cy="70" r="1.2"/><circle cx="600" cy="55" r="1"/>
+    <circle cx="840" cy="60" r="1"/><circle cx="940" cy="70" r="1.2"/><circle cx="1040" cy="55" r="1"/>
+  </g>
+
+  <!-- ═══ GREEN AURA (top center glow) ═══ -->
+  <ellipse cx="720" cy="0" rx="800" ry="400" fill="url(#green-aura)"/>
+
+  <!-- ═══ FLOODLIGHT BEAMS ═══ -->
+  <g opacity="0.6">
+    <!-- Left floodlight towers -->
+    <polygon points="150,-50 50,350 180,350" fill="url(#beam)"/>
+    <polygon points="350,-50 280,400 400,400" fill="url(#beam)"/>
+    <!-- Right floodlight towers -->
+    <polygon points="1290,-50 1190,350 1320,350" fill="url(#beam)"/>
+    <polygon points="1090,-50 1020,400 1140,400" fill="url(#beam)"/>
+    <!-- Center -->
+    <polygon points="720,-50 620,380 820,380" fill="url(#beam)"/>
+  </g>
+
+  <!-- ═══ FLOODLIGHT SOURCES (bright spots at top) ═══ -->
+  <g>
+    <ellipse cx="150" cy="15" rx="40" ry="8" fill="#ffffff" opacity="0.3"/>
+    <ellipse cx="350" cy="15" rx="50" ry="10" fill="#ffffff" opacity="0.25"/>
+    <ellipse cx="720" cy="15" rx="60" ry="12" fill="#e8ffe8" opacity="0.35"/>
+    <ellipse cx="1090" cy="15" rx="50" ry="10" fill="#ffffff" opacity="0.25"/>
+    <ellipse cx="1290" cy="15" rx="40" ry="8" fill="#ffffff" opacity="0.3"/>
+  </g>
+
+  <!-- ═══ STADIUM ARCHITECTURE SILHOUETTE (roof trusses) ═══ -->
+  <g stroke="#1a221a" stroke-width="1" fill="none" opacity="0.4">
+    <path d="M0,50 Q360,150 720,120 Q1080,150 1440,50"/>
+    <path d="M100,0 Q420,120 720,100 Q1020,120 1340,0"/>
+    <line x1="200" y1="0" x2="280" y2="400"/>
+    <line x1="400" y1="0" x2="460" y2="380"/>
+    <line x1="600" y1="0" x2="640" y2="360"/>
+    <line x1="840" y1="0" x2="800" y2="360"/>
+    <line x1="1040" y1="0" x2="980" y2="380"/>
+    <line x1="1240" y1="0" x2="1160" y2="400"/>
+  </g>
+
+  <!-- ═══ PITCH (bottom portion) ═══ -->
+  <rect x="0" y="600" width="1440" height="300" fill="url(#pitch)"/>
+  <rect x="0" y="600" width="1440" height="300" fill="url(#pitch-glow)"/>
+
+  <!-- ═══ GOALS (bottom corners) ═══ -->
+  <g stroke="#00ff41" stroke-width="1" fill="none" opacity="0.12">
+    <!-- Left goal -->
+    <rect x="640" y="620" width="40" height="30"/>
+    <line x1="660" y1="620" x2="660" y2="650"/>
+    <line x1="640" y1="630" x2="680" y2="630"/>
+    <line x1="640" y1="640" x2="680" y2="640"/>
+    <!-- Right goal (perspective further) -->
+    <rect x="710" y="620" width="30" height="22"/>
+    <line x1="725" y1="620" x2="725" y2="642"/>
+    <line x1="710" y1="628" x2="740" y2="628"/>
+    <line x1="710" y1="635" x2="740" y2="635"/>
+  </g>
+
+  <!-- ═══ CORNER FLAGS ═══ -->
+  <g>
+    <line x1="100" y1="780" x2="100" y2="740" stroke="#00ff41" stroke-width="1.5" opacity="0.3"/>
+    <polygon points="100,740 120,748 100,756" fill="#00ff41" opacity="0.25"/>
+    <line x1="1340" y1="780" x2="1340" y2="740" stroke="#00ff41" stroke-width="1.5" opacity="0.3"/>
+    <polygon points="1340,740 1320,748 1340,756" fill="#00ff41" opacity="0.25"/>
+  </g>
+
+  <!-- ═══ GRAIN TEXTURE ═══ -->
+  <rect width="100%" height="100%" filter="url(#grain)"/>
+
+  <!-- ═══ BOTTOM VIGNETTE (for content readability) ═══ -->
+  <linearGradient id="vignette" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="50%" stop-color="#0a0c0a" stop-opacity="0"/>
+    <stop offset="85%" stop-color="#070907" stop-opacity="0.5"/>
+    <stop offset="100%" stop-color="#030403" stop-opacity="0.85"/>
+  </linearGradient>
+  <rect width="100%" height="100%" fill="url(#vignette)"/>
+
+  <!-- ═══ CENTER DARKENING (keeps text readable) ═══ -->
+  <radialGradient id="center-clear" cx="50%" cy="40%" r="50%">
+    <stop offset="0%" stop-color="#0a0c0a" stop-opacity="0.3"/>
+    <stop offset="60%" stop-color="#0a0c0a" stop-opacity="0"/>
+  </radialGradient>
+  <rect width="100%" height="100%" fill="url(#center-clear)"/>
+</svg>

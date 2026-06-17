@@ -1,0 +1,255 @@
+{
+  "id": "019eccc0-42c0-74f4-8446-302d33c43b33",
+  "name": "Fix live match updates",
+  "description": "Go through the /matches page the schedule tab and find out why the spain game for today has not been updated to results...and why the egypt game that is playing right now is not showing live match updates",
+  "status": "paused",
+  "worktree": {
+    "path": "/home/blueclouds/workspace/github/7wing/world-cup-live",
+    "branch": "main",
+    "commit": "546cc3affbbf9774fdd529db225e7aeb8646edbb"
+  },
+  "scoping": {
+    "goal": {
+      "answer": "Identify and fix the root causes preventing live 2026 World Cup matches (Egypt, Belgium, Spain) from showing updated scores, status, and minute on the /matches schedule page and match detail page.",
+      "confirmedAt": "2026-06-15T19:45:17.007Z"
+    },
+    "criteria": {
+      "answer": "Spain vs Cape Verde (or today's Spain game) appears in the Results tab of /matches/schedule with finished status and correct score.\nLive matches (Egypt, Belgium) show updated scores + minute in the /matches/schedule list without requiring a manual page refresh.\nThe match-detail page (/matches/:matchId) auto-refreshes live scores while the game is ongoing (no stale score card).\nYear toggle (2022/2026) persists when switching between Schedule/Groups/Bracket tabs on /matches.",
+      "confirmedAt": "2026-06-15T19:45:17.007Z"
+    },
+    "constraints": {
+      "answer": "The fix must work with the existing Supabase + TanStack Query stack., Any sync-function changes must be deployable via `supabase functions deploy sync-matches`., Do not change the DB schema (teams, matches tables are already created in Supabase)., Changes should not make excessive API calls (respect football-data.org rate limits).",
+      "confirmedAt": "2026-06-15T19:45:17.007Z"
+    },
+    "phases": {
+      "answer": "Frontend cache & polling fix, Sync function robustness, Realtime reliability, End-to-end verification",
+      "confirmedAt": "2026-06-15T19:45:17.007Z"
+    },
+    "assumptions": {
+      "answer": "The football-data.org API key and Supabase service role key are already configured in edge-function secrets.; The DB `teams` table is pre-populated with all 2026 World Cup teams, but team names may differ from API names (e.g., 'Cabo Verde' in DB vs 'Cape Verde' in API).; The Supabase project has Realtime enabled for the `matches` table.; The user's testing environment is localhost:5173 with Chromium/Playwright available.",
+      "confirmedAt": "2026-06-15T19:45:17.007Z"
+    }
+  },
+  "phases": [
+    {
+      "id": "phase-1",
+      "index": 1,
+      "name": "Frontend cache & polling fix",
+      "goal": "Fix the React Query caching and polling configuration so the schedule list and match detail update automatically without manual refresh.",
+      "description": "The schedule list and match detail pages fail to auto-update because: (1) `useMatches` has a 5-minute staleTime that suppresses background refetches; (2) `refetchOnWindowFocus` is disabled globally; (3) polling stops when the tab is backgrounded. This phase reduces staleTime, re-enables window-focus refetch for match queries, and adds `refetchIntervalInBackground`.",
+      "parallel": false,
+      "status": "completed",
+      "steps": [
+        {
+          "id": "step-1",
+          "index": 1,
+          "description": "Reduce `useMatches` staleTime from 5 min to 30s in src/hooks/useMatches.ts",
+          "status": "verified",
+          "verification": {
+            "command": "grep 'staleTime' src/hooks/useMatches.ts | grep -v 'MINUTE'",
+            "retries": 2,
+            "retryDelayMs": 1000
+          },
+          "parallel": false,
+          "startedAt": "2026-06-15T19:46:13.709Z",
+          "completedAt": "2026-06-15T19:49:11.745Z",
+          "result": {
+            "success": true,
+            "exitCode": 0,
+            "stdout": "",
+            "stderr": "",
+            "completedAt": "2026-06-15T19:49:11.745Z"
+          }
+        },
+        {
+          "id": "step-2",
+          "index": 2,
+          "description": "Enable `refetchOnWindowFocus` globally or override for match queries in src/lib/queryClient.ts",
+          "status": "verified",
+          "verification": {
+            "command": "grep 'refetchOnWindowFocus' src/lib/queryClient.ts",
+            "retries": 2,
+            "retryDelayMs": 1000
+          },
+          "parallel": false,
+          "startedAt": "2026-06-15T19:49:40.678Z",
+          "completedAt": "2026-06-15T19:51:51.557Z",
+          "result": {
+            "success": true,
+            "exitCode": 0,
+            "stdout": "",
+            "stderr": "",
+            "completedAt": "2026-06-15T19:51:51.557Z"
+          }
+        },
+        {
+          "id": "step-3",
+          "index": 3,
+          "description": "Add `refetchIntervalInBackground: true` to useMatches, useLiveMatches, and useMatch",
+          "status": "verified",
+          "verification": {
+            "command": "grep 'refetchIntervalInBackground' src/hooks/useMatches.ts",
+            "retries": 2,
+            "retryDelayMs": 1000
+          },
+          "parallel": false,
+          "startedAt": "2026-06-15T19:52:30.635Z",
+          "completedAt": "2026-06-15T19:55:01.130Z",
+          "result": {
+            "success": true,
+            "exitCode": 0,
+            "stdout": "",
+            "stderr": "",
+            "completedAt": "2026-06-15T19:55:01.130Z"
+          }
+        }
+      ],
+      "startedAt": "2026-06-15T19:45:48.981Z",
+      "completedAt": "2026-06-15T19:55:52.278Z",
+      "summary": "Phase 1 complete. Fixed React Query caching and polling: (1) reduced `useMatches` staleTime from 5min to 30s so updates aren't suppressed; (2) enabled `refetchOnWindowFocus` globally so returning to the tab refreshes stale data; (3) added `refetchIntervalInBackground: true` to `useMatches`, `useLiveMatches`, and `useMatch` so live scores keep polling even when the browser tab is backgrounded. These three changes together ensure the schedule list and match detail page receive fresh data automatically without requiring a manual page refresh.",
+      "grade": {
+        "grade": "A",
+        "rationale": "All gates pass; project checks validate.",
+        "gradedAt": "2026-06-15T19:55:52.275Z"
+      }
+    },
+    {
+      "id": "phase-2",
+      "index": 2,
+      "name": "Sync function robustness",
+      "goal": "Make the sync-matches edge function correctly create/update 2026 matches even when team names differ between API and DB.",
+      "description": "The edge function skips new matches and fails to match teams when API names differ from DB names (e.g., 'Cape Verde' vs 'Cabo Verde'). I already partially fixed the skip-new-match issue. This phase adds a robust team-name alias map, ensures the ESPN fallback can find upcoming→live transitions, and makes sure match-inserter provides all required DB fields.",
+      "parallel": false,
+      "status": "active",
+      "steps": [
+        {
+          "id": "step-1",
+          "index": 1,
+          "description": "Add a TEAM_NAME_ALIASES map in the sync function so common API names (Cape Verde, Iran, South Korea, Turkey, Czech Republic) map to DB names (Cabo Verde, IR Iran, Korea Republic, Türkiye, Czechia)",
+          "status": "pending",
+          "verification": {
+            "command": "grep -c 'TEAM_NAME_ALIASES' supabase/functions/sync-matches/index.ts",
+            "retries": 2,
+            "retryDelayMs": 1000
+          },
+          "parallel": false,
+          "startedAt": "2026-06-15T19:57:55.347Z"
+        },
+        {
+          "id": "step-2",
+          "index": 2,
+          "description": "Verify the create/upsert path in syncFromFootballData handles all required DB columns and does not fail on constraints",
+          "status": "pending",
+          "verification": {
+            "command": "npx tsc --noEmit supabase/functions/sync-matches/index.ts 2>&1 | grep -i error | wc -l",
+            "retries": 2,
+            "retryDelayMs": 1000
+          },
+          "parallel": false
+        },
+        {
+          "id": "step-3",
+          "index": 3,
+          "description": "Change the ESPN sync DB query from `.in('status', ['live','finished'])` to `.not('id', 'like', 'of-2022%')` so it also finds matches transitioning from upcoming→live",
+          "status": "pending",
+          "verification": {
+            "command": "grep \"not('id', 'like'\" supabase/functions/sync-matches/index.ts",
+            "retries": 2,
+            "retryDelayMs": 1000
+          },
+          "parallel": false
+        }
+      ],
+      "startedAt": "2026-06-15T19:56:27.689Z"
+    },
+    {
+      "id": "phase-3",
+      "index": 3,
+      "name": "Realtime reliability",
+      "goal": "Ensure Supabase realtime subscriptions stay connected and also listen on match_stats/match_events tables.",
+      "description": "The current realtime subscription on `matches:all` has no reconnect logic. If the WebSocket drops, stale data persists forever. This phase adds retry/reconnect handling in main.tsx and optionally subscribes to match_stats changes so stats/graphs update too.",
+      "parallel": false,
+      "status": "planned",
+      "steps": [
+        {
+          "id": "step-1",
+          "index": 1,
+          "description": "Add subscription status monitoring with auto-reconnect in src/main.tsx",
+          "status": "pending",
+          "verification": {
+            "command": "grep 'SUBSCRIBED' src/main.tsx",
+            "retries": 2,
+            "retryDelayMs": 1000
+          },
+          "parallel": false
+        },
+        {
+          "id": "step-2",
+          "index": 2,
+          "description": "Add match_stats realtime subscription that invalidates match_stats cache on changes",
+          "status": "pending",
+          "verification": {
+            "command": "grep 'match_stats' src/main.tsx",
+            "retries": 2,
+            "retryDelayMs": 1000
+          },
+          "parallel": false
+        }
+      ]
+    },
+    {
+      "id": "phase-4",
+      "index": 4,
+      "name": "End-to-end verification",
+      "goal": "Confirm a live match updates its score and minute automatically on the schedule page and match detail page.",
+      "description": "Use the deployed sync function (or manual curl trigger) to verify match data flows from API → DB → frontend. Check the DB for correct team IDs on recent 2026 matches.",
+      "parallel": false,
+      "status": "planned",
+      "steps": [
+        {
+          "id": "step-1",
+          "index": 1,
+          "description": "Manually trigger the sync edge function via curl and inspect response",
+          "status": "pending",
+          "verification": {
+            "command": "curl -s <supabase-function-url> | jq '.synced'",
+            "retries": 2,
+            "retryDelayMs": 1000
+          },
+          "parallel": false
+        },
+        {
+          "id": "step-2",
+          "index": 2,
+          "description": "Open localhost:5173/matches, switch to the schedule tab, and verify a live (or recently finished) 2026 match shows current score/minute",
+          "status": "pending",
+          "verification": {
+            "command": "npx playwright test playwright-matches-test.ts --grep 'live'",
+            "retries": 2,
+            "retryDelayMs": 1000
+          },
+          "parallel": false
+        }
+      ]
+    }
+  ],
+  "decisions": [],
+  "memories": [],
+  "createdAt": "2026-06-15T19:26:52.608Z",
+  "updatedAt": "2026-06-15T19:58:32.108Z",
+  "goal": "Identify and fix the root causes preventing live 2026 World Cup matches (Egypt, Belgium, Spain) from showing updated scores, status, and minute on the /matches schedule page and match detail page.",
+  "successCriteria": [
+    "Spain vs Cape Verde (or today's Spain game) appears in the Results tab of /matches/schedule with finished status and correct score.",
+    "Live matches (Egypt, Belgium) show updated scores + minute in the /matches/schedule list without requiring a manual page refresh.",
+    "The match-detail page (/matches/:matchId) auto-refreshes live scores while the game is ongoing (no stale score card).",
+    "Year toggle (2022/2026) persists when switching between Schedule/Groups/Bracket tabs on /matches."
+  ],
+  "constraints": [
+    "The fix must work with the existing Supabase + TanStack Query stack.",
+    "Any sync-function changes must be deployable via `supabase functions deploy sync-matches`.",
+    "Do not change the DB schema (teams, matches tables are already created in Supabase).",
+    "Changes should not make excessive API calls (respect football-data.org rate limits)."
+  ],
+  "lastActiveAt": "2026-06-15T19:56:27.689Z",
+  "activePhaseId": "phase-2"
+}
