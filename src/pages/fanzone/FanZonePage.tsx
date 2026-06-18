@@ -7,32 +7,30 @@ import { FAB } from '@/components/layout/FAB'
 import { PostCard } from '@/components/fanzone/PostCard'
 import { PostComposer } from '@/components/fanzone/PostComposer'
 import { FeedFilter } from '@/components/fanzone/FeedFilter'
-import { TribesSidebar } from '@/components/fanzone/TribesSidebar'
+import { TrendingHashtags } from '@/components/fanzone/TrendingHashtags'
+import { DiscoverWidget } from '@/components/fanzone/DiscoverWidget'
 import { usePosts, useCreatePost, useToggleLike, type FeedFilterType } from '@/hooks/usePosts'
 import { useAuthStore } from '@/store/authStore'
 import { getEffectiveUser } from '@/lib/guestUser'
-import type { Post } from '@/types'
-
-function applyFilter(posts: Post[], filter: FeedFilterType): Post[] {
-  if (filter === 'Trending') return [...posts].sort((a, b) => b.likes - a.likes)
-  // "All" and "Following" are already filtered server-side via fetchPosts params
-  return posts
-}
 
 export function FanZonePage() {
   const { t } = useTranslation()
   const { user } = useAuthStore()
   const effective = getEffectiveUser(user)
   const [filter, setFilter] = useState<FeedFilterType>('All')
+  const [searchQuery, setSearchQuery] = useState('')
   const [showComposer, setShowComposer] = useState(false)
 
-  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = usePosts({ filter })
+  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = usePosts({
+    filter,
+    search: searchQuery || undefined,
+  })
   const { mutate: createPost } = useCreatePost()
   const { mutate: toggleLike } = useToggleLike()
 
-  // Flatten pages into a single post list
+  // Flatten pages into a single post list (already sorted by created_at DESC server-side)
   const posts = data?.pages.flatMap((p) => p.posts) ?? []
-  const displayed = applyFilter(posts, filter)
+  const displayed = posts
 
   const handleLike = (postId: string) => {
     if (!effective) return
@@ -82,6 +80,20 @@ export function FanZonePage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 items-start">
         <div className="flex flex-col gap-4">
+          {/* Search bar */}
+          <div className="relative">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-white/20 text-lg">
+              search
+            </span>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search posts..."
+              className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl font-lexend text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-primary-container/60 transition-colors"
+            />
+          </div>
+
           <div className="flex items-center justify-between">
             <FeedFilter active={filter} onChange={setFilter} />
             <span className="text-[10px] font-lexend text-white/25 uppercase tracking-widest">
@@ -126,14 +138,15 @@ export function FanZonePage() {
         </div>
 
         <aside className="hidden lg:flex flex-col gap-4 sticky top-[68px]">
-          <TribesSidebar />
+          <TrendingHashtags />
+          <DiscoverWidget />
         </aside>
 
         {/* Mobile: sidebars stacked below feed */}
         <div className="lg:hidden mt-2 flex flex-col gap-4">
-          <TribesSidebar />
+          <TrendingHashtags />
+          <DiscoverWidget />
         </div>
-          {/* placeholders to avoid double render — handled above */}
       </div>
 
       <FAB icon="edit" onClick={() => setShowComposer(true)} label="Create post" />

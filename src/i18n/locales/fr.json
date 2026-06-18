@@ -106,8 +106,8 @@
     "wrongPrediction": "Incorrect",
     "leaderboard": "Classement",
     "all": "Tous",
-    "trending": "Tendances",
     "following": "Suivis",
+    "liked": "Aimés",
     "post": "Publier"
   },
   "games": {

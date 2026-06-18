@@ -1,11 +1,11 @@
 // src/components/fanzone/FeedFilter.tsx
 // ─────────────────────────────────────────────────────────────────────────────
-// Pill-style filter tabs: All | Trending | Following
+// Pill-style filter tabs: All | Following | Liked
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useTranslation } from 'react-i18next'
 
-type FilterOption = 'All' | 'Trending' | 'Following'
+type FilterOption = 'All' | 'Following' | 'Liked'
 
 interface FeedFilterProps {
   active: FilterOption
@@ -14,13 +14,13 @@ interface FeedFilterProps {
 
 const OPTION_KEYS: Record<FilterOption, string> = {
   All: 'fanZone.all',
-  Trending: 'fanZone.trending',
   Following: 'fanZone.following',
+  Liked: 'fanZone.liked',
 }
 
 export function FeedFilter({ active, onChange }: FeedFilterProps) {
   const { t } = useTranslation()
-  const options: FilterOption[] = ['All', 'Trending', 'Following']
+  const options: FilterOption[] = ['All', 'Following', 'Liked']
   return (
     <div className="flex gap-0.5 bg-white/[0.03] rounded-[20px] p-[3px] border border-white/10">
       {options.map((f) => (

@@ -1,6 +1,8 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   fetchPosts,
+  searchPosts,
+  fetchLikedPosts,
   fetchFriendIds,
   createPost,
   togglePostLike,
@@ -14,26 +16,44 @@ import type { Post } from '@/types'
 
 // ─── Posts with infinite scroll ─────────────────────────────────────────────
 
-export type FeedFilterType = 'All' | 'Trending' | 'Following'
+export type FeedFilterType = 'All' | 'Following' | 'Liked'
 
 interface UsePostsOptions {
   matchId?: string
   filter?: FeedFilterType
+  search?: string
 }
 
-export function usePosts({ matchId, filter = 'All' }: UsePostsOptions = {}) {
+export function usePosts({ matchId, filter = 'All', search }: UsePostsOptions = {}) {
   const { user } = useAuthStore()
   const effective = getEffectiveUser(user)
 
   return useInfiniteQuery({
-    queryKey: ['posts', filter, matchId ?? 'all', effective?.id],
+    queryKey: ['posts', filter, matchId ?? 'all', effective?.id, search ?? 'nosearch'],
     queryFn: async ({ pageParam }) => {
-      let friendIds: string[] | undefined
+      // Liked filter: fetch posts the user has liked
+      if (filter === 'Liked' && effective?.id) {
+        return fetchLikedPosts({ userId: effective.id, cursor: pageParam, limit: 10 })
+      }
 
+      // Only compute friendIds for non-Liked filters (All and Following)
+      let friendIds: string[] | undefined
       if (filter === 'Following' && effective?.id) {
         // Include self + friends for Following tab
         const friendList = await fetchFriendIds(effective.id)
         friendIds = [effective.id, ...friendList]
+      }
+
+      // If search is provided, use searchPosts
+      if (search && search.trim()) {
+        return searchPosts({
+          matchId,
+          userId: effective?.id,
+          friendIds,
+          search: search.trim(),
+          cursor: pageParam ?? null,
+          limit: 10,
+        })
       }
 
       return fetchPosts({

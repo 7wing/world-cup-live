@@ -39,11 +39,7 @@
     "min": "min",
     "goals": "Goals",
     "assists": "Assists",
-    "points": "Points",
-    "password": "Password",
-    "messages": "Messages",
-    "open": "Open",
-    "fanId": "Fan ID"
+    "points": "Points"
   },
   "matches": {
     "title": "Matches",
@@ -62,8 +58,6 @@
     "h2h": "H2H",
     "liveChat": "Live Chat",
     "predict": "Predict",
-    "overview": "Overview",
-    "h2h": "H2H",
     "timeline": "Timeline",
     "heatmap": "Heatmap",
     "possession": "Possession",
@@ -106,17 +100,14 @@
     "socialFeed": "Social feed",
     "games": "Games",
     "all": "All",
-    "trending": "Trending",
     "following": "Following",
+    "liked": "Liked",
     "yourPick": "Your pick",
     "submitPrediction": "Submit prediction",
     "predictionLocked": "Prediction locked in",
     "correctPrediction": "Correct!",
     "wrongPrediction": "Wrong",
     "leaderboard": "Leaderboard",
-    "all": "All",
-    "trending": "Trending",
-    "following": "Following",
     "post": "Post"
   },
   "fantasy": {

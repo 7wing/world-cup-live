@@ -79,6 +79,105 @@ export async function fetchPosts(params: {
   return { posts, nextCursor }
 }
 
+export async function searchPosts(params: {
+  matchId?: string
+  userId?: string
+  friendIds?: string[]
+  search: string
+  cursor?: string | null
+  limit?: number
+}): Promise<{ posts: Post[]; nextCursor: string | null }> {
+  const { matchId, userId, friendIds, search, cursor, limit = 10 } = params
+
+  let query = supabase
+    .from('posts')
+    .select('*, user:users!posts_user_id_fkey(id, username, avatar_url)')
+    .order('created_at', { ascending: false })
+    .limit(limit + 1)
+
+  if (matchId) query = query.eq('match_id', matchId)
+
+  if (friendIds && friendIds.length > 0) {
+    query = query.in('user_id', friendIds)
+  }
+
+  // Text search on post content and username
+  const trimmed = search.trim()
+  if (trimmed) {
+    query = query.or(
+      `content.ilike.%${trimmed}%,user.username.ilike.%${trimmed}%`,
+    )
+  }
+
+  if (cursor) {
+    query = query.lt('created_at', cursor)
+  }
+
+  const { data, error } = await query
+  if (error) throw error
+
+  const raw = (data ?? []) as Post[]
+  const hasNext = raw.length > limit
+  const posts = hasNext ? raw.slice(0, limit) : raw
+  const nextCursor = hasNext && posts.length > 0 ? posts[posts.length - 1].created_at : null
+
+  if (userId && posts.length > 0) {
+    const postIds = posts.map(p => p.id)
+    const { data: likes } = await supabase
+      .from('post_likes')
+      .select('post_id')
+      .eq('user_id', userId)
+      .in('post_id', postIds)
+
+    const likedSet = new Set((likes ?? []).map((l: { post_id: string }) => l.post_id))
+    return {
+      posts: posts.map(p => ({ ...p, liked: likedSet.has(p.id) })),
+      nextCursor,
+    }
+  }
+
+  return { posts, nextCursor }
+}
+
+export async function fetchLikedPosts(params: {
+  userId: string
+  cursor?: string | null
+  limit?: number
+}): Promise<{ posts: Post[]; nextCursor: string | null }> {
+  const { userId, cursor, limit = 10 } = params
+
+  let query = supabase
+    .from('post_likes')
+    .select('post_id, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(limit + 1)
+
+  if (cursor) query = query.lt('created_at', cursor)
+
+  const { data: likes, error } = await query
+  if (error) throw error
+
+  const rows = likes ?? []
+  const hasNext = rows.length > limit
+  const sliced = hasNext ? rows.slice(0, limit) : rows
+  if (sliced.length === 0) return { posts: [], nextCursor: null }
+
+  const postIds = sliced.map(l => l.post_id)
+  const { data: postsData, error: postsError } = await supabase
+    .from('posts')
+    .select('*, user:users!posts_user_id_fkey(id, username, avatar_url)')
+    .in('id', postIds)
+
+  if (postsError) throw postsError
+
+  const postMap = new Map((postsData ?? []).map(p => [p.id, { ...p, liked: true }]))
+  const posts = sliced.map(l => postMap.get(l.post_id)).filter(Boolean) as Post[]
+  const nextCursor = hasNext && sliced.length > 0 ? sliced[sliced.length - 1].created_at : null
+
+  return { posts, nextCursor }
+}
+
 export async function createPost(
   post: Pick<Post, 'user_id' | 'content' | 'media_url' | 'media_type' | 'match_id'>,
 ): Promise<void> {
