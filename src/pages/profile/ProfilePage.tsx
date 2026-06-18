@@ -18,6 +18,7 @@ import {
   useSendFriendRequest,
 } from '@/hooks/useProfile'
 import { useAuthStore } from '@/store/authStore'
+import { useSettingsStore } from '@/store/settingsStore'
 import { cn } from '@/utils/cn'
 import type { Prediction } from '@/types'
 
@@ -216,6 +217,7 @@ export function ProfilePage() {
   const isOwn = currentUser?.id === userId
   const [activeTab, setActiveTab] = useState<Tab>('overview')
   const [editOpen, setEditOpen]   = useState(false)
+  const setSettingsOpen = useSettingsStore((s) => s.setOpen)
 
   if (authLoading || profileLoading)
     return (
@@ -263,7 +265,7 @@ export function ProfilePage() {
       <div
         className={cn(
           'glass-card rounded-xl p-6 flex flex-col md:flex-row gap-6 items-center relative overflow-hidden mb-6',
-          'before:absolute before:inset-0 before:bg-gradient-to-br before:opacity-10',
+          'before:absolute before:inset-0 before:bg-gradient-to-br before:opacity-10 before:pointer-events-none',
           TIER_COLORS[profile.tier]
         )}
       >
@@ -284,14 +286,24 @@ export function ProfilePage() {
               {profile.username.toUpperCase()}
             </h1>
             {isOwn && (
-              <button
-                type="button"
-                onClick={() => setEditOpen(true)}
-                className="flex items-center justify-center w-9 h-9 rounded-xl border border-white/10 text-white/40 hover:text-primary-container hover:border-primary-container/40 hover:bg-primary-container/10 transition-colors shrink-0"
-                aria-label="Edit profile"
-              >
-                <span className="material-symbols-outlined text-lg">edit</span>
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => setEditOpen(true)}
+                  className="flex items-center justify-center w-9 h-9 rounded-xl border border-white/10 text-white/40 hover:text-primary-container hover:border-primary-container/40 hover:bg-primary-container/10 transition-colors shrink-0"
+                  aria-label="Edit profile"
+                >
+                  <span className="material-symbols-outlined text-lg">edit</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSettingsOpen(true)}
+                  className="flex items-center justify-center w-9 h-9 rounded-xl border border-white/10 text-white/40 hover:text-white/80 hover:bg-white/5 transition-colors shrink-0"
+                  aria-label="Settings"
+                >
+                  <span className="material-symbols-outlined text-lg">settings</span>
+                </button>
+              </>
             )}
           </div>
 

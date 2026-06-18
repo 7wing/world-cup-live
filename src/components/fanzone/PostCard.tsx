@@ -4,6 +4,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { useQuery } from '@tanstack/react-query'
 import { Avatar } from '@/components/ui/Avatar'
 import { fetchPostComments } from '@/api/fanzone'
+import { LikesModal } from './LikesModal'
 import { useAuthStore } from '@/store/authStore'
 import { useCreateComment } from '@/hooks/usePosts'
 import type { Post } from '@/types'
@@ -180,6 +181,7 @@ export function PostCard({ post, onLike }: PostCardProps) {
   const username = post.user?.username ?? 'Fan'
   const avatarUrl = post.user?.avatar_url ?? null
   const [showComments, setShowComments] = useState(false)
+  const [showLikes, setShowLikes] = useState(false)
   const [copied, setCopied] = useState(false)
 
   const { displayText, isTranslated, onTranslated, onReset } = useTranslate(post.content ?? '')
@@ -234,14 +236,24 @@ export function PostCard({ post, onLike }: PostCardProps) {
 
         {/* Footer */}
         <div className="px-4 py-2.5 border-t border-white/5 flex gap-5 items-center">
-          <button
-            onClick={() => onLike(post.id)}
-            className={`flex items-center gap-1.5 text-xs font-lexend font-semibold transition-colors ${
-              post.liked ? 'text-primary-container' : 'text-white/30 hover:text-white/50'
-            }`}
-          >
-            {post.liked ? '❤️' : '🤍'} {nfmt(post.likes)}
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => onLike(post.id)}
+              className={`text-xs font-lexend font-semibold transition-colors ${
+                post.liked ? 'text-primary-container' : 'text-white/30 hover:text-white/50'
+              }`}
+            >
+              {post.liked ? '❤️' : '🤍'}
+            </button>
+            <button
+              onClick={() => setShowLikes(true)}
+              className={`text-xs font-lexend font-semibold transition-colors ${
+                post.liked ? 'text-primary-container hover:text-green-300' : 'text-white/30 hover:text-white/50'
+              }`}
+            >
+              {nfmt(post.likes)}
+            </button>
+          </div>
 
           <button
             onClick={() => setShowComments(true)}
@@ -261,6 +273,7 @@ export function PostCard({ post, onLike }: PostCardProps) {
       </div>
 
       {showComments && <CommentsModal post={post} onClose={() => setShowComments(false)} />}
+      {showLikes && <LikesModal post={post} onClose={() => setShowLikes(false)} />}
     </>
   )
 }

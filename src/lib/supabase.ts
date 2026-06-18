@@ -3,7 +3,15 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    storage: localStorage,
+    storageKey: 'world-cup-live-auth-token',
+  },
+})
 
 export type Database = {
   public: {
@@ -447,6 +455,32 @@ export type Database = {
         }
         Insert: Omit<Database['public']['Tables']['party_messages']['Row'], 'id' | 'created_at'>
         Update: Partial<Database['public']['Tables']['party_messages']['Insert']>
+      }
+      events: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          type: 'virtual' | 'physical'
+          location: string | null
+          link: string | null
+          match_id: string | null
+          created_by: string
+          max_attendees: number
+          starts_at: string
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['events']['Row'], 'id' | 'created_at'>
+        Update: Partial<Database['public']['Tables']['events']['Insert']>
+      }
+      event_attendees: {
+        Row: {
+          event_id: string
+          user_id: string
+          joined_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['event_attendees']['Row'], 'joined_at'>
+        Update: Partial<Database['public']['Tables']['event_attendees']['Insert']>
       }
     }
   }

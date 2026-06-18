@@ -7,14 +7,11 @@ import { FAB } from '@/components/layout/FAB'
 import { PostCard } from '@/components/fanzone/PostCard'
 import { PostComposer } from '@/components/fanzone/PostComposer'
 import { FeedFilter } from '@/components/fanzone/FeedFilter'
-import { WatchPartiesSidebar } from '@/components/fanzone/WatchPartiesSidebar'
 import { TribesSidebar } from '@/components/fanzone/TribesSidebar'
 import { usePosts, useCreatePost, useToggleLike, type FeedFilterType } from '@/hooks/usePosts'
 import { useAuthStore } from '@/store/authStore'
 import { getEffectiveUser } from '@/lib/guestUser'
 import type { Post } from '@/types'
-
-const HASHTAGS = ['#GoldenBoot26', '#WC2026', '#JogaBonito', '#FinalSamba', '#VAROut', '#BRAGED']
 
 function applyFilter(posts: Post[], filter: FeedFilterType): Post[] {
   if (filter === 'Trending') return [...posts].sort((a, b) => b.likes - a.likes)
@@ -40,8 +37,9 @@ export function FanZonePage() {
   const handleLike = (postId: string) => {
     if (!effective) return
     const post = posts.find((p) => p.id === postId)
-    const liked = !(post?.liked ?? false)
-    toggleLike({ postId, userId: effective.id, liked })
+    // Pass CURRENT liked state — togglePostLike() and the mutation's optimistic
+    // update will handle the flip correctly.
+    toggleLike({ postId, userId: effective.id, liked: post?.liked ?? false })
   }
 
   // Signature now matches PostComposer: (content, mediaUrl?, mediaType?, cleanup?)
@@ -84,17 +82,6 @@ export function FanZonePage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 items-start">
         <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap gap-2">
-            {HASHTAGS.map((tag) => (
-              <span
-                key={tag}
-                className="px-3.5 py-1.5 rounded-full text-[11px] font-lexend font-black text-primary-container border border-outline-variant bg-primary-container/10 cursor-pointer hover:bg-primary-container/20 transition-colors"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-
           <div className="flex items-center justify-between">
             <FeedFilter active={filter} onChange={setFilter} />
             <span className="text-[10px] font-lexend text-white/25 uppercase tracking-widest">
@@ -139,13 +126,11 @@ export function FanZonePage() {
         </div>
 
         <aside className="hidden lg:flex flex-col gap-4 sticky top-[68px]">
-          <WatchPartiesSidebar />
           <TribesSidebar />
         </aside>
 
         {/* Mobile: sidebars stacked below feed */}
         <div className="lg:hidden mt-2 flex flex-col gap-4">
-          <WatchPartiesSidebar />
           <TribesSidebar />
         </div>
           {/* placeholders to avoid double render — handled above */}
@@ -162,7 +147,7 @@ export function FanZonePage() {
             onClick={(e) => e.stopPropagation()}
             className="w-full max-w-[560px] animate-[fadeUp_0.2s_ease_forwards]"
           >
-            <PostComposer onPost={handlePost} hashtags={HASHTAGS} autoFocus />
+            <PostComposer onPost={handlePost} autoFocus />
           </div>
         </div>
       )}

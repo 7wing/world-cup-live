@@ -37,7 +37,7 @@ export async function fetchPosts(params: {
 
   let query = supabase
     .from('posts')
-    .select('*, user:users(id, username, avatar_url)')
+    .select('*, user:users!posts_user_id_fkey(id, username, avatar_url)')
     .order('created_at', { ascending: false })
     .limit(limit + 1)
 
@@ -92,7 +92,7 @@ export async function togglePostLike(
   liked: boolean,
 ): Promise<boolean> {
   if (liked) {
-    // Already liked — unlike: delete the post_likes row, DB trigger decrements posts.likes
+    // Already liked — unlike: delete the post_likes row (DB trigger decrements posts.likes)
     const { error } = await supabase
       .from('post_likes')
       .delete()
@@ -100,7 +100,7 @@ export async function togglePostLike(
     if (error) throw error
     return false
   } else {
-    // Not liked yet — like: insert post_likes row, DB trigger increments posts.likes
+    // Not liked yet — like: insert post_likes row (DB trigger increments posts.likes)
     const { error } = await supabase
       .from('post_likes')
       .insert({ post_id: postId, user_id: userId })
@@ -139,7 +139,6 @@ export async function createPostComment(
   userId: string,
   content: string,
 ): Promise<PostComment> {
-  // Insert comment; DB trigger will increment posts.comment_count
   const { data, error } = await supabase
     .from('post_comments')
     .insert({ post_id: postId, user_id: userId, content })
@@ -148,6 +147,19 @@ export async function createPostComment(
 
   if (error) throw error
   return data as PostComment
+}
+
+// ── Post Likers ─────────────────────────────────────────────────────────────
+
+export async function fetchPostLikers(postId: string): Promise<User[]> {
+  const { data, error } = await supabase
+    .from('post_likes')
+    .select('*, user:users(id, username, avatar_url, tier, xp, global_rank, tribe_id)')
+    .eq('post_id', postId)
+    .limit(100)
+
+  if (error) throw error
+  return (data ?? []).map((row: { user: User }) => row.user).filter(Boolean) as User[]
 }
 
 // --------------------------------------------------------------------------

@@ -303,3 +303,33 @@ export interface TribeMemberUser {
   role: string | null
   joined_at: string
 }
+
+// ── events ────────────────────────────────────────────────────────────────────
+export interface Event {
+  id: string
+  name: string
+  description: string | null
+  type: 'virtual' | 'physical'
+  location: string | null
+  link: string | null
+  match_id: string | null
+  created_by: string
+  max_attendees: number
+  starts_at: string
+  created_at: string
+  match?: {
+    home_team: { name: string; flag_url: string | null }
+    away_team: { name: string; flag_url: string | null }
+    kickoff_at: string
+  } | null
+  host?: { username: string; avatar_url: string | null } | null
+  attendee_count?: number
+  is_joined?: boolean
+}
+
+export interface EventAttendee {
+  event_id: string
+  user_id: string
+  joined_at: string
+  user?: { username: string; avatar_url: string | null }
+}

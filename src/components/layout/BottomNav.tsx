@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next'
 const TABS = [
   { to: '/matches',  icon: 'sports_soccer',  key: 'nav.matches' as const,  exact: false },
   { to: '/fan-zone', icon: 'groups',          key: 'nav.fanZone' as const,  exact: true  },
+  { to: '/events',   icon: 'event',            key: 'nav.events' as const,    exact: true  },
   { to: '/games',    icon: 'sports_esports',  key: 'nav.games' as const,    exact: false },
   { to: '/stadiums', icon: 'stadium',         key: 'nav.stadiums' as const, exact: false },
 ] as const

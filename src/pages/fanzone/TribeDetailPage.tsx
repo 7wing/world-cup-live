@@ -76,7 +76,7 @@ export function TribeDetailPage() {
       <GlassCard
         className={cn(
           'p-8 mb-8 relative overflow-hidden',
-          'before:absolute before:inset-0 before:bg-gradient-to-br before:opacity-10',
+          'before:absolute before:inset-0 before:bg-gradient-to-br before:opacity-10 before:pointer-events-none',
           'from-primary-container/20 to-transparent'
         )}
       >

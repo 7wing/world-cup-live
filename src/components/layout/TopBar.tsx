@@ -1,9 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/store/authStore'
-import { useSettingsStore } from '@/store/settingsStore'
 import { Avatar } from '@/components/ui/Avatar'
-import { LanguageToggle } from '@/components/ui/LanguageToggle'
 import { fetchStadiums } from '@/api/stadiums'
 import { fetchTribes } from '@/api/fanzone'
 import { cn } from '@/utils/cn'
@@ -13,7 +11,8 @@ import { useTranslation } from 'react-i18next'
 const NAV_LINKS = [
   { to: '/matches',   key: 'nav.matches' as const,  exact: false },
   { to: '/fan-zone',  key: 'nav.fanZone' as const,  exact: true  },
-  { to: '/games',     key: 'nav.games'  as const,  exact: false },
+  { to: '/events',    key: 'nav.events' as const,    exact: true  },
+  { to: '/games',     key: 'nav.games'  as const,    exact: false },
   { to: '/stadiums',  key: 'nav.stadiums' as const, exact: false },
 ]
 
@@ -22,7 +21,6 @@ export const TopBar = React.memo(function TopBar() {
   const { pathname } = useLocation()
   const qc = useQueryClient()
   const { user } = useAuthStore()
-  const setSettingsOpen = useSettingsStore((s) => s.setOpen)
   const [scrolled, setScrolled] = useState(false)
   useEffect(() => {
     let ticking = false
@@ -149,19 +147,6 @@ export const TopBar = React.memo(function TopBar() {
           >
             <span className="material-symbols-outlined text-[18px]">chat</span>
           </Link>
-
-          {/* Language */}
-          <LanguageToggle />
-
-          {/* Settings */}
-          <button
-            type="button"
-            onClick={() => setSettingsOpen(true)}
-            className="flex items-center justify-center w-8 h-8 rounded-xl text-white/40 hover:text-white/80 hover:bg-white/5 transition-colors"
-            aria-label={t('nav.settings')}
-          >
-            <span className="material-symbols-outlined text-[18px]">settings</span>
-          </button>
 
           {/* Profile */}
           <Link

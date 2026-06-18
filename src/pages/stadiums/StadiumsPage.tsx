@@ -138,12 +138,12 @@ export function StadiumsPage() {
 
       {!isError && !isLoading && filtered.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-          {filtered.map((stadium, i) => (
+          {filtered.map((stadium) => (
             <StadiumCard
               key={stadium.id}
               stadium={stadium}
               onSelect={handleSelect}
-              priority={i < 3}
+
             />
           ))}
         </div>

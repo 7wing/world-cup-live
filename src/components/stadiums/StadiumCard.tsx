@@ -8,7 +8,6 @@ import type { Stadium } from '@/types'
 interface StadiumCardProps {
   stadium: Stadium
   onSelect: (slug: string) => void
-  priority?: boolean
 }
 
 function ImagePlaceholder() {
@@ -22,7 +21,6 @@ function ImagePlaceholder() {
 export const StadiumCard = memo(function StadiumCard({
   stadium,
   onSelect,
-  priority = false,
 }: StadiumCardProps) {
   // `stadium.hero_image_url` is the locally-bundled asset (already optimised by Vite).
   // We keep a fallback attempt via getOptimizedImageUrl in case the local import
@@ -60,7 +58,7 @@ export const StadiumCard = memo(function StadiumCard({
             alt={stadium.name}
             width={512}
             height={176}
-            loading={priority ? 'eager' : 'lazy'}
+            loading="eager"
             decoding="async"
             onError={handleError}
             className="w-full h-full object-cover"

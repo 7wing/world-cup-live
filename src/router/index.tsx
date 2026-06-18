@@ -37,6 +37,8 @@ const DiscoverPage        = React.lazy(() => import('@/pages/profile/DiscoverPag
 const MessagesPage        = React.lazy(() => import('@/pages/profile/MessagesPage').then(m => ({ default: m.MessagesPage })))
 // eslint-disable-next-line react-refresh/only-export-components
 const TribeDetailPage     = React.lazy(() => import('@/pages/fanzone/TribeDetailPage').then(m => ({ default: m.TribeDetailPage })))
+// eslint-disable-next-line react-refresh/only-export-components
+const EventsPage          = React.lazy(() => import('@/pages/events/EventsPage').then(m => ({ default: m.EventsPage })))
 
 export const router = createBrowserRouter([
   {
@@ -55,6 +57,7 @@ export const router = createBrowserRouter([
       { path: 'fan-zone', element: <FanZonePage /> },
       { path: 'fan-zone/watch-party/:partyId', element: <WatchPartyPage /> },
       { path: 'fan-zone/tribes', element: <TribesPage /> },
+      { path: 'events', element: <EventsPage /> },
       { path: 'games', element: <GamesPage /> },          
       { path: 'stadiums', element: <StadiumsPage /> },
       { path: 'stadiums/:stadiumId', element: <StadiumDetailPage /> },

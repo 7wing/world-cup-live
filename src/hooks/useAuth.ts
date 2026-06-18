@@ -30,8 +30,14 @@ export function useAuth() {
     }
 
     // Restore existing session on mount (page refresh)
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.error('[useAuth] getSession error:', error.message)
+      }
       handleSession(session)
+    }).catch((err) => {
+      console.error('[useAuth] getSession failed:', err)
+      if (!cancelled) setLoading(false)
     })
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {

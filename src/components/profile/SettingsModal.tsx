@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { GlassCard } from '@/components/ui/GlassCard'
+import { LanguageToggle } from '@/components/ui/LanguageToggle'
 import { useAuthStore } from '@/store/authStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import {
@@ -101,6 +102,14 @@ export function SettingsModal() {
                 </div>
               ))}
             </div>
+          </section>
+
+          <section>
+            <h3 className="font-lexend font-bold text-[10px] uppercase tracking-widest text-white/30 mb-3 flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary-container text-base">language</span>
+              Language
+            </h3>
+            <LanguageToggle />
           </section>
 
           <section className="space-y-2">
